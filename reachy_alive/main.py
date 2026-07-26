@@ -42,29 +42,15 @@ class ReachyAlive(ReachyMiniApp):
         # Main control loop
         while not stop_event.is_set():
             t = time.time() - t0
-            head_pose = get_breathing_pose(t)
-
-            if antennas_enabled:
-                amp_deg = 25.0
-                a = amp_deg * np.sin(2.0 * np.pi * 0.5 * t)
-                antennas_deg = np.array([a, -a])
-            else:
-                antennas_deg = np.array([0.0, 0.0])
+            head_pose, antennas_rad = get_breathing_pose(t, antennas_enabled=antennas_enabled)
 
             if sound_play_requested:
                 print("Playing sound...")
                 reachy_mini.media.play_sound("wake_up.wav")
                 sound_play_requested = False
 
-            antennas_rad = np.deg2rad(antennas_deg)
-
-            reachy_mini.set_target(
-                head=head_pose,
-                antennas=antennas_rad,
-            )
-
-            time.sleep(0.02)
-
+            reachy_mini.set_target(head=head_pose, antennas=antennas_rad)
+            time.sleep(0.05) 
 
 if __name__ == "__main__":
     app = ReachyAlive()
