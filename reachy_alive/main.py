@@ -1,18 +1,13 @@
 import threading
 from reachy_mini import ReachyMini, ReachyMiniApp
-from reachy_mini.utils import create_head_pose
-import numpy as np
 import time
 from pydantic import BaseModel
 
-from brainstem.custom_behaviors.breathing import get_breathing_pose
+from reachy_alive.brainstem.idle_manager import IdleManager
+from reachy_alive.shared_state import SharedState
 
 class ReachyAlive(ReachyMiniApp):
-    # Optional: URL to a custom configuration page for the app
-    # eg. "http://localhost:8042"
     custom_app_url: str | None = "http://0.0.0.0:8042"
-    # Optional: specify a media backend ("gstreamer", "gstreamer_no_video", "default", etc.)
-    # On the wireless, use gstreamer_no_video to optimise CPU usage if the app does not use video streaming
     request_media_backend: str | None = None
 
     def run(self, reachy_mini: ReachyMini, stop_event: threading.Event):
@@ -20,9 +15,9 @@ class ReachyAlive(ReachyMiniApp):
 
         antennas_enabled = True
         sound_play_requested = False
+        shared_state = SharedState()
+        idle_manager = IdleManager()
 
-        # You can ignore this part if you don't want to add settings to your app. If you set custom_app_url to None, you have to remove this part as well.
-        # === vvv ===
         class AntennaState(BaseModel):
             enabled: bool
 
@@ -37,20 +32,16 @@ class ReachyAlive(ReachyMiniApp):
             nonlocal sound_play_requested
             sound_play_requested = True
 
-        # === ^^^ ===
-
-        # Main control loop
         while not stop_event.is_set():
             t = time.time() - t0
-            head_pose, antennas_rad = get_breathing_pose(t, antennas_enabled=antennas_enabled)
+            pose = idle_manager.get_pose(t, shared_state, antennas_enabled=antennas_enabled)
 
-            if sound_play_requested:
-                print("Playing sound...")
-                reachy_mini.media.play_sound("wake_up.wav")
-                sound_play_requested = False
+            if pose is not None:
+                head_pose, antennas_rad = pose
+                reachy_mini.set_target(head=head_pose, antennas=antennas_rad)
 
-            reachy_mini.set_target(head=head_pose, antennas=antennas_rad)
-            time.sleep(0.05) 
+            time.sleep(0.05)
+
 
 if __name__ == "__main__":
     app = ReachyAlive()
