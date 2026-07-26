@@ -8,32 +8,38 @@ class SharedState:
     """Central, thread-safe blackboard shared across all cognitive modules.
 
     Cognitive modules (Brainstem, Amygdala, Prefrontal Cortex, etc.) never
-    call each other directly; they only read and write this object. This
-    avoids tight coupling between modules running on independent threads.
+    call each other directly; they only read and write this object.
 
     Attributes:
         lock: Guards all reads/writes to prevent race conditions.
-        last_external_command_at: Unix timestamp of the last external
-            command (an Amygdala reaction or Prefrontal Cortex expression),
-            or None if none has occurred yet.
+        last_activity_at: Unix timestamp of the last notable activity —
+            either IdleManager playing a discrete gesture, or (later) an
+            external reaction from Amygdala/Prefrontal Cortex. None means
+            nothing notable has happened since startup.
+        current_animation_target: Name of a specific move that an external
+            module wants played right now. None means nothing external is
+            pending. Not written anywhere yet — reserved for Amygdala.
     """
 
     def __init__(self) -> None:
         self.lock = threading.Lock()
-        self.last_external_command_at: Optional[float] = None
+        self.last_activity_at: Optional[float] = None
+        # TODO: written by Amygdala once it exists; read by RobotManager.
+        self.current_animation_target: Optional[str] = None
 
-    def is_external_active(self, cooldown_s: float = 2.0) -> bool:
-        """Check whether an external command is still considered active.
+    def mark_activity(self) -> None:
+        """Record that something notable just happened, resetting the idle timer."""
+        with self.lock:
+            self.last_activity_at = time.time()
 
-        Args:
-            cooldown_s: Duration, in seconds, that an external command
-                keeps idle behaviors suppressed after it occurs.
+    def seconds_since_last_activity(self) -> float:
+        """Time elapsed since the last notable activity.
 
         Returns:
-            True if an external command occurred within the cooldown
-            window, False otherwise.
+            Seconds since the last activity, or 0.0 if nothing notable
+            has happened yet (e.g. right after startup).
         """
         with self.lock:
-            if self.last_external_command_at is None:
-                return False
-            return (time.time() - self.last_external_command_at) < cooldown_s
+            if self.last_activity_at is None:
+                return 0.0
+            return time.time() - self.last_activity_at
