@@ -2,8 +2,8 @@ import numpy as np
 from reachy_mini.utils import create_head_pose
 
 
-def get_breathing_pose( t: float, antennas_enabled: bool = True, amplitude_mm: float = 4.0, frequency_hz: float = 0.5,
-    antenna_amplitude_deg: float = 15.0, antenna_frequency_hz: float = 0.5, ):
+def get_breathing_pose( t: float, antennas_enabled: bool = True, amplitude_mm: float = 4.0, frequency_hz: float = 0.25,
+    antenna_amplitude_deg: float = 15.0, antenna_frequency_hz: float = 0.25, ):
     """
     Calculates head + antenna pose for continuous breathing.
 
