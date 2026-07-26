@@ -5,6 +5,7 @@ import numpy as np
 import time
 from pydantic import BaseModel
 
+from brainstem.custom_behaviors.breathing import get_breathing_pose
 
 class ReachyAlive(ReachyMiniApp):
     # Optional: URL to a custom configuration page for the app
@@ -41,9 +42,7 @@ class ReachyAlive(ReachyMiniApp):
         # Main control loop
         while not stop_event.is_set():
             t = time.time() - t0
-
-            yaw_deg = 30.0 * np.sin(2.0 * np.pi * 0.2 * t)
-            head_pose = create_head_pose(yaw=yaw_deg, degrees=True)
+            head_pose = get_breathing_pose(t)
 
             if antennas_enabled:
                 amp_deg = 25.0
