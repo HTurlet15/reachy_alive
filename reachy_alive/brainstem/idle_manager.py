@@ -1,55 +1,74 @@
 # reachy_alive/brainstem/idle_manager.py
 """Idle-behavior arbitration for the Brainstem."""
 
-from typing import Optional, Tuple
+import random
+from typing import List, Optional, Tuple
 
 import numpy as np
+from reachy_mini import ReachyMini
 
-from brainstem.custom_behaviors.breathing import get_breathing_pose
+from reachy_alive.custom_move import CustomMove
+from reachy_alive.library_move import LibraryMove
+from reachy_alive.brainstem.custom_idle_moves.breathing import get_breathing_pose
+from reachy_alive.brainstem.custom_idle_moves.yawning import Yawning
 from reachy_alive.shared_state import SharedState
+
+# Checked via emotions.list_moves() on 2026-07-26. Closest available
+# stand-ins for an idle, slightly-bored robot (no exact match exists).
+_IDLE_LIBRARY_MOVES = ["boredom1", "boredom2", "waiting", "tired1"]
 
 
 class IdleManager:
     """Decides which idle behavior, if any, the Brainstem should run this tick.
 
-    Returns a pose for the default idle behavior (breathing) unless an
-    external command has priority, in which case it returns None so the
-    caller skips sending a command this tick.
+    Two layers:
+    - Breathing (continuous, default): a pose computed every tick.
+    - Discrete gestures (library moves or custom behaviors): triggered
+      once, at random intervals, when the idle timer fires.
 
-    Shared state is passed explicitly to each call rather than stored on
-    the instance, keeping this class decoupled from state ownership and
-    easy to unit test in isolation.
+    The idle timer lives in SharedState (seconds_since_last_activity),
+    not here -- so a future external reaction (Amygdala/Prefrontal) can
+    reset it too, without IdleManager needing to know about them.
+
+    Attributes:
+        gesture_interval_range_s: (min, max) seconds between gestures.
     """
 
-    def __init__(self, external_cooldown_s: float = 2.0) -> None:
-        """
-        Args:
-            external_cooldown_s: How long, in seconds, an external command
-                suppresses idle behaviors after it occurs.
-        """
-        self.external_cooldown_s = external_cooldown_s
+    def __init__(
+        self, gesture_interval_range_s: Tuple[float, float] = (15.0, 40.0)
+    ) -> None:
+        self.gesture_interval_range_s = gesture_interval_range_s
+        self._behaviors: List[CustomMove] = [LibraryMove(name) for name in _IDLE_LIBRARY_MOVES]
+        self._next_interval_s = self._roll_next_interval()
 
     def get_pose(
         self,
         t: float,
         shared_state: SharedState,
+        reachy_mini: ReachyMini,
         antennas_enabled: bool = True,
     ) -> Optional[Tuple[np.ndarray, np.ndarray]]:
-        """Compute the idle pose for the current tick, if any.
+        """Decide and, if needed, execute this tick's idle behavior.
 
         Args:
             t: Elapsed time in seconds since the control loop started.
-            shared_state: Shared state to check for recent external activity.
-            antennas_enabled: Whether antennas should move.
+            shared_state: Shared state to read/reset the idle timer.
+            reachy_mini: Connected robot instance, needed to play gestures.
+            antennas_enabled: Whether antennas should move during breathing.
 
         Returns:
-            (head_pose, antennas_rad) if an idle behavior should run this
-            tick, or None if an external command has priority.
+            (head_pose, antennas_rad) if breathing is this tick's behavior.
+            None if a gesture was just triggered (already sent to the robot).
         """
-        if shared_state.is_external_active(self.external_cooldown_s):
+        if shared_state.seconds_since_last_activity() >= self._next_interval_s:
+            behavior = random.choice(self._behaviors)
+            behavior.trigger(reachy_mini)
+            shared_state.mark_activity()
+            self._next_interval_s = self._roll_next_interval()
             return None
 
-        # TODO: choose among discrete gestures (yawning, stretching,
-        # looking_around) once an internal timer fires. Breathing is the
-        # only behavior implemented so far.
         return get_breathing_pose(t, antennas_enabled=antennas_enabled)
+
+    def _roll_next_interval(self) -> float:
+        """Pick a new random delay before the next gesture."""
+        return random.uniform(*self.gesture_interval_range_s)
