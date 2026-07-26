@@ -14,6 +14,9 @@ dependencies = [
 ]
 keywords = ["reachy-mini-app"]
 
+[project.optional-dependencies]
+dev = ["pytest"]
+
 [project.entry-points."reachy_mini_apps"]
 reachy_alive = "reachy_alive.main:ReachyAlive"
 
@@ -26,3 +29,6 @@ where = ["."]
 
 [tool.setuptools.package-data]
 reachy_alive = ["**/*"] # Also include all non-.py files
+
+[tool.pytest.ini_options]
+pythonpath = ["reachy_alive"]
