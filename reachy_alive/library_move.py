@@ -1,12 +1,12 @@
 from reachy_mini import ReachyMini
 from reachy_mini.motion.recorded_move import RecordedMoves
 
-from reachy_alive.custom_move import CustomMove
+from reachy_alive.custom_move import BaseMove
 
 _EMOTIONS = RecordedMoves("pollen-robotics/reachy-mini-emotions-library")
 
 
-class LibraryMove(CustomMove):
+class LibraryMove(BaseMove):
     """Plays a move directly from the emotions library, by name.
 
     This lets idle_manager treat library moves and fully custom gestures

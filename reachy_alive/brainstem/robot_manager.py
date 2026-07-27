@@ -1,6 +1,3 @@
-# reachy_alive/brainstem/robot_manager.py
-"""Robot control loop execution."""
-
 import time
 from typing import Callable
 

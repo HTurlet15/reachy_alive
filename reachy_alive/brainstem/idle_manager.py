@@ -7,7 +7,7 @@ from typing import List, Optional, Tuple
 import numpy as np
 from reachy_mini import ReachyMini
 
-from reachy_alive.custom_move import CustomMove
+from reachy_alive.move import BaseMove
 from reachy_alive.library_move import LibraryMove
 from reachy_alive.brainstem.custom_idle_moves.breathing import get_breathing_pose
 from reachy_alive.brainstem.custom_idle_moves.yawning import Yawning
@@ -38,7 +38,7 @@ class IdleManager:
         self, gesture_interval_range_s: Tuple[float, float] = (15.0, 40.0)
     ) -> None:
         self.gesture_interval_range_s = gesture_interval_range_s
-        self._behaviors: List[CustomMove] = [LibraryMove(name) for name in _IDLE_LIBRARY_MOVES]
+        self._behaviors: List[BaseMove] = [LibraryMove(name) for name in _IDLE_LIBRARY_MOVES]
         self._next_interval_s = self._roll_next_interval()
 
     def get_pose(
