@@ -1,4 +1,3 @@
-python
 # reachy_alive/scripts/try_move.py
 """Manually trigger a single move on the real robot for visual testing.
 
