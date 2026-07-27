@@ -6,18 +6,18 @@ import time
 from reachy_alive.shared_state import SharedState
 
 
-def test_is_external_active_false_when_no_command_yet():
+def test_seconds_since_last_activity_is_zero_before_any_activity():
     state = SharedState()
-    assert state.is_external_active() is False
+    assert state.seconds_since_last_activity() == 0.0
 
 
-def test_is_external_active_true_within_cooldown():
+def test_mark_activity_resets_the_timer():
     state = SharedState()
-    state.last_external_command_at = time.time()
-    assert state.is_external_active(cooldown_s=2.0) is True
+    state.mark_activity()
+    assert state.seconds_since_last_activity() < 0.1
 
 
-def test_is_external_active_false_after_cooldown_expires():
+def test_seconds_since_last_activity_increases_over_time():
     state = SharedState()
-    state.last_external_command_at = time.time() - 5.0  # 5s ago
-    assert state.is_external_active(cooldown_s=2.0) is False
+    state.last_activity_at = time.time() - 5.0
+    assert state.seconds_since_last_activity() >= 5.0
