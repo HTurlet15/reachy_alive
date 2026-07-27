@@ -40,7 +40,7 @@ class IdleManager:
         self, gesture_interval_range_s: Tuple[float, float] = (15.0, 40.0)
     ) -> None:
         self.gesture_interval_range_s = gesture_interval_range_s
-        self._behaviors: List[Move] = [LibraryMove(name) for name in _IDLE_LIBRARY_MOVES] + [Stretching()]
+        self._behaviors: List[Move] = [LibraryMove(name) for name in _IDLE_LIBRARY_MOVES] + [Stretching(), Yawning()]
         self._next_interval_s = self._roll_next_interval()
 
     def get_pose(
