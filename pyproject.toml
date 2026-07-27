@@ -32,3 +32,6 @@ reachy_alive = ["**/*"] # Also include all non-.py files
 
 [tool.pytest.ini_options]
 pythonpath = ["reachy_alive"]
+
+[project.scripts]
+try-move = "reachy_alive.scripts.try_move:main"
