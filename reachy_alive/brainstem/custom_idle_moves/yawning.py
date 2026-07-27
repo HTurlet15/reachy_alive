@@ -1,16 +1,40 @@
-# reachy_alive/brainstem/custom_idle_moves/yawning.py
-"""Yawn-like gesture, using the closest available library move.
+from reachy_mini import ReachyMini
+from reachy_mini.utils import create_head_pose
 
-Checked via emotions.list_moves() on 2026-07-26: no exact "yawn" move
-exists in the library. "tired1" is the closest available stand-in.
-Replace with a custom recorded move later if a real yawn is wanted.
-"""
-
-from reachy_alive.library_move import LibraryMove
+from reachy_alive.move import Move
 
 
-class Yawning(LibraryMove):
-    """Plays a tiredness gesture as a stand-in for yawning."""
+class Yawning(Move):
+    """Plays a hand-made yawn: head rises, antennas lower, hold, release."""
 
-    def __init__(self) -> None:
-        super().__init__(move_name="tired1")
+    RISE_PITCH_DEG = -20.0  
+    ANTENNAS_LOWERED_RAD = -1.0
+    RISE_DURATION_S = 1.5
+    HOLD_DURATION_S = 0.8
+    RELEASE_DURATION_S = 1.0
+
+    def trigger(self, reachy_mini: ReachyMini) -> None:
+        # TODO: play a yawning sound here once a .wav asset is chosen,
+        # e.g. reachy_mini.media.play_sound("yawn.wav"). Not implemented
+        # yet -- sound plumbing was deliberately deferred (see main.py
+        # history), reintroduce it here directly rather than through
+        # settings_app, since this call doesn't need any external trigger.
+
+        rise_pose = create_head_pose(pitch=self.RISE_PITCH_DEG, degrees=True)
+        reachy_mini.goto_target(
+            head=rise_pose,
+            antennas=[self.ANTENNAS_LOWERED_RAD, -self.ANTENNAS_LOWERED_RAD],
+            duration=self.RISE_DURATION_S,
+        )
+
+        # Hold the pose briefly at the top of the yawn.
+        reachy_mini.goto_target(
+            head=rise_pose,
+            antennas=[self.ANTENNAS_LOWERED_RAD, -self.ANTENNAS_LOWERED_RAD],
+            duration=self.HOLD_DURATION_S,
+        )
+
+        neutral_pose = create_head_pose(pitch=0.0, degrees=True)
+        reachy_mini.goto_target(
+            head=neutral_pose, antennas=[0.0, 0.0], duration=self.RELEASE_DURATION_S
+        )

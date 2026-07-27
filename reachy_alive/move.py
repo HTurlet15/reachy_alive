@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from reachy_mini import ReachyMini
 
 
-class BaseMove(ABC):
+class Move(ABC):
     """Interface for a discrete idle gesture (yawn, stretch, look around).
 
     Unlike breathing (a continuous pure function), these behaviors are
