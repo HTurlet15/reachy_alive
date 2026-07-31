@@ -48,7 +48,7 @@ class RobotManager:
             t = time.time() - t0
 
             pose = self.idle_manager.get_pose(
-                t, shared_state, antennas_enabled=get_antennas_enabled()
+                t, shared_state, reachy_mini, antennas_enabled=get_antennas_enabled()
             )
             if pose is not None:
                 head_pose, antennas_rad = pose
