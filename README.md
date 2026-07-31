@@ -66,7 +66,7 @@ reachy_alive/
 
 Install the package in editable mode (required for `reachy_alive.*` imports to resolve consistently):
 ```bash
-pip install -e .
+uv pip install -e .
 ```
 
 Run the app (robot must be powered on and toggled ON in Reachy Mini Control):
