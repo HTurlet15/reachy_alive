@@ -23,7 +23,7 @@ class SharedState:
 
     def __init__(self) -> None:
         self.lock = threading.Lock()
-        self.last_activity_at: Optional[float] = None
+        self.last_activity_at: Optional[float] = time.time() # start counting from app launch
         # TODO: written by Amygdala once it exists; read by RobotManager.
         self.current_animation_target: Optional[str] = None
 
