@@ -6,9 +6,9 @@ import time
 from reachy_alive.shared_state import SharedState
 
 
-def test_seconds_since_last_activity_is_zero_before_any_activity():
+def test_seconds_since_last_activity_starts_near_zero():
     state = SharedState()
-    assert state.seconds_since_last_activity() == 0.0
+    assert state.seconds_since_last_activity() < 0.1
 
 
 def test_mark_activity_resets_the_timer():

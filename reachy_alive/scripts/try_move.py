@@ -15,12 +15,13 @@ Usage:
 import argparse
 
 from reachy_mini import ReachyMini
+from reachy_mini.motion.recorded_move import RecordedMoves
 
-from reachy_alive.brainstem.custom_idle_moves.stretching import Stretching
-from reachy_alive.brainstem.custom_idle_moves.yawning import Yawning
-from reachy_alive.library_move import LibraryMove
+from reachy_alive.moves.base import LibraryMove
+from reachy_alive.moves.stretching import Stretching
+from reachy_alive.moves.yawning import Yawning
 
-# Maps a CLI command name to its Move class. 
+# Maps a CLI command name to its Move class.
 # Add new hand-made gestures here as they're implemented.
 _MOVES = {
     "stretching": Stretching,
@@ -33,16 +34,19 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    subparsers.add_parser("stretching")
-    subparsers.add_parser("yawning")
+    for name in _MOVES:
+        subparsers.add_parser(name)
 
     library_parser = subparsers.add_parser("library")
-    library_parser.add_argument("move_name", help="Name of the move in the emotions library, e.g. boredom1")
+    library_parser.add_argument(
+        "move_name", help="Name of the move in the emotions library, e.g. boredom1"
+    )
 
     args = parser.parse_args()
 
     if args.command == "library":
-        move = LibraryMove(args.move_name)
+        emotions = RecordedMoves("pollen-robotics/reachy-mini-emotions-library")
+        move = LibraryMove(args.move_name, emotions)
     else:
         move = _MOVES[args.command]()
 

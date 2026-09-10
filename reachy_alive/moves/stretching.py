@@ -7,7 +7,7 @@ import numpy as np
 from reachy_mini import ReachyMini
 from reachy_mini.utils import create_head_pose
 
-from reachy_alive.move import Move
+from reachy_alive.moves.base import Move
 
 
 class Stretching(Move):

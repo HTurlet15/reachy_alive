@@ -7,40 +7,30 @@ from typing import List, Optional, Tuple
 import numpy as np
 from reachy_mini import ReachyMini
 
+from reachy_alive.moves.base import Move
+from reachy_alive.moves.breathing import get_breathing_pose
 from reachy_alive.shared_state import SharedState
-from reachy_alive.move import Move
-from reachy_alive.library_move import LibraryMove
-from reachy_alive.brainstem.custom_idle_moves.breathing import get_breathing_pose
-from reachy_alive.brainstem.custom_idle_moves.yawning import Yawning
-from reachy_alive.brainstem.custom_idle_moves.stretching import Stretching
-
-
-# Checked via emotions.list_moves() on 2026-07-26. Closest available
-# stand-ins for an idle, slightly-bored robot (no exact match exists).
-_IDLE_LIBRARY_MOVES = ["boredom1", "boredom2", "waiting", "tired1"]
 
 
 class IdleManager:
-    """Decides which idle behavior, if any, the Brainstem should run this tick.
+    """Picks between continuous breathing and occasional discrete gestures.
 
-    Two layers:
-    - Breathing (continuous, default): a pose computed every tick.
-    - Discrete gestures (library moves or custom behaviors): triggered
-      once, at random intervals, when the idle timer fires.
-
-    The idle timer lives in SharedState (seconds_since_last_activity),
-    not here -- so a future external reaction (Amygdala/Prefrontal) can
-    reset it too, without IdleManager needing to know about them.
-
-    Attributes:
-        gesture_interval_range_s: (min, max) seconds between gestures.
+    Gestures fire at random intervals; breathing runs the rest of the time.
+    The idle timer lives in SharedState so other decision-makers can reset it.
     """
 
     def __init__(
-        self, gesture_interval_range_s: Tuple[float, float] = (15.0, 40.0)
+        self,
+        behaviors: List[Move],
+        gesture_interval_range_s: Tuple[float, float] = (15.0, 40.0),
     ) -> None:
+        """
+        Args:
+            behaviors: Discrete gestures to pick from when the idle timer fires.
+            gesture_interval_range_s: (min, max) seconds between gestures.
+        """
         self.gesture_interval_range_s = gesture_interval_range_s
-        self._behaviors: List[Move] = [LibraryMove(name) for name in _IDLE_LIBRARY_MOVES] + [Stretching(), Yawning()]
+        self._behaviors = behaviors
         self._next_interval_s = self._roll_next_interval()
 
     def get_pose(
@@ -50,21 +40,19 @@ class IdleManager:
         reachy_mini: ReachyMini,
         antennas_enabled: bool = True,
     ) -> Optional[Tuple[np.ndarray, np.ndarray]]:
-        """Decide and, if needed, execute this tick's idle behavior.
+        """Return this tick's breathing pose, or trigger a gesture instead.
 
         Args:
             t: Elapsed time in seconds since the control loop started.
-            shared_state: Shared state to read/reset the idle timer.
-            reachy_mini: Connected robot instance, needed to play gestures.
-            antennas_enabled: Whether antennas should move during breathing.
+            shared_state: Read and reset the idle timer.
+            reachy_mini: Robot instance, needed to play gestures.
+            antennas_enabled: Whether antennas move during breathing.
 
         Returns:
-            (head_pose, antennas_rad) if breathing is this tick's behavior.
-            None if a gesture was just triggered (already sent to the robot).
+            (head_pose, antennas_rad), or None if a gesture was triggered.
         """
         if shared_state.seconds_since_last_activity() >= self._next_interval_s:
-            behavior = random.choice(self._behaviors)
-            behavior.trigger(reachy_mini)
+            random.choice(self._behaviors).trigger(reachy_mini)
             shared_state.mark_activity()
             self._next_interval_s = self._roll_next_interval()
             return None
