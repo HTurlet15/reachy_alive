@@ -5,7 +5,7 @@ colorFrom: red
 colorTo: blue
 sdk: static
 pinned: false
-short_description: Autonomous, lifelike idle behavior for a Reachy Mini Wireless robot — breathing, stretching, yawning, and (soon) perception, memory, and reactions layered on top of a real-time control loop that never blocks.
+short_description: Autonomous, lifelike behavior for a Reachy Mini — breathing, stretching, yawning, and (soon) perception and reactions on top of a control loop that never blocks.
 tags:
  - reachy_mini
  - reachy_mini_python_app
@@ -13,9 +13,9 @@ tags:
 
 # Reachy Alive
 
-Autonomous, lifelike idle behavior for a Reachy Mini Wireless robot — breathing, stretching, yawning, and (soon) perception, memory, and reactions layered on top of a real-time control loop that never blocks.
+Autonomous, lifelike behavior for a Reachy Mini — breathing, stretching, yawning, and (soon) perception, reactions, and deliberation, layered on top of a real-time control loop that never blocks.
 
-Architecture rationale and design decisions live in [`plan.md`](./plan.md); this README covers current status and how to run things.
+Built as an extension platform: adding a behavior means dropping a file in the right folder. Architecture rationale lives in [`plan.md`](./plan.md); this README covers current status and how to run things.
 
 ## Status
 
@@ -23,44 +23,46 @@ Architecture rationale and design decisions live in [`plan.md`](./plan.md); this
 - Real-time control loop (`RobotManager`), decoupled from decision-making
 - Idle arbitration (`IdleManager`): continuous breathing by default, discrete gestures at randomized intervals
 - Three idle behaviors: `breathing` (continuous), `stretching` and `yawning` (hand-made, procedural)
-- Shared `Move` interface for anything playable on the robot — library moves (`LibraryMove`) and hand-made gestures share the same `trigger()` contract
+- Shared `Move` interface — library moves and hand-made gestures share the same `trigger()` contract
 - Thread-safe `SharedState` blackboard for coordinating modules
-- Unit tests (`pytest`) for all of the above, using a mocked robot — no hardware required
-- `try_move.py` CLI for manually testing a single gesture on real hardware
+- Unit tests (`pytest`) with a mocked robot — no hardware required
+- `try_move.py` CLI for manually testing a single gesture
 
-**Not yet implemented:** perception, memory, reactions, and LLM-driven behavior (see Roadmap).
+**Not yet implemented:** perception, reflexes, memory, and LLM-driven behavior.
 
 ## Project structure
 
 ```
 reachy_alive/
-├── main.py                     # ReachyMiniApp entry point, framework wiring
-├── shared_state.py             # Thread-safe blackboard shared across modules
-├── move.py                     # Move interface: anything playable on the robot
-├── library_move.py             # Move wrapper for named moves from the emotions library
+├── main.py # Entry point: builds and wires everything
+├── shared_state.py # Thread-safe blackboard; one writer per field
+├── robot_manager.py # Control loop; only module that calls ReachyMini
 │
-├── brainstem/                  # Real-time control, never blocks
-│   ├── robot_manager.py        # Control loop; only module that calls ReachyMini
-│   ├── idle_manager.py         # Idle arbitration: breathing vs. discrete gestures
-│   └── custom_idle_moves/
-│       ├── breathing.py        # Continuous idle motion
-│       ├── stretching.py       # Hand-made gesture
-│       └── yawning.py          # Hand-made gesture
+├── moves/
+│ ├── base.py # Move interface + LibraryMove
+│ ├── breathing.py # Continuous idle motion
+│ ├── stretching.py # Hand-made gesture
+│ └── yawning.py # Hand-made gesture
 │
-├── scripts/
-│   └── try_move.py             # Manual, single-gesture testing on real hardware
+├── brainstem/
+│ └── idle_manager.py # Picks between breathing and discrete gestures
 │
-└── tests/                      # Unit tests, hardware-independent
+├── assets/sounds/ # Audio used by hand-made gestures
+├── scripts/try_move.py # Manual, single-gesture testing
+└── tests/ # Hardware-independent unit tests
 ```
 
-### Planned modules
+## Modules
 
-| Module | Role |
-|---|---|
-| `sensory_cortex/` | Perception: vision (MediaPipe/YOLOv8) and hearing (Whisper + noise detection), writing to `SharedState` |
-| `hippocampus/` | Episodic memory: SQLite-backed novelty scoring for encountered objects |
-| `amygdala/` | Fast reflexes (surprise, fear) that bypass the LLM entirely for sub-100ms reactions |
-| `prefrontal_cortex/` | LLM-driven deliberation (local, via Ollama) and expression |
+| Module | Biological analogy | Role in the code |
+|---|---|---|
+| `brainstem/` | Automatic, unconscious regulation — breathing, reflexive posture | Arbitrates idle behavior: continuous breathing, occasional gestures. Runs every tick, never waits. **Implemented.** |
+| `sensory_cortex/` | Turns raw signal into recognizable percepts | Camera, motion and face detection. Writes what it sees to `SharedState`, decides nothing. *Planned.* |
+| `amygdala/` | Threat and novelty detection — reacts before the cortex has understood | Fast, local, synchronous reflexes. No network, no waiting. *Planned.* |
+| `prefrontal_cortex/` | Deliberation, personality, choosing a considered response | Async cloud LLM call, with timeout and fallback. Never blocks the loop. *Planned.* |
+| `hippocampus/` | Episodic memory — what happened, how often, how long ago | SQLite-backed novelty scoring. *Left as a good first issue for contributors.* |
+
+A module's folder is decided by its **execution regime**, not by anatomy: fast, local, synchronous goes to `amygdala/`; slow, remote, asynchronous goes to `prefrontal_cortex/`. That way "which lobe does face detection belong to?" never has to be argued — the question is only whether the code can block.
 
 ## Getting started
 
@@ -79,18 +81,17 @@ Run the test suite (no hardware required):
 pytest
 ```
 
-Manually trigger a single gesture on real hardware:
+Manually trigger a single gesture:
 ```bash
-python reachy_alive/scripts/try_move.py stretching
-python reachy_alive/scripts/try_move.py yawning
-python reachy_alive/scripts/try_move.py library boredom1
+try-move stretching
+try-move yawning
+try-move library boredom1
 ```
 
 ## Roadmap
 
-1. Sensory Cortex — vision (MediaPipe/YOLOv8), logging detections only
-2. Hippocampus — novelty scoring, testable without the robot
-3. Amygdala — surprise and fear reflexes, reading `SharedState`
-4. Prefrontal Cortex — local LLM (Ollama) integration, isolated and CLI-testable first
-5. Full integration — non-verbal expression via built-in move sounds
-6. Personality tuning; later: spoken TTS, custom recorded moves, dedicated Jetson for vision/LLM offload
+1. **Perception** — camera, motion and face detection, writing to `SharedState`. No reactions yet.
+2. **Reflexes** — first fast reaction (startle). The robot perceives and responds.
+3. **Deliberation** — async cloud LLM call, with timeout and fallback.
+4. **Unified arbitration** — three decision-makers competing; migrate to a behavior tree.
+5. **Packaging** — Hugging Face Space, one-click install, CI, contribution guide.
