@@ -6,8 +6,6 @@ from reachy_mini.utils import create_head_pose
 
 from reachy_alive.moves.base import Move
 
-ASSETS_DIR = Path(__file__).resolve().parents[1] / "assets" / "sounds"
-
 
 class Yawning(Move):
     """Plays a hand-made yawn: rise and hold in one continuous motion, release."""
@@ -20,6 +18,7 @@ class Yawning(Move):
     RISE_PITCH_DEG = -20.0
     ANTENNAS_LOWERED_RAD = -1.0
 
+    ASSETS_DIR = Path(__file__).resolve().parents[1] / "assets" / "sounds"
     INHALE_SOUND_PATH = ASSETS_DIR / "inhale.wav"
     YAWN_SOUND_PATH = ASSETS_DIR / "yawning.wav"
 
