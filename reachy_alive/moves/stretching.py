@@ -39,23 +39,14 @@ class Stretching(Move):
         antennas_up_rad = np.deg2rad(self.ANTENNAS_UP_DEG)
         tremble_antenna_rad = np.deg2rad(self.TREMBLE_ANTENNA_AMPLITUDE_DEG)
 
-        #Calculating the proportion of time spent on each phase of the movement
-        crouch_end = self.CROUCH_FRACTION
-        rise_end = self.CROUCH_FRACTION + self.RISE_FRACTION
-        tremble_span = 1.0 - rise_end
-
         start = time.monotonic()
         step = 0
 
         while time.monotonic() - start < self.STRETCH_DURATION_S:
             progress = (time.monotonic() - start) / self.STRETCH_DURATION_S
-
-            if progress < crouch_end:
-                pitch, z, roll, antenna_target = self._crouch_pose(progress/crouch_end, antennas_down_rad)
-            elif progress < rise_end:
-                pitch, z, roll, antenna_target = self._rise_pose((progress - crouch_end) / self.RISE_FRACTION, antennas_down_rad, antennas_up_rad)
-            else:
-                pitch, z, roll, antenna_target = self._tremble_pose((progress - rise_end) / tremble_span, step, antennas_up_rad, tremble_antenna_rad)
+            pitch, z, roll, antenna_target = self._pose_at(
+                progress, step, antennas_down_rad, antennas_up_rad, tremble_antenna_rad
+            )
 
             pose = create_head_pose(pitch=pitch, z=z, roll=roll, degrees=True, mm=True)
             reachy_mini.set_target(head=pose, antennas=[antenna_target, -antenna_target])
@@ -67,6 +58,32 @@ class Stretching(Move):
         reachy_mini.goto_target(
             head=neutral_pose, antennas=[0.0, 0.0], duration=self.RELEASE_DURATION_S
         )
+
+    def _pose_at(
+        self,
+        progress: float,
+        step: int,
+        antennas_down_rad: float,
+        antennas_up_rad: float,
+        tremble_antenna_rad: float,
+    ) -> tuple[float, float, float, float]:
+        """Dispatch to the phase matching progress. progress: 0 -> 1 across the whole gesture."""
+
+        # Proportion of the overall gesture spent on each phase
+        crouch_end = self.CROUCH_FRACTION
+        rise_end = self.CROUCH_FRACTION + self.RISE_FRACTION
+        tremble_span = 1.0 - rise_end
+
+        if progress < crouch_end:
+            return self._crouch_pose(progress / crouch_end, antennas_down_rad)
+        elif progress < rise_end:
+            rise_progress = (progress - crouch_end) / self.RISE_FRACTION
+            return self._rise_pose(rise_progress, antennas_down_rad, antennas_up_rad)
+        else:
+            tremble_progress = (progress - rise_end) / tremble_span
+            return self._tremble_pose(
+                tremble_progress, step, antennas_up_rad, tremble_antenna_rad
+            )
 
     def _crouch_pose(self, p: float, antennas_down_rad: float) -> tuple[float, float, float, float]:
         """Interpolate crouch phase. p: 0 (neutral) -> 1 (fully crouched)."""
