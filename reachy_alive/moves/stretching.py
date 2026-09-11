@@ -1,4 +1,4 @@
-# reachy_alive/brainstem/custom_idle_moves/stretching.py
+# reachy_alive/moves/stretching.py
 """Hand-made stretch gesture: crouch, rise with a tremble, release."""
 
 import time
@@ -15,6 +15,12 @@ class Stretching(Move):
 
     CROUCH_FRACTION = 0.15
     RISE_FRACTION = 0.5
+
+    # Phase boundaries as fractions of the whole gesture.
+    CROUCH_END = CROUCH_FRACTION
+    RISE_END = CROUCH_FRACTION + RISE_FRACTION
+    TREMBLE_SPAN = 1.0 - RISE_END
+
     STRETCH_DURATION_S = 2.8
     STEP_S = 0.03
     RELEASE_DURATION_S = 1.0
@@ -34,7 +40,6 @@ class Stretching(Move):
     def trigger(self, reachy_mini: ReachyMini) -> None:
         # TODO: play a stretch/effort sound once a .wav asset is chosen.
 
-        # Convert the previous values from degrees to radians
         antennas_down_rad = np.deg2rad(self.ANTENNAS_DOWN_DEG)
         antennas_up_rad = np.deg2rad(self.ANTENNAS_UP_DEG)
         tremble_antenna_rad = np.deg2rad(self.TREMBLE_ANTENNA_AMPLITUDE_DEG)
@@ -69,18 +74,13 @@ class Stretching(Move):
     ) -> tuple[float, float, float, float]:
         """Dispatch to the phase matching progress. progress: 0 -> 1 across the whole gesture."""
 
-        # Proportion of the overall gesture spent on each phase
-        crouch_end = self.CROUCH_FRACTION
-        rise_end = self.CROUCH_FRACTION + self.RISE_FRACTION
-        tremble_span = 1.0 - rise_end
-
-        if progress < crouch_end:
-            return self._crouch_pose(progress / crouch_end, antennas_down_rad)
-        elif progress < rise_end:
-            rise_progress = (progress - crouch_end) / self.RISE_FRACTION
+        if progress < self.CROUCH_END:
+            return self._crouch_pose(progress / self.CROUCH_END, antennas_down_rad)
+        elif progress < self.RISE_END:
+            rise_progress = (progress - self.CROUCH_END) / self.RISE_FRACTION
             return self._rise_pose(rise_progress, antennas_down_rad, antennas_up_rad)
         else:
-            tremble_progress = (progress - rise_end) / tremble_span
+            tremble_progress = (progress - self.RISE_END) / self.TREMBLE_SPAN
             return self._tremble_pose(
                 tremble_progress, step, antennas_up_rad, tremble_antenna_rad
             )
