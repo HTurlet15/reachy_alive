@@ -19,7 +19,7 @@ class RobotManager:
         tick_period_s: Time, in seconds, between control loop ticks.
     """
 
-    def __init__(self, idle_manager: IdleManager, tick_hz: float = 20.0) -> None:
+    def __init__(self, idle_manager: IdleManager, tick_hz: float = 50.0) -> None:
         """
         Args:
             idle_manager: The IdleManager instance to query each tick.

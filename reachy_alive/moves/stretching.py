@@ -22,7 +22,6 @@ class Stretching(Move):
     TREMBLE_SPAN = 1.0 - RISE_END
 
     STRETCH_DURATION_S = 2.8
-    STEP_S = 0.03
     RELEASE_DURATION_S = 1.0
 
     LOWER_PITCH_DEG = 20.0
@@ -36,6 +35,13 @@ class Stretching(Move):
     TREMBLE_Z_OSCILLATION_MM = 1.0
     TREMBLE_ANTENNA_AMPLITUDE_DEG = 8.6
     TREMBLE_LOOK_UP_PITCH_DEG = -15.0
+
+    def __init__(self, tick_hz: float = 50.0) -> None:
+        """
+        Args:
+            tick_hz: Frequency, in Hz, at which the pose is updated during the move.
+        """
+        self.step_s = 1.0 / tick_hz
 
     def trigger(self, reachy_mini: ReachyMini) -> None:
         # TODO: play a stretch/effort sound once a .wav asset is chosen.
@@ -57,7 +63,7 @@ class Stretching(Move):
             reachy_mini.set_target(head=pose, antennas=[antenna_target, -antenna_target])
 
             step += 1
-            time.sleep(self.STEP_S)
+            time.sleep(self.step_s)
 
         neutral_pose = create_head_pose(pitch=0.0, z=0.0, roll=0.0, degrees=True, mm=True)
         reachy_mini.goto_target(

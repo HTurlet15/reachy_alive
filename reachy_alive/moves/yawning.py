@@ -12,7 +12,6 @@ class Yawning(Move):
 
     RISE_FRACTION = 0.5  # fraction of RISE_HOLD_DURATION_S spent rising; remainder holds
     RISE_HOLD_DURATION_S = 2.3
-    STEP_S = 0.03
     RELEASE_DURATION_S = 1.0
 
     RISE_PITCH_DEG = -20.0
@@ -22,7 +21,12 @@ class Yawning(Move):
     INHALE_SOUND_PATH = ASSETS_DIR / "inhale.wav"
     YAWN_SOUND_PATH = ASSETS_DIR / "yawning.wav"
 
-    def __init__(self) -> None:
+    def __init__(self, tick_hz: float = 50.0) -> None:
+        """
+        Args:
+            tick_hz: Frequency, in Hz, at which the pose is updated during the move.
+        """
+        self.step_s = 1.0 / tick_hz
         self._yawn_played = False
 
     def trigger(self, reachy_mini: ReachyMini) -> None:
@@ -35,7 +39,7 @@ class Yawning(Move):
 
             pose = create_head_pose(pitch=pitch, degrees=True)
             reachy_mini.set_target(head=pose, antennas=[antenna_target, -antenna_target])
-            time.sleep(self.STEP_S)
+            time.sleep(self.step_s)
 
             if progress >= self.RISE_FRACTION and not self._yawn_played:
                 reachy_mini.media.play_sound(str(self.YAWN_SOUND_PATH))
