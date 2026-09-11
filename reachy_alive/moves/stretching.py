@@ -44,11 +44,11 @@ class Stretching(Move):
         rise_end = self.CROUCH_FRACTION + self.RISE_FRACTION
         tremble_span = 1.0 - rise_end
 
-        start = time.time()
+        start = time.monotonic()
         step = 0
 
-        while time.time() - start < self.STRETCH_DURATION_S:
-            progress = (time.time() - start) / self.STRETCH_DURATION_S
+        while time.monotonic() - start < self.STRETCH_DURATION_S:
+            progress = (time.monotonic() - start) / self.STRETCH_DURATION_S
 
             if progress < crouch_end:
                 pitch, z, roll, antenna_target = self._crouch_pose(progress/crouch_end, antennas_down_rad)

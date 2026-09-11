@@ -19,5 +19,5 @@ def test_mark_activity_resets_the_timer():
 
 def test_seconds_since_last_activity_increases_over_time():
     state = SharedState()
-    state.last_activity_at = time.time() - 5.0
+    state.last_activity_at = time.monotonic() - 5.0
     assert state.seconds_since_last_activity() >= 5.0

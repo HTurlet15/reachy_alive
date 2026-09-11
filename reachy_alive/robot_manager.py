@@ -43,9 +43,9 @@ class RobotManager:
             stop_event: Set externally (e.g. on Ctrl+C) to terminate the loop.
             get_antennas_enabled: Returns whether antennas should move.
         """
-        t0 = time.time()
+        t0 = time.monotonic()
         while not stop_event.is_set():
-            t = time.time() - t0
+            t = time.monotonic() - t0
 
             pose = self.idle_manager.get_pose(
                 t, shared_state, reachy_mini, antennas_enabled=get_antennas_enabled()

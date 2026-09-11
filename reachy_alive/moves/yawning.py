@@ -29,9 +29,9 @@ class Yawning(Move):
     def trigger(self, reachy_mini: ReachyMini) -> None:
         reachy_mini.media.play_sound(str(self.INHALE_SOUND_PATH))
 
-        start = time.time()
-        while time.time() - start < self.RISE_HOLD_DURATION_S:
-            progress = (time.time() - start) / self.RISE_HOLD_DURATION_S
+        start = time.monotonic()
+        while time.monotonic() - start < self.RISE_HOLD_DURATION_S:
+            progress = (time.monotonic() - start) / self.RISE_HOLD_DURATION_S
             pitch, antenna_target = self._rise_and_hold_pose(progress)
 
             pose = create_head_pose(pitch=pitch, degrees=True)

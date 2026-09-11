@@ -12,10 +12,10 @@ class SharedState:
 
     Attributes:
         lock: Guards all reads/writes to prevent race conditions.
-        last_activity_at: Unix timestamp of the last notable activity —
-            either IdleManager playing a discrete gesture, or (later) an
-            external reaction from Amygdala/Prefrontal Cortex. None means
-            nothing notable has happened since startup.
+        last_activity_at: Monotonic clock reading (time.monotonic()) of the
+            last notable activity — either IdleManager playing a discrete
+            gesture, or (later) an external reaction from Amygdala/Prefrontal
+            Cortex. None means nothing notable has happened since startup.
         current_animation_target: Name of a specific move that an external
             module wants played right now. None means nothing external is
             pending. Not written anywhere yet — reserved for Amygdala.
@@ -23,14 +23,14 @@ class SharedState:
 
     def __init__(self) -> None:
         self.lock = threading.Lock()
-        self.last_activity_at: Optional[float] = time.time() # start counting from app launch
+        self.last_activity_at: Optional[float] = time.monotonic() # start counting from app launch
         # TODO: written by Amygdala once it exists; read by RobotManager.
         self.current_animation_target: Optional[str] = None
 
     def mark_activity(self) -> None:
         """Record that something notable just happened, resetting the idle timer."""
         with self.lock:
-            self.last_activity_at = time.time()
+            self.last_activity_at = time.monotonic()
 
     def seconds_since_last_activity(self) -> float:
         """Time elapsed since the last notable activity.
@@ -42,4 +42,4 @@ class SharedState:
         with self.lock:
             if self.last_activity_at is None:
                 return 0.0
-            return time.time() - self.last_activity_at
+            return time.monotonic() - self.last_activity_at
