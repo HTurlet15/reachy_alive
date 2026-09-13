@@ -12,7 +12,7 @@ class Yawning(Move):
 
     RISE_FRACTION = 0.35
     HOLD_FRACTION = 0.3
-    RETURN_FRACTION = 0.15
+    RETURN_FRACTION = 0.25
 
     # Phase boundaries as fractions of the whole gesture.
     RISE_END = RISE_FRACTION
@@ -20,13 +20,13 @@ class Yawning(Move):
     RETURN_END = HOLD_END + RETURN_FRACTION
     SHAKE_SPAN = 1.0 - RETURN_END
 
-    GESTURE_DURATION_S = 2.8
+    GESTURE_DURATION_S = 4
     RELEASE_DURATION_S = 1.0
 
     RISE_PITCH_DEG = -20.0
     ANTENNAS_LOWERED_RAD = -1.0
 
-    SHAKE_YAW_AMPLITUDE_DEG = 15.0
+    SHAKE_YAW_AMPLITUDE_DEG = 12.5
     SHAKE_ALTERNATION_STEPS = 5  # ticks held per side before flipping
 
     ASSETS_DIR = Path(__file__).resolve().parents[1] / "assets" / "sounds"
