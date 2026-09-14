@@ -65,10 +65,7 @@ class Stretching(Move):
             step += 1
             time.sleep(self.step_s)
 
-        neutral_pose = create_head_pose(pitch=0.0, z=0.0, roll=0.0, degrees=True, mm=True)
-        reachy_mini.goto_target(
-            head=neutral_pose, antennas=[0.0, 0.0], duration=self.RELEASE_DURATION_S
-        )
+        self.go_neutral(reachy_mini, duration=self.RELEASE_DURATION_S)
 
     def _pose_at(
         self,

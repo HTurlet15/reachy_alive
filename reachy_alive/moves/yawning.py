@@ -62,10 +62,7 @@ class Yawning(Move):
             step += 1
             time.sleep(self.step_s)
 
-        neutral_pose = create_head_pose(pitch=0.0, yaw=0.0, degrees=True)
-        reachy_mini.goto_target(
-            head=neutral_pose, antennas=[0.0, 0.0], duration=self.RELEASE_DURATION_S
-        )
+        self.go_neutral(reachy_mini, duration=self.RELEASE_DURATION_S)
 
     def _pose_at(self, progress: float, step: int) -> tuple[float, float, float]:
         """Dispatch to the phase matching progress. progress: 0 -> 1 across the whole gesture."""
