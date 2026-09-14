@@ -45,10 +45,10 @@ good first issue for contributors).
 Callers use `play()`. Subclasses implement `_perform()` — the movement, and
 nothing else.
 
-Landing back on neutral is part of the choreography: a move ends where it
-means to end, at its own tempo (`RETURN_DURATION_S`). After `_perform()`,
-`play()` reads where the robot *actually* is and returns it to neutral only
-if the landing is not already there.
+A move may land back on neutral as part of its own choreography, at its own
+tempo (`yawning` and `stretching` do). After `_perform()`, `play()` always
+sends the robot to neutral in `RETURN_DURATION_S`, without reading where it
+actually is — for a move that already landed there, that return is a no-op.
 
 The case that needs the net: recorded library moves end wherever their
 recording ended.

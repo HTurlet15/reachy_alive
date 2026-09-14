@@ -23,7 +23,7 @@ Built as an extension platform: adding a behavior means dropping a file in the r
 - Real-time control loop (`RobotManager`), decoupled from decision-making
 - Idle arbitration (`IdleManager`): continuous breathing by default, discrete gestures at randomized intervals
 - Three idle behaviors: `breathing` (continuous), `stretching` and `yawning` (hand-made, procedural)
-- Shared `Move` interface — library moves and hand-made gestures share the same `play()` contract, which returns the robot to neutral unless the move already ended there
+- Shared `Move` interface — library moves and hand-made gestures share the same `play()` contract, which always returns the robot to neutral after the move
 - Thread-safe `SharedState` blackboard for coordinating modules
 - Unit tests (`pytest`) with a mocked robot — no hardware required
 - `try_move.py` CLI for manually testing a single gesture
