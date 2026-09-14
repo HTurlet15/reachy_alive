@@ -41,7 +41,7 @@ class Yawning(Move):
         self.step_s = 1.0 / tick_hz
         self._yawn_played = False
 
-    def trigger(self, reachy_mini: ReachyMini) -> None:
+    def _perform(self, reachy_mini: ReachyMini) -> None:
         self._yawn_played = False
         reachy_mini.media.play_sound(str(self.INHALE_SOUND_PATH))
 

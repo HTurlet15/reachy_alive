@@ -52,7 +52,7 @@ class IdleManager:
             (head_pose, antennas_rad), or None if a gesture was triggered.
         """
         if shared_state.seconds_since_last_activity() >= self._next_interval_s:
-            random.choice(self._behaviors).trigger(reachy_mini)
+            random.choice(self._behaviors).play(reachy_mini)
             shared_state.mark_activity()
             self._next_interval_s = self._roll_next_interval()
             return None

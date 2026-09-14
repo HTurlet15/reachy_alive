@@ -51,7 +51,7 @@ def main() -> None:
         move = _MOVES[args.command]()
 
     with ReachyMini() as mini:
-        move.trigger(mini)
+        move.play(mini)
 
 
 if __name__ == "__main__":

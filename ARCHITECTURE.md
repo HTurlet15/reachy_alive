@@ -45,7 +45,7 @@ plain objects, testable without a robot.
 
 ## Known debt
 
-`IdleManager.get_pose()` decides, executes (`behavior.trigger()`) **and**
+`IdleManager.get_pose()` decides, executes (`behavior.play()`) **and**
 signals with a `None` sentinel. The execution path is locked inside idle
 behavior, which will get in the way once a second decision-maker exists.
 

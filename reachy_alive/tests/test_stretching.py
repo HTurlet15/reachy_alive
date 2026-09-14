@@ -1,16 +1,14 @@
-# reachy_alive/tests/test_stretching.py
 """Unit tests for Stretching.
 
-NOTE: this test runs the real trigger() logic, including the ~0.6s
-tremble loop (time.sleep isn't mocked) -- it's slow (~1s) but simple;
-mock time.sleep later if the test suite's runtime becomes a problem.
+NOTE: runs the real motion loop without mocking time.sleep -- slow (~3s)
+but simple.
 """
 
 from reachy_alive.moves.stretching import Stretching
 
 
-def test_trigger_plays_wind_up_reach_and_release(fake_reachy_mini):
-    Stretching().trigger(fake_reachy_mini)
+def test_play_runs_the_motion_loop_then_settles(fake_reachy_mini):
+    Stretching().play(fake_reachy_mini)
 
-    assert fake_reachy_mini.goto_target.call_count == 1  # release, wind up + hold are set_target
-    assert fake_reachy_mini.set_target.called  # tremble phase
+    assert fake_reachy_mini.set_target.called  # crouch + rise + tremble loop
+    assert fake_reachy_mini.goto_target.call_count == 2  # choreographed return + play()'s

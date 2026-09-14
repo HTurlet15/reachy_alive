@@ -43,7 +43,7 @@ class Stretching(Move):
         """
         self.step_s = 1.0 / tick_hz
 
-    def trigger(self, reachy_mini: ReachyMini) -> None:
+    def _perform(self, reachy_mini: ReachyMini) -> None:
         # TODO: play a stretch/effort sound once a .wav asset is chosen.
 
         antennas_down_rad = np.deg2rad(self.ANTENNAS_DOWN_DEG)

@@ -40,9 +40,22 @@ Planned: `sensory_cortex/` (perception), `amygdala/` (reflexes),
 `prefrontal_cortex/` (deliberation), `hippocampus/` (memory — left as a
 good first issue for contributors).
 
+## The Move contract
+
+Callers use `play()`. Subclasses implement `_perform()` — the movement, and
+nothing else.
+
+Landing back on neutral is part of the choreography: a move ends where it
+means to end, at its own tempo (`RETURN_DURATION_S`). After `_perform()`,
+`play()` reads where the robot *actually* is and returns it to neutral only
+if the landing is not already there.
+
+The case that needs the net: recorded library moves end wherever their
+recording ended.
+
 ## Known debt — do NOT fix yet
 
-`IdleManager.get_pose()` decides, executes (`behavior.trigger()`) AND signals
+`IdleManager.get_pose()` decides, executes (`behavior.play()`) AND signals
 with a `None` sentinel.
 
 Target: decision-makers return an intent, `RobotManager` is the only executor,

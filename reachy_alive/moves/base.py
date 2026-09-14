@@ -12,13 +12,27 @@ NEUTRAL_ANTENNAS_RAD = [-0.1745, 0.1745]
 
 
 class Move(ABC):
-    """A discrete, one-off action the robot can play."""
+    """A discrete, one-off action the robot can play.
 
-    RETURN_DURATION_S = 0.5
+    Subclasses implement `_perform`; callers use `play`, which always
+    leaves the robot at neutral so the next behavior starts from a known
+    pose.
+    """
+
+    RETURN_DURATION_S = 0.3
+
+    def play(self, reachy_mini: ReachyMini) -> None:
+        """Play this move, then return the robot to neutral.
+
+        Args:
+            reachy_mini: Connected robot instance.
+        """
+        self._perform(reachy_mini)
+        self.go_neutral(reachy_mini)
 
     @abstractmethod
-    def trigger(self, reachy_mini: ReachyMini) -> None:
-        """Play this move on the robot.
+    def _perform(self, reachy_mini: ReachyMini) -> None:
+        """Play the move itself, free to end on any pose.
 
         Args:
             reachy_mini: Connected robot instance.
@@ -45,5 +59,5 @@ class LibraryMove(Move):
         self.move_name = move_name
         self._library = library
 
-    def trigger(self, reachy_mini: ReachyMini) -> None:
+    def _perform(self, reachy_mini: ReachyMini) -> None:
         reachy_mini.play_move(self._library.get(self.move_name), sound=True)

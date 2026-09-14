@@ -24,5 +24,5 @@ def test_triggers_a_gesture_and_resets_activity(fake_reachy_mini):
     pose = manager.get_pose(t=1.0, shared_state=state, reachy_mini=fake_reachy_mini)
 
     assert pose is None
-    behavior.trigger.assert_called_once_with(fake_reachy_mini)
+    behavior.play.assert_called_once_with(fake_reachy_mini)
     assert state.seconds_since_last_activity() < 0.1
