@@ -1,5 +1,4 @@
-# reachy_alive/tests/test_move.py
-"""Unit tests for the return to neutral Move.play() adds around a move."""
+"""Unit tests for Move and LibraryMove."""
 
 from unittest.mock import MagicMock
 
@@ -13,10 +12,11 @@ def test_play_returns_to_neutral_after_the_move(fake_reachy_mini):
     assert fake_reachy_mini.goto_target.call_args.kwargs["antennas"] == NEUTRAL_ANTENNAS_RAD
 
 
-def test_play_performs_the_move_before_returning_to_neutral(fake_reachy_mini):
+def test_play_plays_the_named_move_with_sound(fake_reachy_mini):
     library = MagicMock()
+    move = library.get.return_value
 
     LibraryMove("boredom1", library).play(fake_reachy_mini)
 
     library.get.assert_called_once_with("boredom1")
-    fake_reachy_mini.play_move.assert_called_once()
+    fake_reachy_mini.play_move.assert_called_once_with(move, sound=True)
