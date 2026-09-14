@@ -19,7 +19,7 @@ class Move(ABC):
     pose.
     """
 
-    RETURN_DURATION_S = 0.3
+    RETURN_DURATION_S = 0.5
 
     def play(self, reachy_mini: ReachyMini) -> None:
         """Play this move, then return the robot to neutral.
