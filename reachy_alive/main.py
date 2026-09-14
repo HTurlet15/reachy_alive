@@ -58,8 +58,15 @@ class ReachyAlive(ReachyMiniApp):
         emotions = RecordedMoves("pollen-robotics/reachy-mini-emotions-library")
 
         # Closest available stand-ins for an idle, slightly-bored robot
-        # (no exact match for "yawn"/"stretch" exists in the library).
-        library_move_names = ["boredom1", "boredom2", "waiting", "tired1"]
+        #
+        # WORKAROUND (Reachy Mini SDK v1.10.0): 
+        # Explicitly excluding "waiting", "mini-deep-sleep", and "toc-toc-toc". 
+        # These specific recorded moves park the head outside the physical workspace 
+        # limit (z < -175mm). This wedges the Inverse Kinematics (IK) solver in an 
+        # unrecoverable collision state. Once wedged, the SDK silently swallows 
+        # subsequent target commands (returning valid UUIDs and playing audio, 
+        # but executing no motion) until the daemon process is fully restarted.
+        library_move_names = ["boredom1", "boredom2", "tired1"]
 
         missing = [name for name in library_move_names if name not in emotions.list_moves()]
         if missing:
