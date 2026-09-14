@@ -2,9 +2,12 @@ import time
 from typing import Callable
 
 from reachy_mini import ReachyMini
+from reachy_mini.utils import create_head_pose
+
 
 from reachy_alive.brainstem.idle_manager import IdleManager
 from reachy_alive.shared_state import SharedState
+
 
 
 class RobotManager:
@@ -43,15 +46,23 @@ class RobotManager:
             stop_event: Set externally (e.g. on Ctrl+C) to terminate the loop.
             get_antennas_enabled: Returns whether antennas should move.
         """
-        t0 = time.monotonic()
-        while not stop_event.is_set():
-            t = time.monotonic() - t0
 
-            pose = self.idle_manager.get_pose(
-                t, shared_state, reachy_mini, antennas_enabled=get_antennas_enabled()
-            )
-            if pose is not None:
-                head_pose, antennas_rad = pose
-                reachy_mini.set_target(head=head_pose, antennas=antennas_rad)
+        reachy_mini.enable_motors()
+        reachy_mini.wake_up()
 
-            time.sleep(self.tick_period_s)
+        try :
+            t0 = time.monotonic()
+            while not stop_event.is_set():
+                t = time.monotonic() - t0
+
+                pose = self.idle_manager.get_pose(
+                    t, shared_state, reachy_mini, antennas_enabled=get_antennas_enabled()
+                )
+                if pose is not None:
+                    head_pose, antennas_rad = pose
+                    reachy_mini.set_target(head=head_pose, antennas=antennas_rad)
+
+                time.sleep(self.tick_period_s)
+        finally :
+            reachy_mini.goto_sleep()
+            reachy_mini.disable_motors()
