@@ -9,10 +9,23 @@ video-game blip.
 
 Build it in [jsfxr](https://sfxr.me), in the browser, nothing to install.
 
-Don't start from scratch: open a preset from `presets/` and change only
-two things, **Start frequency** and **Slide**. Same voice, different
-mood. That's what keeps every sound in the project sounding like the same
-robot.
+Don't start from scratch: load [`presets/base.jsfxr.json`](presets/base.jsfxr.json)
+and change only two things, **Start frequency** and **Slide**. Same
+voice, different mood. That's what keeps every sound in the project
+sounding like the same robot.
+
+Two ways to load it in jsfxr:
+
+- **Open Save**, then pick [`presets/base.jsfxr.json`](presets/base.jsfxr.json) from disk.
+- **Deserialize**: click it to open the text box, paste in the file's
+  JSON content, then click **Deserialize** again to apply it.
+
+  ![jsfxr Deserialize panel](../../../docs/jsfxr-deserialize.png)
+
+Once loaded, the generator panel reflects the preset's settings — this
+is what `base.jsfxr.json` looks like:
+
+![jsfxr generator panel with the base preset loaded](../../../docs/jsfxr-settings.png)
 
 If you do want to build one from zero:
 
@@ -31,7 +44,7 @@ If you do want to build one from zero:
 | Low-pass cutoff | 2000–3000 Hz | Takes the edge off |
 | Everything else | OFF | Arpeggiation, flanger and friends all read as video game |
 
-Export **both** files: the `.wav` here, and — via *Serialize* — the
+Export **both** files: the `.wav` here, and — via *Serialize* or *Save* — the
 `.json` preset into `presets/`. The preset is what lets the next person
 pick up where you left off.
 
