@@ -5,18 +5,37 @@ sounds were made with a slide whistle, so anything added here should stay
 in that family: a **round, sustained tone that glides** — not a
 video-game blip.
 
-## Making one
+## Layout
+
+Sounds are grouped by the move that uses them:
+
+```
+assets/sounds/
+├── base.jsfxr.json ← the shared starting point
+└── yawning/
+    ├── inhale.wav
+    ├── inhale.jsfxr.json
+    ├── exhale.wav
+    ├── exhale.jsfxr.json
+    ├── shake.wav
+    └── shake.jsfxr.json
+```
+
+Create a folder for your move, and keep each `.wav` next to the preset
+that produced it. The preset is what lets the next person pick up where
+you left off.
+
+## Create a sound
 
 Build it in [jsfxr](https://sfxr.me), in the browser, nothing to install.
-
-Don't start from scratch: load [`presets/base.jsfxr.json`](presets/base.jsfxr.json)
-and change only two things, **Start frequency** and **Slide**. Same
-voice, different mood. That's what keeps every sound in the project
+You don't have to start from scratch: load [`base.jsfxr.json`](base.jsfxr.json)
+and change the settings, like **Start frequency** and **Slide**. Same
+voice, different moods. That's what keeps every sound in the project
 sounding like the same robot.
 
 Two ways to load it in jsfxr:
 
-- **Open Save**, then pick [`presets/base.jsfxr.json`](presets/base.jsfxr.json) from disk.
+- **Open Save**, then pick [`base.jsfxr.json`](base.jsfxr.json) from disk.
 - **Deserialize**: click it to open the text box, paste in the file's
   JSON content, then click **Deserialize** again to apply it.
 
@@ -27,33 +46,35 @@ is what `base.jsfxr.json` looks like:
 
 ![jsfxr generator panel with the base preset loaded](../../../docs/jsfxr-settings.png)
 
-If you do want to build one from zero:
+Play with the different values to find the perfect sound for your move. 
+Try to keep it in the same tone of the base.jxsfr.json, so the 
+robot doesn't sound too different between moves.
 
-| Setting | Value | Why |
-|---|---|---|
-| Waveform | **Sine** | A whistle is a near-pure tone. Square or sawtooth sound like chiptune |
-| Attack time | ~0.03 s | Soft start — breath never begins abruptly |
-| Sustain time | ~0.35 s | The tone holds, giving the glide time to be heard |
-| Sustain punch | 0 % | No percussive accent |
-| Decay time | ~0.25 s | Soft fade out |
-| Start frequency | 400–800 Hz | Higher reads as brighter, more alert |
-| **Slide** | ±1.0 8va/s | **The key one — this is the whistle's slide.** Negative falls (tiredness, a sigh), positive rises (surprise, a question) |
-| Delta slide | 0 | Constant glide, like pushing a real slide |
-| Vibrato depth | 5–10 % | Very slight. Human breath is never perfectly steady |
-| Vibrato speed | 4–6 Hz | Slow. Faster sounds electronic |
-| Low-pass cutoff | 2000–3000 Hz | Takes the edge off |
-| Everything else | OFF | Arpeggiation, flanger and friends all read as video game |
-
-Export **both** files: the `.wav` here, and — via *Serialize* or *Save* — the
-`.json` preset into `presets/`. The preset is what lets the next person
+Export **both** files: the `.wav` and — via *Serialize* or *Save* — the
+`.json` preset into your move folder. The preset is what lets the next person
 pick up where you left off.
 
 > jsfxr can't mix noise into a sine wave, so you won't get the
 > breathiness of a real whistle. Close is good enough.
 
-## Sounds with several parts
+## Play a sound (for moves written with code)
 
-A sneeze is a sniff, a pause, then the sneeze itself. Build each part
+```python
+reachy_mini.media.play_sound(str(MY_SOUND_PATH))
+```
+
+Non-blocking, so a gesture keeps running while the sound plays. See
+[`../../moves/README.md`](../../moves/README.md) for how to fire it at
+the right moment in a gesture.
+
+## Concatenating several parts (for moves created with Marionette)
+
+If you chose to create your move with the Marionette app, you will need one 
+`.wav` of all your different sounds you just created since Marionette doesn't 
+support having multiples phases sounds.
+
+
+For example, a sneeze is a sniff, a pause, then the sneeze itself. Build each part
 separately in jsfxr, then join them:
 
 ```python
@@ -68,15 +89,8 @@ concatenate(
 Each number is the silence *after* that part, in seconds. Those silences
 are what give the sound its rhythm — expect to try a few values.
 
+In this example, you will get a final `sneezing.wav` of `sniff.wav` + 0.3s of silence,
+then `sneeze.wav` + 0.15s of silence and finally `sigh.wav`.
+
 All parts must share the same sample rate (jsfxr exports at 44k, 22k, 11k
 or 8k). Mixing rates plays the result at the wrong speed.
-
-## Playing one
-
-```python
-reachy_mini.media.play_sound(str(MY_SOUND_PATH))
-```
-
-Non-blocking, so a gesture keeps running while the sound plays. See
-[`../../moves/README.md`](../../moves/README.md) for how to fire it at
-the right moment in a gesture.
