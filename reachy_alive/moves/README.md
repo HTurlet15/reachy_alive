@@ -13,8 +13,8 @@ from reachy_mini import ReachyMini
 from reachy_alive.moves.base import Move
 
 
-class Sneezing(Move):
-    """Plays a hand-made sneeze."""
+class YourMove(Move):
+    """Plays a hand-made move."""
 
     def _perform(self, reachy_mini: ReachyMini) -> None:
         ...
@@ -25,6 +25,7 @@ That's it. You never call `_perform()` yourself — the robot calls
 have to clean up after yourself.
 
 ---
+TO DO : Step 0 : Think about what you want to do - number of phases, sound, movement you want to do. Exemple avec yawning 4 phases : montée inhale + pause + Relache longue avec baillement en redescente + secouer pour se réveiller
 
 ## Step 1 — Make the sound first
 
