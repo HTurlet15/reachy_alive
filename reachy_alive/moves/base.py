@@ -1,5 +1,6 @@
 """Move interface and library-backed implementation."""
 
+from pathlib import Path
 from abc import ABC, abstractmethod
 
 from reachy_mini import ReachyMini
@@ -10,7 +11,6 @@ from reachy_mini.motion.recorded_move import RecordedMoves
 # straight up is where antennas jitter (upstream hardware limit).
 NEUTRAL_ANTENNAS_RAD = [-0.1745, 0.1745]
 
-
 class Move(ABC):
     """A discrete, one-off action the robot can play.
 
@@ -20,6 +20,7 @@ class Move(ABC):
     """
 
     RETURN_DURATION_S = 0.5
+    SOUNDS_DIR = Path(__file__).resolve().parent.parent / "assets" / "sounds"
 
     def play(self, reachy_mini: ReachyMini) -> None:
         """Play this move, then return the robot to neutral.
