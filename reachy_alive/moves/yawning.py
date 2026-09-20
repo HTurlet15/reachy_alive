@@ -1,3 +1,11 @@
+"""Hand-made yawn gesture.
+
+Reference example for a procedural move whose timing follows its sounds.
+Copy this file's shape when writing your own: declare the phases, let
+__init__ read their durations, and keep each phase's pose in its own
+method.
+"""
+
 import itertools
 import time
 
@@ -17,8 +25,9 @@ class Yawning(Move):
 
     SOUNDS_DIR = Move.SOUNDS_DIR / "yawning"
 
-    # Ordered phases, with the sound played at the start of each.
-    # A phase with no sound uses HOLD_DURATION_S.
+    # The gesture, in order. Each phase plays its sound as it starts, and
+    # lasts as long as that sound. A phase with no sound needs an explicit
+    # duration -- see HOLD_DURATION_S.
     PHASE_SOUNDS = {
         "rise": "inhale.wav",
         "hold": None,
@@ -27,8 +36,11 @@ class Yawning(Move):
     }
     HOLD_DURATION_S = 0.7
 
+    # Extra silence added to a phase, on top of its sound. Use this to let
+    # a phase breathe before the next one starts, rather than editing the
+    # .wav itself.
     PHASE_PADDING_S = {"exhale": 0.6}
-    
+
     RISE_PITCH_DEG = -20.0
     ANTENNAS_LOWERED_RAD = -1.0
 
@@ -39,7 +51,15 @@ class Yawning(Move):
         """
         Args:
             tick_hz: Frequency, in Hz, at which the pose is updated during the move.
+
+        Raises:
+            ValueError: If PHASE_PADDING_S names a phase that doesn't exist.
+            FileNotFoundError: If a sound file is missing.
         """
+        unknown = set(self.PHASE_PADDING_S) - set(self.PHASE_SOUNDS)
+        if unknown:
+            raise ValueError(f"PHASE_PADDING_S names unknown phases: {sorted(unknown)}")
+
         self.step_s = 1.0 / tick_hz
 
         durations = [self._phase_duration(phase) for phase in self.PHASE_SOUNDS]
@@ -54,14 +74,19 @@ class Yawning(Move):
 
         Returns:
             Duration in seconds.
+
+        Raises:
+            FileNotFoundError: If the phase's sound file is missing.
         """
         sound = self.PHASE_SOUNDS[phase]
-        sound_duration = (
-            self.HOLD_DURATION_S
-            if sound is None
-            else sf.info(str(self.SOUNDS_DIR / sound)).duration
-        )
-        return sound_duration + self.PHASE_PADDING_S.get(phase, 0.0)
+        if sound is None:
+            return self.HOLD_DURATION_S + self.PHASE_PADDING_S.get(phase, 0.0)
+
+        path = self.SOUNDS_DIR / sound
+        if not path.is_file():
+            raise FileNotFoundError(f"Sound for phase {phase!r} not found: {path}")
+
+        return sf.info(str(path)).duration + self.PHASE_PADDING_S.get(phase, 0.0)
 
     def _perform(self, reachy_mini: ReachyMini) -> None:
         start = time.monotonic()
@@ -71,6 +96,8 @@ class Yawning(Move):
         while (elapsed := time.monotonic() - start) < self.duration_s:
             phase, phase_progress = self._phase_at(elapsed)
 
+            # Sounds fire on entering a phase. previous_phase is local, so
+            # nothing carries over between calls -- no flag to reset.
             if phase != previous_phase:
                 self._play_phase_sound(reachy_mini, phase)
                 previous_phase = phase
@@ -96,7 +123,12 @@ class Yawning(Move):
             if elapsed < phase_end:
                 return phase, (elapsed - phase_start) / (phase_end - phase_start)
             phase_start = phase_end
-        return phase, 1.0
+
+        # Fallback: elapsed can overshoot the last phase end by a fraction of
+        # a tick, since the while test and this call happen at slightly
+        # different instants.
+        last_phase = list(self.phase_ends_s)[-1]
+        return last_phase, 1.0
 
     def _play_phase_sound(self, reachy_mini: ReachyMini, phase: str) -> None:
         """Play the sound a phase starts with, if it has one."""
