@@ -11,8 +11,9 @@ concatenate(
         (str(HERE / "hiccup.wav"), 2),
         (str(HERE / "hiccup.wav"), 2),
         (str(HERE / "hiccup.wav"), 0.5),
-        (str(HERE / "complaining.wav"), 2.5),
-        (str(HERE / "hiccup.wav"), 0.0),
+        (str(HERE / "complaining.wav"), 2),
+        (str(HERE / "hiccup.wav"), 1.5),
     ],
     str(HERE / "hiccup_full.wav"),
 )
+
