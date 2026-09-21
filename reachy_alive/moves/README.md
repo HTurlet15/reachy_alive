@@ -1,8 +1,9 @@
 # Making a move
 
-A **move** is one gesture the robot plays — a yawn, a stretch, a sneeze.
-Everything around it is already handled: when it gets triggered, how it
-ends, how it hands the robot back. All you write is the gesture itself.
+A **move** is one gesture the robot plays — a yawn, a stretch, a hiccup.
+Everything around it is already handled: when it gets triggered, how its
+sounds reach the robot, how it hands the robot back. All you write is the
+gesture itself.
 
 ## The contract
 
@@ -20,11 +21,14 @@ class YourMove(Move):
         ...
 ```
 
-That's it. You never call `_perform()` yourself — the robot calls
-`play()`, which runs your gesture and then returns to neutral. You don't
-have to clean up after yourself.
+You never call `_perform()` yourself. The robot calls `play()`, which:
 
----
+1. uploads your move's sounds to the robot, while it's still at rest
+2. runs `_perform()` — your gesture
+3. returns the robot to neutral
+
+So you don't have to clean up after yourself, and the next behavior always
+starts from a known pose.
 
 ## Step 1 — Plan the gesture
 
@@ -47,8 +51,8 @@ Knowing this list is most of the work. The rest is filling it in.
 Three ways. Pick based on the gesture, not on what you already know.
 
 - **Write it in code** — best when the motion is simple to describe: the
-head rises, holds, comes back. You control it exactly, and you can work
-without the robot in front of you. See `stretching.py` and `yawning.py`.
+  head rises, holds, comes back. You control it exactly, and you can work
+  without the robot in front of you. See `stretching.py` and `yawning.py`.
 
 - **Record it by hand** — best when the motion is organic and awkward to
 describe in numbers. Install the **Marionette** app from Reachy Mini
@@ -63,18 +67,30 @@ closest you get without that hardware.
 
 ## Step 3 — Make the sound first
 
-Once you chose how you will create your move, start here, not with the motion. Timing a gesture to a finished sound is far easier than the other way round: a sound has a fixed length you can't
-stretch, while a gesture bends to fit.
+Once you've chosen how to build your move, start here, not with the
+motion. Timing a gesture to a finished sound is far easier than the other
+way round: a sound has a fixed length you can't stretch, while a gesture
+bends to fit.
 
-See [`../assets/sounds/README.md`](../assets/sounds/README.md) — it takes
-about ten minutes in the browser.
+How you package it depends on your choice: **one file per phase** if you
+write the move in code, **a single composed file** if you record it in
+Marionette. See [`../assets/sounds/README.md`](../assets/sounds/README.md)
+— it takes about ten minutes in the browser.
 
 ## Step 4 — Create the motion
 
 ### If you wrote it in code
 
-Declare the phases and their sounds, then let `__init__` read the
-durations from the files:
+You write three things:
+
+1. **The phases and their sounds** — the structure of the gesture
+2. **The list of sounds** — so they're loaded before the motion starts
+3. **One pose per phase** — the choreography itself
+
+**1. The phases and their sounds**
+
+Each phase lasts exactly as long as its sound, so declaring the sounds
+also declares the timing:
 
 ```python
 PHASE_SOUNDS = {
@@ -86,22 +102,43 @@ PHASE_SOUNDS = {
 HOLD_DURATION_S = 0.7
 ```
 
-A phase with `None` needs an explicit duration. A phase that needs a beat
-of silence after its sound gets an entry in `PHASE_PADDING_S` — a rhythm
-setting, tunable without re-exporting anything.
+A phase with no sound (`None`) needs an explicit duration. To add a beat
+of silence after a sound, use `PHASE_PADDING_S` rather than editing the
+`.wav`.
 
-Then compute a pose on every tick and send it with `set_target`, inside
-**one continuous loop**. One loop, not a chain of `goto_target` calls —
-each of those decelerates to a full stop, and a sequence of them reads as
-a stutter rather than a gesture.
+**2. The list of sounds**
 
-Sounds fire when the phase changes:
+On Wireless, playing a sound first uploads it to the robot — and done
+mid-gesture, that upload freezes the motion. List your sounds and
+`play()` uploads them beforehand, while the robot is still at rest:
 
 ```python
-if phase != previous_phase:
-    self._play_phase_sound(reachy_mini, phase)
-    previous_phase = phase
+def sound_paths(self) -> list[Path]:
+    return [self.SOUNDS_DIR / s for s in self.PHASE_SOUNDS.values() if s is not None]
 ```
+
+Then play them with `self.play_sound()`, which uses the uploaded copy.
+
+**3. One pose per phase**
+
+The gesture is a loop that asks, on every tick, *which phase are we in,
+and how far through it?* — then sends the matching pose with
+`set_target`. That loop is the same for every move: copy `_perform` from
+`yawning.py`.
+
+What you actually write is one method per phase. Each receives `p`,
+going from 0 to 1 across its phase, and returns the pose at that point:
+
+```python
+def _rise_pose(self, p: float) -> tuple[float, float, float]:
+    pitch = interpolate(0.0, self.RISE_PITCH_DEG, p)
+    antenna = interpolate(self.ANTENNA_AT_NEUTRAL_RAD, self.ANTENNA_LOWERED_RAD, p)
+    return pitch, 0.0, antenna
+```
+
+`interpolate(start, end, p)` gives the value `p` of the way from `start`
+to `end`. Make each phase start where the previous one ended, or the
+robot will jump between them.
 
 `yawning.py` is the reference for all of this — copy its shape.
 
@@ -109,57 +146,93 @@ if phase != previous_phase:
 
 ### If you recorded it in Marionette
 
-There's nothing to write. Publish the recording as a Hugging Face dataset
-and use it directly:
+There's nothing to write. Marionette uploads each recording to a Hugging
+Face dataset under your account. `hiccup-full` was made this way — here's
+how it's wired into the idle pool in `main.py`:
 
 ```python
-from reachy_mini.motion.recorded_move import RecordedMoves
-from reachy_alive.moves.base import LibraryMove
+reachy_alive_recordings = RecordedMoves("HTurlet15/reachy-alive")
 
-my_moves = RecordedMoves("your-username/your-dataset")
-itching = LibraryMove("itching", my_moves)
+marionette_moves = self._library_moves(reachy_alive_recordings, [
+    "hiccup-full",
+])
 ```
 
-See `itching` in `main.py` for a working example.
+Before wiring yours in, check it loads:
+
+```bash
+python -c "
+from reachy_mini.motion.recorded_move import RecordedMoves
+print(RecordedMoves('your-username/your-dataset').list_moves())
+"
+```
+
+Three things trip people up:
+
+- **The dataset name on the Hub can differ from what Marionette shows.**
+  Marionette displays `reachy_alive`; the Hub identifier is
+  `reachy-alive`. Check `https://huggingface.co/<your-username>` if a name
+  doesn't resolve.
+- **The move name is exactly what Marionette saved** — `hiccup-full`, with
+  a hyphen, not `hiccup_full`.
+- **The dataset must be public**, or the move plays on your machine and
+  nowhere else.
 
 ---
 
 ### If you mixed both
 
-Write a `Move` subclass that plays the recorded head motion and drives
-the antennas from code. Take the gesture's duration from the sound file
-so both halves stay aligned:
+A recorded move exposes `evaluate(t)`, `duration` and `sound_path` — what
+`play_move` uses internally. A mixed move plays the recording frame by
+frame and replaces what it wants, typically the antennas, keeping both
+halves aligned on the recording's own timing.
 
-```python
-self.duration_s = sf.info(str(self.SOUND_PATH)).duration
-```
-
-See `sneezing.py`.
+> No example ships yet. If you build one, add it here.
 
 ## Step 5 — Try it
 
-Add your class to `_MOVES` in `../scripts/try_move.py`, then:
+For a move written in code, add your class to `_CODED_MOVES` in
+`../scripts/try_move.py`. Then:
 
 ```bash
-pytest                    # checks the logic, no robot needed
-try-move your-move        # plays it on the real robot
+pytest                            # checks the logic, no robot needed
+try-move your-move                # a move written in code
+try-move recorded hiccup-full     # a move recorded in Marionette
+try-move pollen boredom1          # one of Pollen's emotions
 ```
+
+`try-move` eases the robot into neutral before your move and puts it back
+to sleep after, so every run starts from the same state.
 
 Expect several rounds of adjusting numbers and watching. That's normal —
 the values in `stretching.py` took a lot of passes.
 
 ---
 
-## Three things that will bite you
+## Things that will bite you
+
+**Play sounds with `self.play_sound()`, never `reachy_mini.media.play_sound()`.**
+Both work, but only the first uses the copy already uploaded to the robot.
+Calling the SDK directly re-uploads the file mid-gesture, and the motion
+stutters at every sound.
 
 **Antennas jitter when perfectly vertical.** Neutral isn't `[0.0, 0.0]`,
-it's `NEUTRAL_ANTENNAS_RAD` (~10° off). Use that constant.
+it's `NEUTRAL_ANTENNAS_RAD` (~10° off). Moves send the antennas as a
+mirrored pair `[a, -a]`, so start and end your antenna motion at
+`NEUTRAL_ANTENNAS_RAD[0]`.
+
+**Your gesture starts from neutral — keep it that way.** `set_target`
+doesn't interpolate. Streaming it from a pose far away — the sleep pose
+after a fresh boot, say — asks for a huge instant jump and can take the
+robot's daemon down. `play()` and `try-move` make sure you start from
+neutral; don't bypass them.
 
 **Never send the head below z = -170 mm.** Below that, the robot's
 inverse kinematics solver wedges permanently — it keeps accepting
 commands and playing sounds while no longer moving, until the daemon is
 restarted. The recorded moves `waiting`, `mini-deep-sleep` and
-`toc-toc-toc` do this; don't use them.
+`toc-toc-toc` do this; don't use them
+([pollen-robotics/reachy_mini#1417](https://github.com/pollen-robotics/reachy_mini/issues/1417)).
 
 **Use `time.monotonic()`, never `time.time()`.** Wall-clock time can jump
 backwards on a clock sync, mid-gesture.

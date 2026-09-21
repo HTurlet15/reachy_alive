@@ -7,33 +7,39 @@ video-game blip.
 
 ## Layout
 
-Sounds are grouped by the move that uses them:
+Sounds are grouped by the move that uses them. How they're packaged
+depends on how the move was built:
 
 ```
 assets/sounds/
-├── base.jsfxr.json ← the shared starting point
-└── yawning/
-    ├── inhale.wav
-    ├── inhale.jsfxr.json
-    ├── exhale.wav
-    ├── exhale.jsfxr.json
-    ├── shake.wav
-    └── shake.jsfxr.json
+├── base.jsfxr.json            ← the shared starting point
+├── yawning/                   ← written in code: one sound per phase
+│   ├── inhale.wav
+│   ├── inhale.jsfxr.json
+│   └── ...
+└── hiccup/                    ← recorded in Marionette: one composed sound
+    ├── hiccup.wav
+    ├── hiccup.jsfxr.json
+    ├── complaining.wav
+    ├── complaining.jsfxr.json
+    ├── compose.py             ← joins the parts
+    └── hiccup_full.wav        ← the result, played during the recording
 ```
 
-Create a folder for your move, and keep each `.wav` next to the preset
-that produced it. The preset is what lets the next person pick up where
-you left off.
+Create a folder named after your move, and keep each `.wav` next to the
+preset that produced it. The preset is what lets the next person pick up
+where you left off.
 
 ## Create a sound
 
-Build it in [jsfxr](https://sfxr.me), in the browser, nothing to install.
-You don't have to start from scratch: load [`base.jsfxr.json`](base.jsfxr.json)
-and change the settings, like **Start frequency** and **Slide**. Same
-voice, different moods. That's what keeps every sound in the project
-sounding like the same robot.
+Build it in [jsfxr](https://sfxr.me) — in the browser, nothing to install.
 
-Two ways to load it in jsfxr:
+Don't start from scratch: load [`base.jsfxr.json`](base.jsfxr.json) and
+change **Start frequency** and **Slide** first — they carry most of the
+character. Same voice, different moods: that's what keeps every sound in
+the project sounding like the same robot.
+
+Two ways to load it:
 
 - **Open Save**, then pick [`base.jsfxr.json`](base.jsfxr.json) from disk.
 - **Deserialize**: click it to open the text box, paste in the file's
@@ -41,56 +47,56 @@ Two ways to load it in jsfxr:
 
   ![jsfxr Deserialize panel](../../../docs/jsfxr-deserialize.png)
 
-Once loaded, the generator panel reflects the preset's settings — this
-is what `base.jsfxr.json` looks like:
+Once loaded, the generator panel reflects the preset's settings — this is
+what `base.jsfxr.json` looks like:
 
 ![jsfxr generator panel with the base preset loaded](../../../docs/jsfxr-settings.png)
 
-Play with the different values to find the perfect sound for your move. 
-Try to keep it in the same tone of the base.jxsfr.json, so the 
-robot doesn't sound too different between moves.
+From there, adjust until it fits your move, but stay close to the base
+preset's tone so the robot doesn't sound like a different creature from
+one move to the next.
 
-Export **both** files: the `.wav` and — via *Serialize* or *Save* — the
-`.json` preset into your move folder. The preset is what lets the next person
-pick up where you left off.
+Export **both** files into your move's folder: the `.wav`, and — via
+*Serialize* or *Save* — the `.json` preset.
 
-> jsfxr can't mix noise into a sine wave, so you won't get the
-> breathiness of a real whistle. Close is good enough.
+> jsfxr can't mix noise into a sine wave, so you won't get the breathiness
+> of a real whistle. Close is good enough.
 
-## Play a sound (for moves written with code)
+## Several parts in one file (moves recorded in Marionette)
 
-```python
-reachy_mini.media.play_sound(str(MY_SOUND_PATH))
-```
+Marionette plays a single sound while you move the robot by hand — that
+sound is your metronome during the take. So a gesture with several beats
+needs its parts, and the silences between them, joined into one file.
 
-Non-blocking, so a gesture keeps running while the sound plays. See
-[`../../moves/README.md`](../../moves/README.md) for how to fire it at
-the right moment in a gesture.
-
-## Concatenating several parts (for moves created with Marionette)
-
-If you chose to create your move with the Marionette app, you will need one 
-`.wav` of all your different sounds you just created since Marionette doesn't 
-support having multiples phases sounds.
-
-
-For example, a sneeze is a sniff, a pause, then the sneeze itself. Build each part
-separately in jsfxr, then join them:
+Build each part separately in jsfxr, then keep a `compose.py` next to
+them that joins them. [`hiccup/compose.py`](hiccup/compose.py) is the
+reference:
 
 ```python
-from reachy_alive.scripts.compose_sound import concatenate
-
 concatenate(
-    [("sniff.wav", 0.3), ("sneeze.wav", 0.15), ("sigh.wav", 0.0)],
-    "sneezing.wav",
+    [
+        (str(HERE / "hiccup.wav"), 0.6),
+        (str(HERE / "hiccup.wav"), 0.6),
+        (str(HERE / "hiccup.wav"), 0.9),
+        (str(HERE / "complaining.wav"), 0.7),
+        (str(HERE / "hiccup.wav"), 0.0),
+    ],
+    str(HERE / "hiccup_full.wav"),
 )
 ```
 
 Each number is the silence *after* that part, in seconds. Those silences
-are what give the sound its rhythm — expect to try a few values.
-
-In this example, you will get a final `sneezing.wav` of `sniff.wav` + 0.3s of silence,
-then `sneeze.wav` + 0.15s of silence and finally `sigh.wav`.
+are the gesture's rhythm: compose the file, listen to it a few times, and
+rehearse the motion against it before recording.
 
 All parts must share the same sample rate (jsfxr exports at 44k, 22k, 11k
 or 8k). Mixing rates plays the result at the wrong speed.
+
+A move **written in code** doesn't need this: it plays one sound per
+phase, and silences go in `PHASE_PADDING_S`.
+
+## Playing a sound from a move
+
+See [`../../moves/README.md`](../../moves/README.md). In short: list your
+sounds in `sound_paths()` and play them with `self.play_sound()`, so
+they're uploaded to the robot before the gesture rather than during it.
