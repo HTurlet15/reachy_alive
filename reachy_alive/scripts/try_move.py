@@ -21,34 +21,37 @@ from reachy_alive.moves.base import LibraryMove
 from reachy_alive.moves.stretching import Stretching
 from reachy_alive.moves.yawning import Yawning
 
-# Maps a CLI command name to its Move class.
-# Add new hand-made gestures here as they're implemented.
-_MOVES = {
+# Moves written in code. Add yours here.
+_CODED_MOVES = {
     "stretching": Stretching,
     "yawning": Yawning,
 }
 
+# Recorded-move libraries, by the subcommand that plays from them.
+_LIBRARIES = {
+    "pollen": "pollen-robotics/reachy-mini-emotions-library",
+    "recorded": "HTurlet15/reachy-alive",
+}
 
 def main() -> None:
-    """Parse CLI arguments, connect to the robot, and trigger the chosen move."""
+    """Parse CLI arguments, connect to the robot, and play the chosen move."""
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    for name in _MOVES:
+    for name in _CODED_MOVES:
         subparsers.add_parser(name)
 
-    library_parser = subparsers.add_parser("library")
-    library_parser.add_argument(
-        "move_name", help="Name of the move in the emotions library, e.g. boredom1"
-    )
+    for source, dataset in _LIBRARIES.items():
+        source_parser = subparsers.add_parser(source)
+        source_parser.add_argument("move_name", help=f"Name of the move in {dataset}")
 
     args = parser.parse_args()
 
-    if args.command == "library":
-        emotions = RecordedMoves("pollen-robotics/reachy-mini-emotions-library")
-        move = LibraryMove(args.move_name, emotions)
+    if args.command in _LIBRARIES:
+        library = RecordedMoves(_LIBRARIES[args.command])
+        move = LibraryMove(args.move_name, library)
     else:
-        move = _MOVES[args.command]()
+        move = _CODED_MOVES[args.command]()
 
     with ReachyMini() as mini:
         move.play(mini)
