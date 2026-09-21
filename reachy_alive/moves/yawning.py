@@ -39,7 +39,8 @@ class Yawning(Move):
     # Extra silence added to a phase, on top of its sound. Use this to let
     # a phase breathe before the next one starts, rather than editing the
     # .wav itself.
-    PHASE_PADDING_S = {"exhale": 0.6}
+    PHASE_PADDING_S = {"rise":0.5,
+                       "exhale": 0.6}
 
     RISE_PITCH_DEG = -20.0
     ANTENNAS_LOWERED_RAD = -1.0
