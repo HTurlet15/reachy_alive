@@ -67,7 +67,7 @@ class ReachyAlive(ReachyMiniApp):
         # subsequent target commands (returning valid UUIDs and playing audio, 
         # but executing no motion) until the daemon process is fully restarted.
         library_move_names = ["boredom1", "boredom2", "tired1", "serenity1", 
-                              "indifferent1", "thoughtful1", "curious1", "lonely1"]
+                              "indifferent1", "thoughtful1", "curious1"]
 
         missing = [name for name in library_move_names if name not in emotions.list_moves()]
         if missing:
