@@ -49,14 +49,6 @@ class ReachyAlive(ReachyMiniApp):
 
         return lambda: antennas_enabled
 
-    def _build_idle_behaviors(self) -> list[Move]:
-        """Build the discrete gestures the idle manager picks from.
-
-        Raises:
-            ValueError: If a configured move is missing from the library.
-        """
-        emotions = RecordedMoves("pollen-robotics/reachy-mini-emotions-library")
-
         
     def _build_idle_behaviors(self) -> list[Move]:
         """Build the discrete gestures the idle manager picks from.
