@@ -22,7 +22,7 @@ class IdleManager:
     def __init__(
         self,
         behaviors: List[Move],
-        gesture_interval_range_s: Tuple[float, float] = (15.0, 40.0),
+        gesture_interval_range_s: Tuple[float, float] = (30, 45.0),
     ) -> None:
         """
         Args:
