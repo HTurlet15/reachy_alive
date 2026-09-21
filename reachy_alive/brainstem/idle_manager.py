@@ -8,7 +8,7 @@ import numpy as np
 from reachy_mini import ReachyMini
 
 from reachy_alive.moves.base import Move
-from reachy_alive.moves.breathing import get_breathing_pose
+from reachy_alive.brainstem.breathing import get_breathing_pose
 from reachy_alive.shared_state import SharedState
 
 
