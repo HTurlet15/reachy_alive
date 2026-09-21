@@ -59,17 +59,8 @@ class ReachyAlive(ReachyMiniApp):
         pollen_emotions = RecordedMoves("pollen-robotics/reachy-mini-emotions-library")
         reachy_alive_recordings = RecordedMoves("HTurlet15/reachy-alive")
 
-        # Recorded by Pollen, played as-is.
-
-        # Closest available stand-ins for an idle, slightly-bored robot
-        #
-        # WORKAROUND (Reachy Mini SDK v1.10.0): 
-        # Explicitly excluding "waiting", "mini-deep-sleep", and "toc-toc-toc". 
-        # These specific recorded moves park the head outside the physical workspace 
-        # limit (z < -175mm). This wedges the Inverse Kinematics (IK) solver in an 
-        # unrecoverable collision state. Once wedged, the SDK silently swallows 
-        # subsequent target commands (returning valid UUIDs and playing audio, 
-        # but executing no motion) until the daemon process is fully restarted.
+        # Recorded by Pollen, played as-is. Excludes waiting, mini-deep-sleep
+        # and toc-toc-toc, which wedge the IK solver (pollen-robotics/reachy_mini#1417).
         
         pollen_moves = self._library_moves(pollen_emotions, [
             "boredom1", "boredom2", "tired1", "serenity1",
