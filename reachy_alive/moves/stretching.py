@@ -34,7 +34,7 @@ class Stretching(Move):
     # Extra silence added to a phase, on top of its sound. Use this to let
     # a phase breathe before the next one starts, rather than editing the
     # .wav itself.
-    PHASE_PADDING_S = {"rise": 0.25,
+    PHASE_PADDING_S = {"rise": 0,
                        "tremble" : 0.25}
 
     LOWER_PITCH_DEG = 20.0
