@@ -13,12 +13,7 @@ from reachy_mini import ReachyMini
 from reachy_mini.utils import create_head_pose
 
 from reachy_alive.moves.base import NEUTRAL_ANTENNAS_RAD, Move
-
-
-def _lerp(start: float, end: float, p: float) -> float:
-    """Linearly interpolate from start (p=0) to end (p=1)."""
-    return start + (end - start) * p
-
+from reachy_alive.interpolate import interpolate
 
 class Yawning(Move):
     """Plays a yawn whose phase durations follow its sound files.
@@ -169,8 +164,8 @@ class Yawning(Move):
 
     def _rise_pose(self, p: float) -> tuple[float, float, float]:
         """Tilt the head up and lower the antennas. p: 0 -> 1."""
-        pitch = _lerp(0.0, self.RISE_PITCH_DEG, p)
-        antenna = _lerp(self.ANTENNA_AT_NEUTRAL_RAD, self.ANTENNA_LOWERED_RAD, p)
+        pitch = interpolate(0.0, self.RISE_PITCH_DEG, p)
+        antenna = interpolate(self.ANTENNA_AT_NEUTRAL_RAD, self.ANTENNA_LOWERED_RAD, p)
         return pitch, 0.0, antenna
 
     def _hold_pose(self) -> tuple[float, float, float]:
@@ -179,8 +174,8 @@ class Yawning(Move):
 
     def _exhale_pose(self, p: float) -> tuple[float, float, float]:
         """Ease the head and antennas back to neutral. p: 0 -> 1."""
-        pitch = _lerp(self.RISE_PITCH_DEG, 0.0, p)
-        antenna = _lerp(self.ANTENNA_LOWERED_RAD, self.ANTENNA_AT_NEUTRAL_RAD, p)
+        pitch = interpolate(self.RISE_PITCH_DEG, 0.0, p)
+        antenna = interpolate(self.ANTENNA_LOWERED_RAD, self.ANTENNA_AT_NEUTRAL_RAD, p)
         return pitch, 0.0, antenna
 
     def _shake_pose(self, step: int) -> tuple[float, float, float]:
