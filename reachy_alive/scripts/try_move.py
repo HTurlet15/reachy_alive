@@ -53,9 +53,14 @@ def main() -> None:
     else:
         move = _CODED_MOVES[args.command]()
 
-    with ReachyMini() as mini:
-        mini.enable_motors()
-        move.play(mini)
+        with ReachyMini() as mini:
+            mini.enable_motors()
+            try:
+                move.go_neutral(mini, duration=1.0)
+                move.play(mini)
+            finally:
+                mini.goto_sleep()
+                mini.disable_motors()
 
 
 if __name__ == "__main__":
