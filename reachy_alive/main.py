@@ -57,6 +57,18 @@ class ReachyAlive(ReachyMiniApp):
         """
         emotions = RecordedMoves("pollen-robotics/reachy-mini-emotions-library")
 
+        
+    def _build_idle_behaviors(self) -> list[Move]:
+        """Build the discrete gestures the idle manager picks from.
+
+        Raises:
+            ValueError: If a configured library move doesn't exist.
+        """
+        pollen_emotions = RecordedMoves("pollen-robotics/reachy-mini-emotions-library")
+        reachy_alive_recordings = RecordedMoves("HTurlet15/reachy-alive")
+
+        # Recorded by Pollen, played as-is.
+
         # Closest available stand-ins for an idle, slightly-bored robot
         #
         # WORKAROUND (Reachy Mini SDK v1.10.0): 
@@ -66,16 +78,43 @@ class ReachyAlive(ReachyMiniApp):
         # unrecoverable collision state. Once wedged, the SDK silently swallows 
         # subsequent target commands (returning valid UUIDs and playing audio, 
         # but executing no motion) until the daemon process is fully restarted.
-        library_move_names = ["boredom1", "boredom2", "tired1", "serenity1", 
-                              "indifferent1", "thoughtful1", "curious1"]
+        
+        pollen_moves = self._library_moves(pollen_emotions, [
+            "boredom1", "boredom2", "tired1", "serenity1",
+            "indifferent1", "thoughtful1", "curious1", "lonely1",
+        ])
 
-        missing = [name for name in library_move_names if name not in emotions.list_moves()]
+        # Recorded by hand in Marionette, played as-is.
+        marionette_moves = self._library_moves(reachy_alive_recordings, [
+            "hiccup-full",
+        ])
+
+        # Written entirely in code.
+        coded_moves = [Stretching(), Yawning()]
+
+        # Recorded head, coded antennas.
+        mixed_moves: list[Move] = []
+
+        return pollen_moves + marionette_moves + coded_moves + mixed_moves
+
+    def _library_moves(self, library: RecordedMoves, names: list[str]) -> list[Move]:
+        """Wrap named moves from a library, checking they all exist.
+
+        Args:
+            library: The recorded-moves library to load from.
+            names: Move names to wrap.
+
+        Returns:
+            One LibraryMove per name.
+
+        Raises:
+            ValueError: If a name isn't in the library.
+        """
+        available = library.list_moves()
+        missing = [name for name in names if name not in available]
         if missing:
-            raise ValueError(f"Moves not found in emotions library: {missing}")
-
-        return [
-            LibraryMove(name, emotions) for name in library_move_names
-        ] + [Stretching(), Yawning()]
+            raise ValueError(f"Moves not found in library: {missing}")
+        return [LibraryMove(name, library) for name in names]
 
 
 if __name__ == "__main__":
