@@ -54,6 +54,7 @@ def main() -> None:
         move = _CODED_MOVES[args.command]()
 
     with ReachyMini() as mini:
+        mini.enable_motors()
         move.play(mini)
 
 
