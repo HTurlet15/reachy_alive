@@ -2,15 +2,19 @@
 
 Playing a move goes through three steps:
 
-1. Its sounds are uploaded to the robot, while it's still at rest.
+1. Its sounds are uploaded to the robot -- ahead of time if ``prepare``
+   was called, otherwise right before the gesture.
 2. The gesture itself runs -- this is ``_perform``, written by each move.
 3. The robot returns to neutral, so the next behavior starts from a known
    pose.
 
-To write a move, subclass ``Move`` and implement ``_perform``. If it plays
-sounds, also override ``sound_paths`` and play them with ``play_sound``;
-``yawning.py`` is the reference. A move recorded in a Hugging Face dataset
-needs no code at all -- wrap it in ``LibraryMove``.
+To write a move, subclass ``Move`` and implement ``_perform`` and
+``sound_paths`` -- the latter returns an empty list if the move plays no
+sound. 
+
+Play sounds with ``play_sound``; ``yawning.py`` is the reference.
+A move recorded in a Hugging Face dataset needs no code at all -- wrap it
+in ``LibraryMove``.
 """
 
 from abc import ABC, abstractmethod
@@ -28,23 +32,61 @@ NEUTRAL_ANTENNAS_RAD = [-0.1745, 0.1745]
 class Move(ABC):
     """A discrete, one-off gesture the robot can play.
 
-    Subclasses implement ``_perform``. Callers only ever use ``play``,
-    which handles everything around the gesture: uploading sounds before
-    it, and returning to neutral after it.
+    Subclasses implement ``_perform`` and ``sound_paths``. Callers only
+    ever use ``play``, which handles everything around the gesture:
+    uploading its sounds before it, and returning to neutral after it.
     """
 
     RETURN_DURATION_S = 0.5
     SOUNDS_DIR = Path(__file__).resolve().parent.parent / "assets" / "sounds"
 
     def play(self, reachy_mini: ReachyMini) -> None:
-        """Upload this move's sounds, play it, then return to neutral.
+        """Play this move, then return the robot to neutral.
 
         Args:
             reachy_mini: Connected robot instance.
         """
-        self._remote_sounds = self._upload_sounds(reachy_mini)
-        self._perform(reachy_mini)
-        self.go_neutral(reachy_mini)
+        # None means nobody called prepare() yet -- the attribute doesn't
+        # even exist before the first call -- so upload the sounds now.
+        if getattr(self, "_remote_sounds", None) is None:
+            self.prepare(reachy_mini)
+        try:
+            self._perform(reachy_mini)
+            self.go_neutral(reachy_mini)
+        finally:
+            # Uploads are keyed by file name, and another move may overwrite
+            # ours before this one plays again -- so the next play re-uploads.
+            self._remote_sounds = None
+
+    def prepare(self, reachy_mini: ReachyMini) -> None:
+        """Upload this move's sounds ahead of time, so play() starts without a pause.
+
+        Builds a table mapping each local sound file to what play_sound()
+        should be given. There are two cases, depending on where the robot
+        runs:
+
+        - Wireless: the audio backend is a WebRTC client, which has an
+          ``upload_sound`` method. Playing a local file would upload it over
+          HTTP mid-gesture and freeze the motion, so each file is uploaded
+          now, and the table points to its copy on the robot.
+        - Local backend (simulation, Lite): files are read directly from
+          disk, so there's nothing to upload. Each file points to itself.
+
+        The table has the same shape either way, so play_sound() works the
+        same on both.
+
+        Optional: play() calls this itself if it wasn't done beforehand.
+        Moves never call it.
+
+        Args:
+            reachy_mini: Connected robot instance.
+        """
+        audio = reachy_mini.media.audio
+        paths = [str(path) for path in self.sound_paths()]
+        if hasattr(audio, "upload_sound"):
+            self._remote_sounds = {path: audio.upload_sound(path) for path in paths}
+        else:
+            self._remote_sounds = {path: path for path in paths}
 
     @abstractmethod
     def _perform(self, reachy_mini: ReachyMini) -> None:
@@ -53,6 +95,33 @@ class Move(ABC):
         Args:
             reachy_mini: Connected robot instance.
         """
+
+    @abstractmethod
+    def sound_paths(self) -> list[Path]:
+        """List the local sound files this move plays.
+
+        They get uploaded before the gesture starts. Return an empty list
+        if the move plays no sound.
+
+        Returns:
+            Paths of the move's sound files.
+        """
+
+    def play_sound(self, reachy_mini: ReachyMini, path: Path) -> None:
+        """Play one of this move's sounds, from the copy made by prepare().
+
+        Args:
+            reachy_mini: Connected robot instance.
+            path: Local path of the sound, as listed in ``sound_paths``.
+
+        Raises:
+            KeyError: If the sound isn't listed in ``sound_paths``.
+        """
+        try:
+            sound = self._remote_sounds[str(path)]
+        except KeyError:
+            raise KeyError(f"{path} is not listed in sound_paths()") from None
+        reachy_mini.media.play_sound(sound)
 
     def go_neutral(self, reachy_mini: ReachyMini, duration: float | None = None) -> None:
         """Move the robot to the neutral head and antenna pose.
@@ -70,60 +139,12 @@ class Move(ABC):
             duration=duration or self.RETURN_DURATION_S,
         )
 
-    def sound_paths(self) -> list[Path]:
-        """List the local sound files this move plays.
-
-        Override this if your move plays sounds, so they get uploaded
-        before it starts. The default is none.
-
-        Returns:
-            Paths of the move's sound files.
-        """
-        return []
-
-    def play_sound(self, reachy_mini: ReachyMini, path: Path) -> None:
-        """Play one of this move's sounds.
-
-        Uses the copy already on the robot when there is one, so nothing is
-        uploaded mid-gesture. Falls back to the local file otherwise.
-
-        Args:
-            reachy_mini: Connected robot instance.
-            path: Local path of the sound, as listed in ``sound_paths``.
-        """
-        # Set by play(). getattr rather than a default in __init__, because
-        # subclasses define their own __init__ without calling this one.
-        remote = getattr(self, "_remote_sounds", {})
-        reachy_mini.media.play_sound(remote.get(str(path), str(path)))
-
-    def _upload_sounds(self, reachy_mini: ReachyMini) -> dict[str, str]:
-        """Upload this move's sounds while the robot is still at rest.
-
-        On Wireless, playing a local file first uploads it over HTTP, which
-        blocks long enough to freeze a gesture. Uploading here moves that
-        delay to before the motion, where it can't be seen.
-
-        This runs on every play rather than once at startup: the robot
-        stores uploads by file name only, and two moves may ship a sound
-        with the same name (``yawning/exhale.wav``, ``stretching/exhale.wav``).
-        Re-uploading just before playing guarantees the right one is there.
-
-        Returns:
-            Local path -> path on the robot. Empty on the local backend
-            (simulation, Lite), which reads files directly.
-        """
-        audio = reachy_mini.media.audio
-        if not hasattr(audio, "upload_sound"):
-            return {}
-        return {str(path): audio.upload_sound(str(path)) for path in self.sound_paths()}
-
 
 class LibraryMove(Move):
     """Plays a named move from a recorded-moves library.
 
     Works with any Hugging Face dataset of recorded moves -- Pollen's own
-    emotion library, or one you recorded in Marionette. The recording
-    carries its own sound, so there's nothing to upload.
+    emotion library, or one you recorded in Marionette.
     """
 
     def __init__(self, move_name: str, library: RecordedMoves) -> None:
@@ -134,6 +155,10 @@ class LibraryMove(Move):
         """
         self.move_name = move_name
         self._library = library
+
+    def sound_paths(self) -> list[Path]:
+        # The recording carries its own sound, played by the SDK itself.
+        return []
 
     def _perform(self, reachy_mini: ReachyMini) -> None:
         reachy_mini.play_move(self._library.get(self.move_name), sound=True)
