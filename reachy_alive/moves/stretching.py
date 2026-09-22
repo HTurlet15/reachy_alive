@@ -3,40 +3,25 @@
 See moves/README.md for how to write a move.
 """
 
-import itertools
-import time
-from pathlib import Path
-
 import numpy as np
-import soundfile as sf
-from reachy_mini import ReachyMini
 from reachy_mini.utils import create_head_pose
 
-from reachy_alive.moves.base import NEUTRAL_ANTENNAS_RAD, Move
 from reachy_alive.interpolate import interpolate
+from reachy_alive.moves.base import NEUTRAL_ANTENNAS_RAD, Move, PhasedMove
 
 
-class Stretching(Move):
-    """Plays a stretch whose phase durations follow its sound files.
-
-    Re-exporting a sound at a different length stretches or shrinks the
-    matching phase, so motion and audio stay in sync.
-    """
+class Stretching(PhasedMove):
+    """Plays a stretch: the robot gathers down, extends, trembles, releases."""
 
     SOUNDS_DIR = Move.SOUNDS_DIR / "stretching"
 
-    # Ordered phases and the sound each one starts with. A phase without a
-    # sound lasts CROUCH_DURATION_S.
     PHASE_SOUNDS = {
         "crouch": None,
         "rise": "rising.wav",
         "tremble": "stretching.wav",
         "release": "exhale.wav",
     }
-    CROUCH_DURATION_S = 0.4
-
-    # Extra silence after a phase's sound, in seconds.
-    PHASE_PADDING_S: dict[str, float] = {}
+    SILENT_PHASE_DURATIONS_S = {"crouch": 0.4}
 
     LOWER_PITCH_DEG = 20.0
     CROUCH_Z_MM = -8.0
@@ -46,162 +31,65 @@ class Stretching(Move):
     TREMBLE_Z_OSCILLATION_MM = 1.0
     TREMBLE_LOOK_UP_PITCH_DEG = -15.0
 
-    # Antennas move as a mirrored pair, sent as [a, -a]; poses compute `a`.
+    # Both antennas move together, mirrored: one value drives the pair.
     ANTENNA_AT_NEUTRAL_RAD = NEUTRAL_ANTENNAS_RAD[0]
-    ANTENNA_DOWN_DEG = -55.0
-    ANTENNA_UP_DEG = 5.0
-    TREMBLE_ANTENNA_AMPLITUDE_DEG = 8.6
+    ANTENNA_DOWN_RAD = np.deg2rad(-55.0)
+    ANTENNA_UP_RAD = np.deg2rad(5.0)
+    TREMBLE_ANTENNA_AMPLITUDE_RAD = np.deg2rad(8.6)
 
-    def __init__(self, tick_hz: float = 50.0) -> None:
-        """Read each phase's duration from its sound file.
-
-        Args:
-            tick_hz: Frequency, in Hz, at which the pose is updated.
-
-        Raises:
-            ValueError: If PHASE_PADDING_S names a phase that doesn't exist.
-            FileNotFoundError: If a sound file is missing.
-        """
-        unknown = set(self.PHASE_PADDING_S) - set(self.PHASE_SOUNDS)
-        if unknown:
-            raise ValueError(f"PHASE_PADDING_S names unknown phases: {sorted(unknown)}")
-
-        self.step_s = 1.0 / tick_hz
-
-        durations = [self._phase_duration(phase) for phase in self.PHASE_SOUNDS]
-        self.phase_ends_s = dict(zip(self.PHASE_SOUNDS, itertools.accumulate(durations)))
-        self.duration_s = sum(durations)
-
-        self.antenna_down_rad = np.deg2rad(self.ANTENNA_DOWN_DEG)
-        self.antenna_up_rad = np.deg2rad(self.ANTENNA_UP_DEG)
-        self.tremble_antenna_rad = np.deg2rad(self.TREMBLE_ANTENNA_AMPLITUDE_DEG)
-
-    def sound_paths(self) -> list[Path]:
-        """List the sounds this move plays, uploaded before it starts."""
-        return [self.SOUNDS_DIR / s for s in self.PHASE_SOUNDS.values() if s is not None]
-
-    def _perform(self, reachy_mini: ReachyMini) -> None:
-        """Run the gesture, firing each phase's sound as the phase begins."""
-        start = time.monotonic()
-        step = 0
-        previous_phase = None
-
-        while (elapsed := time.monotonic() - start) < self.duration_s:
-            phase, phase_progress = self._phase_at(elapsed)
-
-            # Local, so nothing carries over between plays.
-            if phase != previous_phase:
-                self._play_phase_sound(reachy_mini, phase)
-                previous_phase = phase
-
-            pitch, z, roll, antenna = self._pose_at(phase, phase_progress, step)
-            pose = create_head_pose(pitch=pitch, z=z, roll=roll, degrees=True, mm=True)
-            reachy_mini.set_target(head=pose, antennas=[antenna, -antenna])
-
-            step += 1
-            time.sleep(self.step_s)
-
-    def _phase_duration(self, phase: str) -> float:
-        """Return a phase's duration: its sound's length plus any padding.
-
-        Args:
-            phase: Name of the phase.
-
-        Returns:
-            Duration in seconds.
-
-        Raises:
-            FileNotFoundError: If the phase's sound file is missing.
-        """
-        padding = self.PHASE_PADDING_S.get(phase, 0.0)
-        sound = self.PHASE_SOUNDS[phase]
-        if sound is None:
-            return self.CROUCH_DURATION_S + padding
-
-        path = self.SOUNDS_DIR / sound
-        if not path.is_file():
-            raise FileNotFoundError(f"Sound for phase {phase!r} not found: {path}")
-
-        return sf.info(str(path)).duration + padding
-
-    def _phase_at(self, elapsed: float) -> tuple[str, float]:
-        """Return the running phase and the progress within it.
-
-        Args:
-            elapsed: Seconds since the gesture started.
-
-        Returns:
-            (phase name, local progress from 0 to 1).
-        """
-        phase_start = 0.0
-        for phase, phase_end in self.phase_ends_s.items():
-            if elapsed < phase_end:
-                return phase, (elapsed - phase_start) / (phase_end - phase_start)
-            phase_start = phase_end
-
-        # elapsed can overshoot the last phase by a fraction of a tick.
-        return list(self.phase_ends_s)[-1], 1.0
-
-    def _play_phase_sound(self, reachy_mini: ReachyMini, phase: str) -> None:
-        """Play the sound a phase starts with, if it has one."""
-        sound = self.PHASE_SOUNDS[phase]
-        if sound is not None:
-            self.play_sound(reachy_mini, self.SOUNDS_DIR / sound)
-
-    def _pose_at(
-        self, phase: str, phase_progress: float, step: int
-    ) -> tuple[float, float, float, float]:
-        """Return the pose for the running phase.
-
-        Args:
-            phase: Name of the running phase.
-            phase_progress: Progress within that phase, 0 to 1.
-            step: Tick counter, used by the tremble.
-
-        Returns:
-            (pitch in degrees, z in mm, roll in degrees, antenna angle in radians).
-        """
+    def _pose_at(self, phase: str, p: float, step: int) -> tuple[np.ndarray, list[float]]:
         if phase == "crouch":
-            return self._crouch_pose(phase_progress)
+            return self._crouch_pose(p)
         if phase == "rise":
-            return self._rise_pose(phase_progress)
+            return self._rise_pose(p)
         if phase == "tremble":
-            return self._tremble_pose(phase_progress, step)
-        return self._release_pose(phase_progress)
+            return self._tremble_pose(p, step)
+        return self._release_pose(p)
 
-    def _crouch_pose(self, p: float) -> tuple[float, float, float, float]:
+    def _crouch_pose(self, p: float) -> tuple[np.ndarray, list[float]]:
         """Gather down before the stretch. p: 0 -> 1."""
-        return (
-            interpolate(0.0, self.LOWER_PITCH_DEG, p),
-            interpolate(0.0, self.CROUCH_Z_MM, p),
-            0.0,
-            interpolate(self.ANTENNA_AT_NEUTRAL_RAD, self.antenna_down_rad, p),
+        head = create_head_pose(
+            pitch=interpolate(0.0, self.LOWER_PITCH_DEG, p),
+            z=interpolate(0.0, self.CROUCH_Z_MM, p),
+            degrees=True,
+            mm=True,
         )
+        antenna = interpolate(self.ANTENNA_AT_NEUTRAL_RAD, self.ANTENNA_DOWN_RAD, p)
+        return head, [antenna, -antenna]
 
-    def _rise_pose(self, p: float) -> tuple[float, float, float, float]:
+    def _rise_pose(self, p: float) -> tuple[np.ndarray, list[float]]:
         """Extend upward and roll slightly to the side. p: 0 -> 1."""
-        return (
-            interpolate(self.LOWER_PITCH_DEG, 0.0, p),
-            interpolate(self.CROUCH_Z_MM, self.MAX_Z_MM, p),
-            interpolate(0.0, self.REACH_ROLL_DEG, p),
-            interpolate(self.antenna_down_rad, self.antenna_up_rad, p),
+        head = create_head_pose(
+            pitch=interpolate(self.LOWER_PITCH_DEG, 0.0, p),
+            z=interpolate(self.CROUCH_Z_MM, self.MAX_Z_MM, p),
+            roll=interpolate(0.0, self.REACH_ROLL_DEG, p),
+            degrees=True,
+            mm=True,
         )
+        antenna = interpolate(self.ANTENNA_DOWN_RAD, self.ANTENNA_UP_RAD, p)
+        return head, [antenna, -antenna]
 
-    def _tremble_pose(self, p: float, step: int) -> tuple[float, float, float, float]:
+    def _tremble_pose(self, p: float, step: int) -> tuple[np.ndarray, list[float]]:
         """Hold at full extension, shaking with effort. p: 0 -> 1."""
         sign = 1 if step % 2 == 0 else -1
-        return (
-            interpolate(0.0, self.TREMBLE_LOOK_UP_PITCH_DEG, p),
-            self.MAX_Z_MM + sign * self.TREMBLE_Z_OSCILLATION_MM,
-            self.REACH_ROLL_DEG,
-            self.antenna_up_rad + sign * self.tremble_antenna_rad,
+        head = create_head_pose(
+            pitch=interpolate(0.0, self.TREMBLE_LOOK_UP_PITCH_DEG, p),
+            z=self.MAX_Z_MM + sign * self.TREMBLE_Z_OSCILLATION_MM,
+            roll=self.REACH_ROLL_DEG,
+            degrees=True,
+            mm=True,
         )
+        antenna = self.ANTENNA_UP_RAD + sign * self.TREMBLE_ANTENNA_AMPLITUDE_RAD
+        return head, [antenna, -antenna]
 
-    def _release_pose(self, p: float) -> tuple[float, float, float, float]:
+    def _release_pose(self, p: float) -> tuple[np.ndarray, list[float]]:
         """Ease back to neutral. p: 0 -> 1."""
-        return (
-            interpolate(self.TREMBLE_LOOK_UP_PITCH_DEG, 0.0, p),
-            interpolate(self.MAX_Z_MM, 0.0, p),
-            interpolate(self.REACH_ROLL_DEG, 0.0, p),
-            interpolate(self.antenna_up_rad, self.ANTENNA_AT_NEUTRAL_RAD, p),
+        head = create_head_pose(
+            pitch=interpolate(self.TREMBLE_LOOK_UP_PITCH_DEG, 0.0, p),
+            z=interpolate(self.MAX_Z_MM, 0.0, p),
+            roll=interpolate(self.REACH_ROLL_DEG, 0.0, p),
+            degrees=True,
+            mm=True,
         )
+        antenna = interpolate(self.ANTENNA_UP_RAD, self.ANTENNA_AT_NEUTRAL_RAD, p)
+        return head, [antenna, -antenna]

@@ -9,17 +9,19 @@ Playing a move goes through three steps:
    pose.
 
 To write a move, subclass ``Move`` and implement ``_perform`` and
-``sound_paths`` -- the latter returns an empty list if the move plays no
-sound. 
-
-Play sounds with ``play_sound``; ``yawning.py`` is the reference.
-A move recorded in a Hugging Face dataset needs no code at all -- wrap it
-in ``LibraryMove``.
+``sound_paths``. Most gestures are a sequence of phases timed by their
+sounds -- subclass ``PhasedMove`` instead and you only write the poses;
+``yawning.py`` is the reference. A move recorded in a Hugging Face dataset
+needs no code at all -- wrap it in ``LibraryMove``.
 """
 
+import itertools
+import time
 from abc import ABC, abstractmethod
 from pathlib import Path
 
+import numpy as np
+import soundfile as sf
 from reachy_mini import ReachyMini
 from reachy_mini.motion.recorded_move import RecordedMoves
 from reachy_mini.utils import create_head_pose
@@ -138,6 +140,151 @@ class Move(ABC):
             antennas=NEUTRAL_ANTENNAS_RAD,
             duration=duration or self.RETURN_DURATION_S,
         )
+
+
+class PhasedMove(Move):
+    """A move built as a sequence of phases, each timed by its own sound.
+
+    Declare the phases in ``PHASE_SOUNDS`` and write ``_pose_at``; this
+    class handles the rest -- reading durations from the sound files,
+    tracking which phase is running, firing its sound as it begins, and
+    streaming poses to the robot.
+
+    Re-exporting a sound at a different length stretches or shrinks the
+    matching phase, so motion and audio stay in sync.
+    """
+
+    # Ordered phases and the sound each one starts with, e.g.
+    # {"rise": "inhale.wav", "hold": None}. Required.
+    PHASE_SOUNDS: dict[str, str | None] = {}
+
+    # Duration, in seconds, of the phases declared with no sound. Required
+    # for each of them.
+    SILENT_PHASE_DURATIONS_S: dict[str, float] = {}
+
+    # Optional extra silence after a phase's sound, in seconds. Tune the
+    # rhythm here rather than by editing the .wav files.
+    PHASE_PADDING_S: dict[str, float] = {}
+
+    def __init__(self, tick_hz: float = 50.0) -> None:
+        """Read each phase's duration from its sound file.
+
+        Args:
+            tick_hz: Frequency, in Hz, at which the pose is updated.
+
+        Raises:
+            ValueError: If no phase is declared, if a phase with no sound
+                has no duration, or if PHASE_PADDING_S names a phase that
+                doesn't exist.
+            FileNotFoundError: If a sound file is missing.
+        """
+        name = type(self).__name__
+        if not self.PHASE_SOUNDS:
+            raise ValueError(f"{name} declares no phases in PHASE_SOUNDS")
+
+        untimed = {phase for phase, s in self.PHASE_SOUNDS.items() if s is None} - set(
+            self.SILENT_PHASE_DURATIONS_S
+        )
+        if untimed:
+            raise ValueError(
+                f"{name}: phases with no sound need a duration in "
+                f"SILENT_PHASE_DURATIONS_S: {sorted(untimed)}"
+            )
+
+        unknown = set(self.PHASE_PADDING_S) - set(self.PHASE_SOUNDS)
+        if unknown:
+            raise ValueError(f"{name}: PHASE_PADDING_S names unknown phases: {sorted(unknown)}")
+
+        self.step_s = 1.0 / tick_hz
+
+        durations = [self._phase_duration(phase) for phase in self.PHASE_SOUNDS]
+        self.phase_ends_s = dict(zip(self.PHASE_SOUNDS, itertools.accumulate(durations)))
+        self.duration_s = sum(durations)
+
+    def sound_paths(self) -> list[Path]:
+        """List the sounds this move plays, one per phase that has one."""
+        return [self.SOUNDS_DIR / s for s in self.PHASE_SOUNDS.values() if s is not None]
+
+    @abstractmethod
+    def _pose_at(self, phase: str, p: float, step: int) -> tuple[np.ndarray, list[float]]:
+        """Return the pose for the running phase.
+
+        Args:
+            phase: Name of the running phase.
+            p: Progress within that phase, 0 to 1.
+            step: Tick counter, for motion that alternates rather than
+                interpolates -- a shake or a tremble.
+
+        Returns:
+            (head pose, [left antenna, right antenna] in radians).
+        """
+
+    def _perform(self, reachy_mini: ReachyMini) -> None:
+        """Run the gesture, firing each phase's sound as the phase begins."""
+        start = time.monotonic()
+        step = 0
+        previous_phase = None
+
+        while (elapsed := time.monotonic() - start) < self.duration_s:
+            phase, phase_progress = self._phase_at(elapsed)
+
+            # Local, so nothing carries over between plays.
+            if phase != previous_phase:
+                self._play_phase_sound(reachy_mini, phase)
+                previous_phase = phase
+
+            head, antennas = self._pose_at(phase, phase_progress, step)
+            reachy_mini.set_target(head=head, antennas=antennas)
+
+            step += 1
+            time.sleep(self.step_s)
+
+    def _phase_duration(self, phase: str) -> float:
+        """Return a phase's duration: its sound's length plus any padding.
+
+        Args:
+            phase: Name of the phase.
+
+        Returns:
+            Duration in seconds.
+
+        Raises:
+            FileNotFoundError: If the phase's sound file is missing.
+        """
+        padding = self.PHASE_PADDING_S.get(phase, 0.0)
+        sound = self.PHASE_SOUNDS[phase]
+        if sound is None:
+            return self.SILENT_PHASE_DURATIONS_S[phase] + padding
+
+        path = self.SOUNDS_DIR / sound
+        if not path.is_file():
+            raise FileNotFoundError(f"Sound for phase {phase!r} not found: {path}")
+
+        return sf.info(str(path)).duration + padding
+
+    def _phase_at(self, elapsed: float) -> tuple[str, float]:
+        """Return the running phase and the progress within it.
+
+        Args:
+            elapsed: Seconds since the gesture started.
+
+        Returns:
+            (phase name, local progress from 0 to 1).
+        """
+        phase_start = 0.0
+        for phase, phase_end in self.phase_ends_s.items():
+            if elapsed < phase_end:
+                return phase, (elapsed - phase_start) / (phase_end - phase_start)
+            phase_start = phase_end
+
+        # elapsed can overshoot the last phase by a fraction of a tick.
+        return list(self.phase_ends_s)[-1], 1.0
+
+    def _play_phase_sound(self, reachy_mini: ReachyMini, phase: str) -> None:
+        """Play the sound a phase starts with, if it has one."""
+        sound = self.PHASE_SOUNDS[phase]
+        if sound is not None:
+            self.play_sound(reachy_mini, self.SOUNDS_DIR / sound)
 
 
 class LibraryMove(Move):
