@@ -7,28 +7,36 @@ gesture itself.
 
 ## The contract
 
-One file, one class, one method:
+Most gestures are a sequence of phases, each timed by its own sound.
+`PhasedMove` handles all of that; you declare the phases and write the
+poses:
 
 ```python
-from reachy_mini import ReachyMini
-from reachy_alive.moves.base import Move
+from reachy_alive.moves.base import Move, PhasedMove
 
 
-class YourMove(Move):
+class YourMove(PhasedMove):
     """Plays a hand-made move."""
 
-    def _perform(self, reachy_mini: ReachyMini) -> None:
+    SOUNDS_DIR = Move.SOUNDS_DIR / "your_move"
+
+    PHASE_SOUNDS = {"rise": "rising.wav", "fall": "falling.wav"}
+
+    def _pose_at(self, phase, p, step):
         ...
 ```
 
-You never call `_perform()` yourself. The robot calls `play()`, which:
+You never call `_pose_at()` yourself. The robot calls `play()`, which:
 
 1. uploads your move's sounds to the robot, while it's still at rest
-2. runs `_perform()` — your gesture
+2. runs the gesture, firing each sound as its phase begins
 3. returns the robot to neutral
 
 So you don't have to clean up after yourself, and the next behavior always
 starts from a known pose.
+
+If your gesture isn't a sequence of phases, subclass `Move` directly and
+write `_perform()` and `sound_paths()` yourself.
 
 ## Step 1 — Plan the gesture
 
@@ -81,13 +89,9 @@ Marionette. See [`../assets/sounds/README.md`](../assets/sounds/README.md)
 
 ### If you wrote it in code
 
-You write three things:
+You write two things: the phases, and one pose per phase.
 
-1. **The phases and their sounds** — the structure of the gesture
-2. **The list of sounds** — so they're loaded before the motion starts
-3. **One pose per phase** — the choreography itself
-
-**1. The phases and their sounds**
+**1. The phases**
 
 Each phase lasts exactly as long as its sound, so declaring the sounds
 also declares the timing:
@@ -99,48 +103,52 @@ PHASE_SOUNDS = {
     "exhale": "exhale.wav",
     "shake": "shake.wav",
 }
-HOLD_DURATION_S = 0.7
+SILENT_PHASE_DURATIONS_S = {"hold": 0.7}
+PHASE_PADDING_S = {"rise": 0.5}
 ```
 
-A phase with no sound (`None`) needs an explicit duration. To add a beat
-of silence after a sound, use `PHASE_PADDING_S` rather than editing the
-`.wav`.
+A phase with no sound (`None`) needs a duration in
+`SILENT_PHASE_DURATIONS_S`. To add a beat of silence after a sound, use
+`PHASE_PADDING_S` rather than editing the `.wav`.
 
-**2. The list of sounds**
+Nothing else to do about sounds: `PhasedMove` lists them for upload and
+plays each one as its phase begins.
 
-On Wireless, playing a sound first uploads it to the robot — and done
-mid-gesture, that upload freezes the motion. List your sounds and
-`play()` uploads them beforehand, while the robot is still at rest:
+**2. One pose per phase**
+
+On every tick, `PhasedMove` works out which phase is running and how far
+through it, then calls `_pose_at`. Dispatch to one method per phase:
 
 ```python
-def sound_paths(self) -> list[Path]:
-    return [self.SOUNDS_DIR / s for s in self.PHASE_SOUNDS.values() if s is not None]
+def _pose_at(self, phase, p, step):
+    if phase == "rise":
+        return self._rise_pose(p)
+    ...
 ```
 
-Then play them with `self.play_sound()`, which uses the uploaded copy.
-
-**3. One pose per phase**
-
-The gesture is a loop that asks, on every tick, *which phase are we in,
-and how far through it?* — then sends the matching pose with
-`set_target`. That loop is the same for every move: copy `_perform` from
-`yawning.py`.
-
-What you actually write is one method per phase. Each receives `p`,
-going from 0 to 1 across its phase, and returns the pose at that point:
+Each method receives `p`, going from 0 to 1 across its phase, and returns
+the head pose and both antenna angles:
 
 ```python
-def _rise_pose(self, p: float) -> tuple[float, float, float]:
+def _rise_pose(self, p: float) -> tuple[np.ndarray, list[float]]:
     pitch = interpolate(0.0, self.RISE_PITCH_DEG, p)
     antenna = interpolate(self.ANTENNA_AT_NEUTRAL_RAD, self.ANTENNA_LOWERED_RAD, p)
-    return pitch, 0.0, antenna
+    return create_head_pose(pitch=pitch, degrees=True), [antenna, -antenna]
 ```
 
 `interpolate(start, end, p)` gives the value `p` of the way from `start`
-to `end`. Make each phase start where the previous one ended, or the
-robot will jump between them.
+to `end`. Make each phase start where the previous one ended, or the robot
+will jump between them.
+
+The antennas are returned as a pair, so they don't have to move together —
+`[antenna, -antenna]` mirrors them, but a gesture is free to drive each
+one separately.
 
 `yawning.py` is the reference for all of this — copy its shape.
+
+The `step` argument is a tick counter, for motion that alternates rather
+than interpolates. `yawning.py` uses it to shake, `stretching.py` to
+tremble.
 
 ---
 
@@ -183,9 +191,10 @@ Three things trip people up:
 ### If you mixed both
 
 A recorded move exposes `evaluate(t)`, `duration` and `sound_path` — what
-`play_move` uses internally. A mixed move plays the recording frame by
-frame and replaces what it wants, typically the antennas, keeping both
-halves aligned on the recording's own timing.
+`play_move` uses internally. A mixed move subclasses `Move` directly,
+plays the recording frame by frame in `_perform()`, and replaces what it
+wants — typically the antennas — keeping both halves aligned on the
+recording's own timing.
 
 > No example ships yet. If you build one, add it here.
 
@@ -211,15 +220,9 @@ the values in `stretching.py` took a lot of passes.
 
 ## Things that will bite you
 
-**Play sounds with `self.play_sound()`, never `reachy_mini.media.play_sound()`.**
-Both work, but only the first uses the copy already uploaded to the robot.
-Calling the SDK directly re-uploads the file mid-gesture, and the motion
-stutters at every sound.
-
 **Antennas jitter when perfectly vertical.** Neutral isn't `[0.0, 0.0]`,
-it's `NEUTRAL_ANTENNAS_RAD` (~10° off). Moves send the antennas as a
-mirrored pair `[a, -a]`, so start and end your antenna motion at
-`NEUTRAL_ANTENNAS_RAD[0]`.
+it's `NEUTRAL_ANTENNAS_RAD` (~10° off). Start and end your antenna motion
+there.
 
 **Your gesture starts from neutral — keep it that way.** `set_target`
 doesn't interpolate. Streaming it from a pose far away — the sleep pose
@@ -236,3 +239,8 @@ restarted. The recorded moves `waiting`, `mini-deep-sleep` and
 
 **Use `time.monotonic()`, never `time.time()`.** Wall-clock time can jump
 backwards on a clock sync, mid-gesture.
+
+**If you subclass `Move` directly**, play sounds with `self.play_sound()`,
+never `reachy_mini.media.play_sound()`. Both work, but only the first uses
+the copy already uploaded to the robot; calling the SDK directly
+re-uploads the file mid-gesture, and the motion stutters at every sound.
