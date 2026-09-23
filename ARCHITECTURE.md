@@ -43,11 +43,41 @@ and executes the answer.
 Decision-makers (`IdleManager` today; reflexes and deliberation later) are
 plain objects, testable without a robot.
 
+## Moves
+
+A move is one discrete gesture. `Move` defines the contract; `play()`
+handles everything around the gesture so a move only describes motion.
+
+Most gestures share one shape: a sequence of phases, each timed by its own
+sound. That shape lives in `PhasedMove`, extracted once `yawning` and
+`stretching` had duplicated the same ~60 lines of timing machinery. A move
+written on top of it declares its phases and writes one pose per phase.
+
+`LibraryMove` wraps a recorded move from a Hugging Face dataset — Pollen's
+emotion library, or one recorded with Marionette. No code at all.
+
+## Sound upload
+
+On Wireless, playing a local file uploads it over HTTP first, which freezes
+the gesture mid-motion. Sounds are therefore uploaded ahead of the gesture,
+and `play_sound()` plays the copy already on the robot.
+
+`IdleManager` picks the next gesture in advance and prepares it in a
+background thread while the robot is still breathing, so the upload happens
+during motion that doesn't care. Uploads are keyed by file name on the
+robot, so each move re-uploads just before playing: two moves may ship a
+sound with the same name.
+
+What remains: the play command itself is an HTTP round trip, so a sound
+starts slightly after its phase. Running the app on the robot rather than a
+laptop would remove it.
+
 ## Known debt
 
 `IdleManager.get_pose()` decides, executes (`behavior.play()`) **and**
-signals with a `None` sentinel. The execution path is locked inside idle
-behavior, which will get in the way once a second decision-maker exists.
+signals with a `None` sentinel. It also prepares the next gesture. The
+execution path is locked inside idle behavior, which will get in the way
+once a second decision-maker exists.
 
 Target: decision-makers return an intent, `RobotManager` is the only
 executor. Scheduled for sprint C, when a second decision-maker exists to
@@ -55,19 +85,49 @@ validate the design — designing it cold would be guesswork.
 
 ## Accepted hardware limits
 
+- **Streaming `set_target` from a far pose can take the daemon down.** It
+  doesn't interpolate, so from the sleep pose it asks for a huge instant
+  jump. Entry points ease into neutral with `goto_target` first.
+- **Head below z = -170 mm wedges the IK solver permanently** — commands
+  and sounds keep being accepted, nothing moves, until the daemon restarts
+  ([#1417](https://github.com/pollen-robotics/reachy_mini/issues/1417)).
+- **Antennas jitter at exactly vertical**, so neutral is ~10° off.
 - Jitter on `set_target()` — upstream bug, not fixable from here.
 - `push_audio_sample()` is broken on Wireless
   ([#601](https://github.com/pollen-robotics/reachy_mini/issues/601)),
-  so gesture audio uses pre-generated `.wav` files in `assets/sounds/`
-  played through `play_sound()` instead of streamed samples.
+  so gesture audio uses pre-generated `.wav` files played through
+  `play_sound()` instead of streamed samples.
 
-## Sprints
+## Roadmap
+**Done** — structure refactor: `moves/` at root, `RobotManager` lifted out of
+`brainstem/`, dependencies injected.
 
-| | Scope | Estimate |
-|---|---|---|
-| A | Structure refactor: `moves/` at root, `RobotManager` lifted out of `brainstem/`, `RecordedMoves` injected | 4-6h — **done** |
-| B | `sensory_cortex/`: camera, motion and face detection, writing to `SharedState`. No reactions. | 14-20h |
-| C | `amygdala/` + the decision/execution split. First reflex. **Milestone: the robot perceives and reacts.** | 12-16h |
-| D | `prefrontal_cortex/`: async cloud call, API key, timeout, fallback | 14-20h |
-| E | Unified arbitration: three decision-makers competing, migrate to a behavior tree | 10-14h |
-| F | Packaging: Hugging Face Space, one-click install, CI, contribution guide | 10-14h |
+**Current — v1 release.** Five idle gestures, contributor guides, README,
+CONTRIBUTING, CI, Hugging Face Space. Ships early so gestures can be
+contributed while perception is built.
+
+**Next — perception.** `sensory_cortex/`: camera, motion and face detection,
+writing to `SharedState`, plus the mechanism to aim the head at a point.
+Nothing calls it yet — the robot still just breathes.
+
+**Then — reflexes.** `amygdala/`, plus the decision/execution split. Innate
+triggers only: a sudden noise, a face appearing, movement where there was
+none. The milestone the project is built for: the robot perceives and reacts,
+without waiting on anything slow.
+
+**Then — deliberation.** `prefrontal_cortex/`: an async cloud LLM call, with
+timeout and fallback. This is what decides to *look at* someone or comment on
+what it sees, as opposed to reflexively startling.
+
+**Then — arbitration.** Three decision-makers competing for one body; migrate
+to a behavior tree.
+
+**Then — memory.** `hippocampus/` conditioning: the cortex writes what it
+judged, the amygdala reads it back in milliseconds. The robot's fast reaction
+becomes right because it was slow once.
+
+## Deliberate non-goals
+
+**The robot doesn't follow faces around.** Aiming the head at a point is a
+mechanism; using it is a decision. A robot that tracks everyone by default
+reads as a security camera, not a creature.
