@@ -30,6 +30,9 @@ from reachy_mini.utils import create_head_pose
 # straight up is where antennas jitter (upstream hardware limit).
 NEUTRAL_ANTENNAS_RAD = [-0.1745, 0.1745]
 
+# Body facing forward. Moves that don't turn the body return this.
+NEUTRAL_BODY_YAW_RAD = 0.0
+
 
 class Move(ABC):
     """A discrete, one-off gesture the robot can play.
@@ -126,7 +129,7 @@ class Move(ABC):
         reachy_mini.media.play_sound(sound)
 
     def go_neutral(self, reachy_mini: ReachyMini, duration: float | None = None) -> None:
-        """Move the robot to the neutral head and antenna pose.
+        """Move the robot to the neutral head, antenna and body pose.
 
         Interpolated, so it's safe from any starting pose. Call it yourself
         mid-gesture if returning to neutral is part of the choreography.
@@ -138,6 +141,7 @@ class Move(ABC):
         reachy_mini.goto_target(
             head=create_head_pose(),
             antennas=NEUTRAL_ANTENNAS_RAD,
+            body_yaw=NEUTRAL_BODY_YAW_RAD,
             duration=duration or self.RETURN_DURATION_S,
         )
 
@@ -206,7 +210,9 @@ class PhasedMove(Move):
         return [self.SOUNDS_DIR / s for s in self.PHASE_SOUNDS.values() if s is not None]
 
     @abstractmethod
-    def _pose_at(self, phase: str, p: float, step: int) -> tuple[np.ndarray, list[float]]:
+    def _pose_at(
+        self, phase: str, p: float, step: int
+    ) -> tuple[np.ndarray, list[float], float]:
         """Return the pose for the running phase.
 
         Args:
@@ -216,7 +222,9 @@ class PhasedMove(Move):
                 interpolates -- a shake or a tremble.
 
         Returns:
-            (head pose, [left antenna, right antenna] in radians).
+            (head pose, [left antenna, right antenna], body yaw), angles in
+            radians. Return NEUTRAL_BODY_YAW_RAD if the move doesn't turn
+            the body.
         """
 
     def _perform(self, reachy_mini: ReachyMini) -> None:
@@ -233,8 +241,8 @@ class PhasedMove(Move):
                 self._play_phase_sound(reachy_mini, phase)
                 previous_phase = phase
 
-            head, antennas = self._pose_at(phase, phase_progress, step)
-            reachy_mini.set_target(head=head, antennas=antennas)
+            head, antennas, body_yaw = self._pose_at(phase, phase_progress, step)
+            reachy_mini.set_target(head=head, antennas=antennas, body_yaw=body_yaw)
 
             step += 1
             time.sleep(self.step_s)

@@ -8,7 +8,12 @@ import numpy as np
 from reachy_mini.utils import create_head_pose
 
 from reachy_alive.interpolate import interpolate
-from reachy_alive.moves.base import NEUTRAL_ANTENNAS_RAD, Move, PhasedMove
+from reachy_alive.moves.base import (
+    NEUTRAL_ANTENNAS_RAD,
+    NEUTRAL_BODY_YAW_RAD,
+    Move,
+    PhasedMove,
+)
 
 
 class Yawning(PhasedMove):
@@ -37,7 +42,9 @@ class Yawning(PhasedMove):
     SHAKE_YAW_AMPLITUDE_DEG = 12.5
     SHAKE_ALTERNATION_STEPS = 5  # ticks held per side
 
-    def _pose_at(self, phase: str, p: float, step: int) -> tuple[np.ndarray, list[float]]:
+    def _pose_at(
+        self, phase: str, p: float, step: int
+    ) -> tuple[np.ndarray, list[float], float]:
         if phase == "rise":
             return self._rise_pose(p)
         if phase == "hold":
@@ -46,25 +53,32 @@ class Yawning(PhasedMove):
             return self._exhale_pose(p)
         return self._shake_pose(step)
 
-    def _rise_pose(self, p: float) -> tuple[np.ndarray, list[float]]:
+    def _rise_pose(self, p: float) -> tuple[np.ndarray, list[float], float]:
         """Tilt the head up and lower the antennas. p: 0 -> 1."""
         pitch = interpolate(0.0, self.RISE_PITCH_DEG, p)
         antenna = interpolate(self.ANTENNA_AT_NEUTRAL_RAD, self.ANTENNA_LOWERED_RAD, p)
-        return create_head_pose(pitch=pitch, degrees=True), [antenna, -antenna]
+        head = create_head_pose(pitch=pitch, degrees=True)
+        return head, [antenna, -antenna], NEUTRAL_BODY_YAW_RAD
 
-    def _hold_pose(self) -> tuple[np.ndarray, list[float]]:
+    def _hold_pose(self) -> tuple[np.ndarray, list[float], float]:
         """Stay at the fully risen pose."""
         head = create_head_pose(pitch=self.RISE_PITCH_DEG, degrees=True)
-        return head, [self.ANTENNA_LOWERED_RAD, -self.ANTENNA_LOWERED_RAD]
+        antennas = [self.ANTENNA_LOWERED_RAD, -self.ANTENNA_LOWERED_RAD]
+        return head, antennas, NEUTRAL_BODY_YAW_RAD
 
-    def _exhale_pose(self, p: float) -> tuple[np.ndarray, list[float]]:
+    def _exhale_pose(self, p: float) -> tuple[np.ndarray, list[float], float]:
         """Ease the head and antennas back to neutral. p: 0 -> 1."""
         pitch = interpolate(self.RISE_PITCH_DEG, 0.0, p)
         antenna = interpolate(self.ANTENNA_LOWERED_RAD, self.ANTENNA_AT_NEUTRAL_RAD, p)
-        return create_head_pose(pitch=pitch, degrees=True), [antenna, -antenna]
+        head = create_head_pose(pitch=pitch, degrees=True)
+        return head, [antenna, -antenna], NEUTRAL_BODY_YAW_RAD
 
-    def _shake_pose(self, step: int) -> tuple[np.ndarray, list[float]]:
-        """Keep the head level while yaw alternates side to side."""
+    def _shake_pose(self, step: int) -> tuple[np.ndarray, list[float], float]:
+        """Keep the head level while yaw alternates side to side.
+
+        Only the head shakes -- the body stays facing forward.
+        """
         sign = 1 if (step // self.SHAKE_ALTERNATION_STEPS) % 2 == 0 else -1
         yaw = sign * self.SHAKE_YAW_AMPLITUDE_DEG
-        return create_head_pose(yaw=yaw, degrees=True), NEUTRAL_ANTENNAS_RAD
+        head = create_head_pose(yaw=yaw, degrees=True)
+        return head, NEUTRAL_ANTENNAS_RAD, NEUTRAL_BODY_YAW_RAD

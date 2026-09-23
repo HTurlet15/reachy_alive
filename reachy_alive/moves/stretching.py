@@ -7,7 +7,12 @@ import numpy as np
 from reachy_mini.utils import create_head_pose
 
 from reachy_alive.interpolate import interpolate
-from reachy_alive.moves.base import NEUTRAL_ANTENNAS_RAD, Move, PhasedMove
+from reachy_alive.moves.base import (
+    NEUTRAL_ANTENNAS_RAD,
+    NEUTRAL_BODY_YAW_RAD,
+    Move,
+    PhasedMove,
+)
 
 
 class Stretching(PhasedMove):
@@ -37,7 +42,9 @@ class Stretching(PhasedMove):
     ANTENNA_UP_RAD = np.deg2rad(5.0)
     TREMBLE_ANTENNA_AMPLITUDE_RAD = np.deg2rad(8.6)
 
-    def _pose_at(self, phase: str, p: float, step: int) -> tuple[np.ndarray, list[float]]:
+    def _pose_at(
+        self, phase: str, p: float, step: int
+    ) -> tuple[np.ndarray, list[float], float]:
         if phase == "crouch":
             return self._crouch_pose(p)
         if phase == "rise":
@@ -46,7 +53,7 @@ class Stretching(PhasedMove):
             return self._tremble_pose(p, step)
         return self._release_pose(p)
 
-    def _crouch_pose(self, p: float) -> tuple[np.ndarray, list[float]]:
+    def _crouch_pose(self, p: float) -> tuple[np.ndarray, list[float], float]:
         """Gather down before the stretch. p: 0 -> 1."""
         head = create_head_pose(
             pitch=interpolate(0.0, self.LOWER_PITCH_DEG, p),
@@ -55,9 +62,9 @@ class Stretching(PhasedMove):
             mm=True,
         )
         antenna = interpolate(self.ANTENNA_AT_NEUTRAL_RAD, self.ANTENNA_DOWN_RAD, p)
-        return head, [antenna, -antenna]
+        return head, [antenna, -antenna], NEUTRAL_BODY_YAW_RAD
 
-    def _rise_pose(self, p: float) -> tuple[np.ndarray, list[float]]:
+    def _rise_pose(self, p: float) -> tuple[np.ndarray, list[float], float]:
         """Extend upward and roll slightly to the side. p: 0 -> 1."""
         head = create_head_pose(
             pitch=interpolate(self.LOWER_PITCH_DEG, 0.0, p),
@@ -67,9 +74,9 @@ class Stretching(PhasedMove):
             mm=True,
         )
         antenna = interpolate(self.ANTENNA_DOWN_RAD, self.ANTENNA_UP_RAD, p)
-        return head, [antenna, -antenna]
+        return head, [antenna, -antenna], NEUTRAL_BODY_YAW_RAD
 
-    def _tremble_pose(self, p: float, step: int) -> tuple[np.ndarray, list[float]]:
+    def _tremble_pose(self, p: float, step: int) -> tuple[np.ndarray, list[float], float]:
         """Hold at full extension, shaking with effort. p: 0 -> 1."""
         sign = 1 if step % 2 == 0 else -1
         head = create_head_pose(
@@ -80,9 +87,9 @@ class Stretching(PhasedMove):
             mm=True,
         )
         antenna = self.ANTENNA_UP_RAD + sign * self.TREMBLE_ANTENNA_AMPLITUDE_RAD
-        return head, [antenna, -antenna]
+        return head, [antenna, -antenna], NEUTRAL_BODY_YAW_RAD
 
-    def _release_pose(self, p: float) -> tuple[np.ndarray, list[float]]:
+    def _release_pose(self, p: float) -> tuple[np.ndarray, list[float], float]:
         """Ease back to neutral. p: 0 -> 1."""
         head = create_head_pose(
             pitch=interpolate(self.TREMBLE_LOOK_UP_PITCH_DEG, 0.0, p),
@@ -92,4 +99,4 @@ class Stretching(PhasedMove):
             mm=True,
         )
         antenna = interpolate(self.ANTENNA_UP_RAD, self.ANTENNA_AT_NEUTRAL_RAD, p)
-        return head, [antenna, -antenna]
+        return head, [antenna, -antenna], NEUTRAL_BODY_YAW_RAD
