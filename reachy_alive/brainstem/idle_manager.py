@@ -25,7 +25,7 @@ class IdleManager:
     def __init__(
         self,
         behaviors: List[Move],
-        gesture_interval_range_s: Tuple[float, float] = (30.0, 45.0),
+        gesture_interval_range_s: Tuple[float, float] = (20.0, 30.0),
     ) -> None:
         """Set up the gesture pool.
 
