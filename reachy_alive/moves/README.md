@@ -127,13 +127,14 @@ def _pose_at(self, phase, p, step):
 ```
 
 Each method receives `p`, going from 0 to 1 across its phase, and returns
-the head pose and both antenna angles:
+the head pose, both antenna angles and the body yaw:
 
 ```python
-def _rise_pose(self, p: float) -> tuple[np.ndarray, list[float]]:
+def _rise_pose(self, p: float) -> tuple[np.ndarray, list[float], float]:
     pitch = interpolate(0.0, self.RISE_PITCH_DEG, p)
     antenna = interpolate(self.ANTENNA_AT_NEUTRAL_RAD, self.ANTENNA_LOWERED_RAD, p)
-    return create_head_pose(pitch=pitch, degrees=True), [antenna, -antenna]
+    head = create_head_pose(pitch=pitch, degrees=True)
+    return head, [antenna, -antenna], NEUTRAL_BODY_YAW_RAD
 ```
 
 `interpolate(start, end, p)` gives the value `p` of the way from `start`
@@ -143,6 +144,9 @@ will jump between them.
 The antennas are returned as a pair, so they don't have to move together —
 `[antenna, -antenna]` mirrors them, but a gesture is free to drive each
 one separately.
+
+The body yaw is the last value. Return `NEUTRAL_BODY_YAW_RAD` unless your
+gesture turns the body.
 
 `yawning.py` is the reference for all of this — copy its shape.
 
