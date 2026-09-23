@@ -233,8 +233,8 @@ class PhasedMove(Move):
         step = 0
         previous_phase = None
 
-        while (elapsed := time.monotonic() - start) < self.duration_s:
-            phase, phase_progress = self._phase_at(elapsed)
+        while (elapsed_s := time.monotonic() - start) < self.duration_s:
+            phase, phase_progress = self._phase_at(elapsed_s)
 
             # Local, so nothing carries over between plays.
             if phase != previous_phase:
@@ -270,22 +270,22 @@ class PhasedMove(Move):
 
         return sf.info(str(path)).duration + padding
 
-    def _phase_at(self, elapsed: float) -> tuple[str, float]:
+    def _phase_at(self, elapsed_s: float) -> tuple[str, float]:
         """Return the running phase and the progress within it.
 
         Args:
-            elapsed: Seconds since the gesture started.
+            elapsed_s: Seconds since the gesture started.
 
         Returns:
             (phase name, local progress from 0 to 1).
         """
         phase_start = 0.0
         for phase, phase_end in self.phase_ends_s.items():
-            if elapsed < phase_end:
-                return phase, (elapsed - phase_start) / (phase_end - phase_start)
+            if elapsed_s < phase_end:
+                return phase, (elapsed_s - phase_start) / (phase_end - phase_start)
             phase_start = phase_end
 
-        # elapsed can overshoot the last phase by a fraction of a tick.
+        # elapsed_s can overshoot the last phase by a fraction of a tick.
         return list(self.phase_ends_s)[-1], 1.0
 
     def _play_phase_sound(self, reachy_mini: ReachyMini, phase: str) -> None:
