@@ -94,8 +94,10 @@ The other two arguments are clocks:
 
 ## Register it
 
-Add it to `coded_moves` in `main.py`, and to `_CODED_MOVES` in
-`../scripts/try_move.py`.
+Add it to `coded_moves` in `main.py`, to `_CODED_MOVES` in
+`../scripts/try_move.py`, and to `MOVES` in
+`tests/moves/test_pose_contract.py` — that test checks every pose follows
+the contract and never sends the head below the reachable workspace.
 
 ## If your gesture isn't a sequence of phases
 
