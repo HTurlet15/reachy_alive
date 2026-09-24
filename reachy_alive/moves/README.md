@@ -82,7 +82,8 @@ bends to fit.
 
 How you package it depends on your choice: **one file per phase** if you
 write the move in code, **a single composed file** if you record it in
-Marionette. See [`../assets/sounds/README.md`](../assets/sounds/README.md)
+Marionette, **both** if you mix — the parts for the phases, and the
+composed file to record the head against. See [`../assets/sounds/README.md`](../assets/sounds/README.md)
 — it takes about ten minutes in the browser.
 
 ## Step 4 — Create the motion
@@ -198,22 +199,66 @@ Three things trip people up:
 
 ### If you mixed both
 
-A recorded move exposes `evaluate(t)`, `duration` and `sound_path` — what
-`play_move` uses internally. A mixed move subclasses `Move` directly,
-plays the recording frame by frame in `_perform()`, and replaces what it
-wants — typically the antennas — keeping both halves aligned on the
-recording's own timing.
+A mixed move is a regular `PhasedMove` whose head is read from a
+recording instead of computed. `sneezing.py` is the reference.
 
-> No example ships yet. If you build one, add it here.
+**1. Record the head against the phases' own sounds**
+
+Make one sound per phase, then compose them into a single file with a
+`compose.py`, silences included. Record the head in Marionette against
+that composed file. Since it's built from the phase sounds, the
+recording's timeline and the phases are the same: a phase boundary is a
+moment in the recording, for free.
+
+**2. Declare the phases exactly as `compose.py` does**
+
+Same sounds, same order, same silences in `PHASE_PADDING_S`. Nothing
+checks this: if the two diverge, the head drifts away from the sounds
+without any error. Leave a comment in both files pointing to the other.
+
+**3. Read the head, code the rest**
+
+Load the recording in the constructor, and read it in `_pose_at`:
+
+```python
+def __init__(self, library: RecordedMoves, tick_hz: float = 50.0) -> None:
+    super().__init__(tick_hz)
+    self._recording = library.get("sneezing")
+
+def _pose_at(self, phase, p, step, elapsed_s):
+    t = min(elapsed_s, self._recording.duration)
+    head, _, body_yaw = self._recording.evaluate(t)
+    antenna = ...
+    return head, [antenna, -antenna], body_yaw
+```
+
+Read the recording with `elapsed_s`, not `p`: the recording is one
+continuous timeline, while `p` restarts at every phase. The `min` guards
+against float rounding at the very end.
+
+The recording's own sound is never played — `PhasedMove` plays the phase
+sounds, so there's no double audio.
+
+Code what a hand can't do: a fast shake, a drop in a few ticks, a
+variation between plays. `sneezing.py` draws its drop angle in
+`_perform()`, then hands over to `PhasedMove`.
+
+**4. Wire it in**
+
+A mixed move needs the recordings library, so pass it in `main.py`:
+
+```python
+mixed_moves = [Sneezing(reachy_alive_recordings)]
+```
 
 ## Step 5 — Try it
 
-For a move written in code, add your class to `_CODED_MOVES` in
-`../scripts/try_move.py`. Then:
+Add your class to `../scripts/try_move.py`: to `_CODED_MOVES` for a move
+written in code, to `_MIXED_MOVES` for a mixed one. Then:
 
 ```bash
 pytest                            # checks the logic, no robot needed
-try-move your-move                # a move written in code
+try-move your-move                # a move written in code or mixed
 try-move recorded hiccup-full     # a move recorded in Marionette
 try-move pollen boredom1          # one of Pollen's emotions
 ```
