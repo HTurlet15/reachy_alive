@@ -96,7 +96,8 @@ dataset is renamed, made private or deleted.
       slide-whistle family.
 - [ ] Every `.wav` is committed next to the `.jsfxr.json` preset that
       produced it.
-- [ ] The move is registered in `main.py` and `reachy_alive/scripts/try_move.py`.
+- [ ] The move is registered in `main.py`, `reachy_alive/scripts/try_move.py`
+      and, if it's a `PhasedMove`, `tests/moves/test_pose_contract.py`.
 - [ ] Mixed move: `compose.py` and `PHASE_PADDING_S` match, and each
       has a comment pointing to the other.
 - [ ] The head never goes below z = -170 mm.
