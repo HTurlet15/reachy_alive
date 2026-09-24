@@ -5,10 +5,13 @@ sounds were made with a slide whistle, so anything added here should stay
 in that family: a **round, sustained tone that glides** — not a
 video-game blip.
 
+This page shows how to make a sound. How to package it for your move
+depends on how you build the move — see
+[`../../moves/README.md`](../../moves/README.md).
+
 ## Layout
 
-Sounds are grouped by the move that uses them. How they're packaged
-depends on how the move was built:
+Sounds are grouped by the move that uses them:
 
 ```
 assets/sounds/
@@ -17,13 +20,18 @@ assets/sounds/
 │   ├── inhale.wav
 │   ├── inhale.jsfxr.json
 │   └── ...
-└── hiccup/                    ← recorded in Marionette: one composed sound
-    ├── hiccup.wav
-    ├── hiccup.jsfxr.json
-    ├── complaining.wav
-    ├── complaining.jsfxr.json
-    ├── compose.py             ← joins the parts
-    └── hiccup_full.wav        ← the result, played during the recording
+├── hiccup/                    ← recorded in Marionette: one composed sound
+│   ├── hiccup.wav
+│   ├── hiccup.jsfxr.json
+│   ├── complaining.wav
+│   ├── complaining.jsfxr.json
+│   ├── compose.py             ← joins the parts
+│   └── hiccup_full.wav        ← the result, played during the recording
+└── sneezing/                  ← mixed: both
+    ├── inhale1.wav            ← one sound per phase...
+    ├── ...
+    ├── compose.py
+    └── sneezing.wav           ← ...and the composed file, for the recording
 ```
 
 Create a folder named after your move, and keep each `.wav` next to the
@@ -62,7 +70,9 @@ Export **both** files into your move's folder: the `.wav`, and — via
 > jsfxr can't mix noise into a sine wave, so you won't get the breathiness
 > of a real whistle. Close is good enough.
 
-## Several parts in one file (moves recorded in Marionette)
+## Several parts in one file
+
+Needed for moves recorded in Marionette, and for mixed moves.
 
 Marionette plays a single sound while you move the robot by hand — that
 sound is your metronome during the take. So a gesture with several beats
@@ -91,12 +101,3 @@ rehearse the motion against it before recording.
 
 All parts must share the same sample rate (jsfxr exports at 44k, 22k, 11k
 or 8k). Mixing rates plays the result at the wrong speed.
-
-A move **written in code** doesn't need this: it plays one sound per
-phase, and silences go in `PHASE_PADDING_S`.
-
-## Playing a sound from a move
-
-See [`../../moves/README.md`](../../moves/README.md). In short: list your
-sounds in `sound_paths()` and play them with `self.play_sound()`, so
-they're uploaded to the robot before the gesture rather than during it.
