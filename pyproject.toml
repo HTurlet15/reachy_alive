@@ -6,16 +6,23 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "reachy_alive"
 version = "0.1.0"
-description = "Add your description here"
+description = "Turns a Reachy Mini into a desk companion that feels alive."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
-    "reachy-mini"
+    "numpy>=2.4.6",
+    # Must match the daemon running on the robot.
+    "pydantic>=2.13.5",
+    "reachy-mini==1.10.0",
+    "soundfile>=0.14.0",
 ]
 keywords = ["reachy-mini-app"]
 
-[project.optional-dependencies]
-dev = ["pytest"]
+[dependency-groups]
+dev = [
+    "pytest",
+    "reachy-mini[mujoco]",
+]
 
 [project.entry-points."reachy_mini_apps"]
 reachy_alive = "reachy_alive.main:ReachyAlive"
