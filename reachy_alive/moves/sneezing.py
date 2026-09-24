@@ -83,9 +83,8 @@ class Sneezing(PhasedMove):
     def _pose_at(
         self, phase: str, p: float, step: int, elapsed_s: float
     ) -> tuple[np.ndarray, list[float], float]:
-        # The phases and the recording last the same, give or take float
-        # rounding; don't evaluate past the recording's end.
-        t = min(elapsed_s, self._recording.duration)
+        # evaluate() raises at the recording's last frame: stop one tick before.
+        t = min(elapsed_s, self._recording.duration - self.step_s)
         head, _, body_yaw = self._recording.evaluate(t)
 
         if phase in self.INHALE_PHASES:
