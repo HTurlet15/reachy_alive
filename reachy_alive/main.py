@@ -7,6 +7,7 @@ from reachy_mini.motion.recorded_move import RecordedMoves
 
 from reachy_alive.brainstem.idle_manager import IdleManager
 from reachy_alive.moves.base import LibraryMove, Move
+from reachy_alive.moves.sneezing import Sneezing
 from reachy_alive.moves.stretching import Stretching
 from reachy_alive.moves.yawning import Yawning
 from reachy_alive.robot_manager import RobotManager
@@ -63,8 +64,7 @@ class ReachyAlive(ReachyMiniApp):
         # and toc-toc-toc, which wedge the IK solver (pollen-robotics/reachy_mini#1417).
         
         pollen_moves = self._library_moves(pollen_emotions, [
-            "boredom1", "boredom2", "tired1", "serenity1",
-            "indifferent1", "thoughtful1", "curious1", "lonely1",
+            "boredom1", "tired1", "serenity1", "curious1", "lonely1",
         ])
 
         # Recorded by hand in Marionette, played as-is.
@@ -76,7 +76,7 @@ class ReachyAlive(ReachyMiniApp):
         coded_moves = [Stretching(), Yawning()]
 
         # Recorded head, coded antennas.
-        mixed_moves: list[Move] = []
+        mixed_moves = [Sneezing(reachy_alive_recordings)]
 
         return pollen_moves + marionette_moves + coded_moves + mixed_moves
 
