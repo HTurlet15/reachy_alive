@@ -21,7 +21,7 @@ the recording to a Hugging Face dataset under your account.
 Before wiring it in, check it loads:
 
 ```bash
-python -c "
+uv run python -c "
 from reachy_mini.motion.recorded_move import RecordedMoves
 print(RecordedMoves('your-username/your-dataset').list_moves())
 "
@@ -55,4 +55,4 @@ marionette_moves = self._library_moves(reachy_alive_recordings, [
 ```
 
 Nothing to add to `try_move.py`: play it with
-`try-move recorded your-move-name`.
+`uv run try-move recorded your-move-name`.

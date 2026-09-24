@@ -3,7 +3,7 @@
 A mixed move is a regular `PhasedMove` whose head is read from a
 Marionette recording instead of computed. `sneezing.py` is the reference.
 
-Read [`coded.md`](coded.md) first — phases, poses and `p` work exactly
+Read [`CODED_MOVES.md`](CODED_MOVES.md) first — phases, poses and `p` work exactly
 the same here. For the steps before and after this one, see
 [`README.md`](README.md).
 
@@ -17,7 +17,7 @@ move recorded in Marionette — see
 ## 2. Record the head against the composed file
 
 Record the head in Marionette against the composed file (see
-[`marionette.md`](marionette.md)). Since that file is built from the
+[`MARIONETTE_MOVES.md`](MARIONETTE_MOVES.md)). Since that file is built from the
 phase sounds, the recording's timeline and the phases are the same: a
 phase boundary is a moment in the recording, for free.
 

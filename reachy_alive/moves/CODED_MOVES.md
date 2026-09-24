@@ -90,7 +90,7 @@ The other two arguments are clocks:
   tremble.
 - `elapsed_s` is the time since the gesture started. Unlike `p`, it
   doesn't reset between phases. A move written in code can ignore it;
-  [`mixed.md`](mixed.md) explains what it's for.
+  [`MIXED_MOVES.md`](MIXED_MOVES.md) explains what it's for.
 
 ## Register it
 
@@ -100,9 +100,7 @@ Add it to `coded_moves` in `main.py`, and to `_CODED_MOVES` in
 ## If your gesture isn't a sequence of phases
 
 Subclass `Move` directly and write `_perform()` and `sound_paths()`
-yourself. 
-
-Play sounds with `self.play_sound()`, never
+yourself. Play sounds with `self.play_sound()`, never
 `reachy_mini.media.play_sound()`. Both work, but only the first uses the
 copy already uploaded to the robot; calling the SDK directly re-uploads
 the file mid-gesture, and the motion stutters at every sound.

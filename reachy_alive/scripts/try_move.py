@@ -1,15 +1,16 @@
 # reachy_alive/scripts/try_move.py
-"""Manually trigger a single move on the real robot for visual testing.
+"""Manually trigger a single move on the robot, or in simulation, for visual testing.
 
 Unit tests can verify that a gesture calls the SDK correctly, but not
-that it looks right on hardware (correct tilt direction, amplitude,
-timing). This script triggers one move directly, without going through
-IdleManager or the full control loop.
+that it looks right (correct tilt direction, amplitude, timing). This
+script triggers one move directly, without going through IdleManager or
+the full control loop.
 
 Usage:
-    python reachy_alive/scripts/try_move.py stretching
-    python reachy_alive/scripts/try_move.py yawning
-    python reachy_alive/scripts/try_move.py library boredom1
+    uv run try-move stretching
+    uv run try-move sneezing
+    uv run try-move recorded hiccup-full
+    uv run try-move pollen boredom1
 """
 
 import argparse
@@ -62,7 +63,7 @@ def main() -> None:
         move = _MIXED_MOVES[args.command](library)
     else:
         move = _CODED_MOVES[args.command]()
-        
+
     with ReachyMini() as mini:
         mini.enable_motors()
         try:

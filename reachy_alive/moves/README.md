@@ -39,13 +39,13 @@ Knowing this list is most of the work. The rest is filling it in.
 
 Three ways. Pick based on the gesture, not on what you already know.
 
-- **Write it in code** → [`coded.md`](coded.md). Best when the motion is
+- **Write it in code** → [`CODED_MOVES.md`](CODED_MOVES.md). Best when the motion is
   simple to describe: the head rises, holds, comes back. You control it
   exactly, and you can work without the robot in front of you.
-- **Record it by hand** → [`marionette.md`](marionette.md). Best when the
+- **Record it by hand** → [`MARIONETTE_MOVES.md`](MARIONETTE_MOVES.md). Best when the
   motion is organic and awkward to describe in numbers. You move the head
   by hand in the Marionette app, and it captures everything.
-- **Both** → [`mixed.md`](mixed.md). Record the head, code the antennas.
+- **Both** → [`MIXED_MOVES.md`](MIXED_MOVES.md). Record the head, code the antennas.
   The answer when you run out of hands: the head needs your fingers, and
   the antennas need to move faster than you can manage at the same time.
 
@@ -69,8 +69,8 @@ package it.
 
 ## Step 4 — Create the motion
 
-Follow your path's page: [`coded.md`](coded.md),
-[`marionette.md`](marionette.md) or [`mixed.md`](mixed.md).
+Follow your path's page: [`CODED_MOVES.md`](CODED_MOVES.md),
+[`MARIONETTE_MOVES.md`](MARIONETTE_MOVES.md) or [`MIXED_MOVES.md`](MIXED_MOVES.md).
 
 ## Step 5 — Try it
 
@@ -78,10 +78,10 @@ Your path's page says how to register the move in `main.py` and
 `../scripts/try_move.py`. Then:
 
 ```bash
-pytest                            # checks the logic, no robot needed
-try-move your-move                # a move written in code or mixed
-try-move recorded hiccup-full     # a move recorded in Marionette
-try-move pollen boredom1          # one of Pollen's emotions
+uv run pytest                            # checks the logic, no robot needed
+uv run try-move your-move                # a move written in code or mixed
+uv run try-move recorded hiccup-full     # a move recorded in Marionette
+uv run try-move pollen boredom1          # one of Pollen's emotions
 ```
 
 `try-move` eases the robot into neutral before your move and puts it back
