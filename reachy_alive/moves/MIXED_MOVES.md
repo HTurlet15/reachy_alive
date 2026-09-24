@@ -37,15 +37,16 @@ def __init__(self, library: RecordedMoves, tick_hz: float = 50.0) -> None:
     self._recording = library.get("sneezing")
 
 def _pose_at(self, phase, p, step, elapsed_s):
-    t = min(elapsed_s, self._recording.duration)
+    t = min(elapsed_s, self._recording.duration - self.step_s)
     head, _, body_yaw = self._recording.evaluate(t)
     antenna = ...
     return head, [antenna, -antenna], body_yaw
 ```
 
 Read the recording with `elapsed_s`, not `p`: the recording is one
-continuous timeline, while `p` restarts at every phase. The `min` guards
-against float rounding at the very end.
+continuous timeline, while `p` restarts at every phase. The `min` matters
+on the last tick: `evaluate()` raises if asked for the recording's last
+frame, so the head stops one tick (20 ms) before it.
 
 The recording's own sound is never played — `PhasedMove` plays the phase
 sounds, so there's no double audio.
@@ -62,4 +63,5 @@ A mixed move needs the recordings library, so pass it in `main.py`:
 mixed_moves = [Sneezing(reachy_alive_recordings)]
 ```
 
-And add the class to `_MIXED_MOVES` in `../scripts/try_move.py`.
+And add the class to `_MIXED_MOVES` in `../scripts/try_move.py`, and to
+`MOVES` in `tests/moves/test_pose_contract.py`.
