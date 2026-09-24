@@ -33,9 +33,10 @@ include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["."]
+include = ["reachy_alive*"]
 
 [tool.setuptools.package-data]
-reachy_alive = ["**/*"] # Also include all non-.py files
+reachy_alive = ["assets/**/*", "static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
