@@ -43,7 +43,7 @@ class Yawning(PhasedMove):
     SHAKE_ALTERNATION_STEPS = 5  # ticks held per side
 
     def _pose_at(
-        self, phase: str, p: float, step: int
+        self, phase: str, p: float, step: int, elapsed_s: float
     ) -> tuple[np.ndarray, list[float], float]:
         if phase == "rise":
             return self._rise_pose(p)

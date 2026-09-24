@@ -211,7 +211,7 @@ class PhasedMove(Move):
 
     @abstractmethod
     def _pose_at(
-        self, phase: str, p: float, step: int
+        self, phase: str, p: float, step: int, elapsed_s: float
     ) -> tuple[np.ndarray, list[float], float]:
         """Return the pose for the running phase.
 
@@ -220,6 +220,9 @@ class PhasedMove(Move):
             p: Progress within that phase, 0 to 1.
             step: Tick counter, for motion that alternates rather than
                 interpolates -- a shake or a tremble.
+            elapsed_s: Seconds since the gesture started. Unlike ``p``, it
+                doesn't reset between phases -- for moves that read a
+                recording, which runs on a single timeline.
 
         Returns:
             (head pose, [left antenna, right antenna], body yaw), angles in
@@ -241,7 +244,9 @@ class PhasedMove(Move):
                 self._play_phase_sound(reachy_mini, phase)
                 previous_phase = phase
 
-            head, antennas, body_yaw = self._pose_at(phase, phase_progress, step)
+            head, antennas, body_yaw = self._pose_at(
+                phase, phase_progress, step, elapsed_s
+            )
             reachy_mini.set_target(head=head, antennas=antennas, body_yaw=body_yaw)
 
             step += 1

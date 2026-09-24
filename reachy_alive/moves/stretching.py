@@ -43,7 +43,7 @@ class Stretching(PhasedMove):
     TREMBLE_ANTENNA_AMPLITUDE_RAD = np.deg2rad(8.6)
 
     def _pose_at(
-        self, phase: str, p: float, step: int
+        self, phase: str, p: float, step: int, elapsed_s: float
     ) -> tuple[np.ndarray, list[float], float]:
         if phase == "crouch":
             return self._crouch_pose(p)

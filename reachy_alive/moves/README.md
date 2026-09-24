@@ -22,7 +22,7 @@ class YourMove(PhasedMove):
 
     PHASE_SOUNDS = {"rise": "rising.wav", "fall": "falling.wav"}
 
-    def _pose_at(self, phase, p, step):
+    def _pose_at(self, phase, p, step, elapsed_s):
         ...
 ```
 
@@ -120,7 +120,7 @@ On every tick, `PhasedMove` works out which phase is running and how far
 through it, then calls `_pose_at`. Dispatch to one method per phase:
 
 ```python
-def _pose_at(self, phase, p, step):
+def _pose_at(self, phase, p, step, elapsed_s):
     if phase == "rise":
         return self._rise_pose(p)
     ...
@@ -153,6 +153,10 @@ gesture turns the body.
 The `step` argument is a tick counter, for motion that alternates rather
 than interpolates. `yawning.py` uses it to shake, `stretching.py` to
 tremble.
+
+The `elapsed_s` argument is the time since the gesture started. Unlike
+`p`, it doesn't reset between phases. Moves written in code ignore it;
+it's for moves that read a recording, which runs on a single timeline.
 
 ---
 
