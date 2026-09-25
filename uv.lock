@@ -2054,10 +2054,10 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "numpy", specifier = ">=2.4.6" },
-    { name = "pydantic", specifier = ">=2.13.5" },
-    { name = "reachy-mini", specifier = "==1.10.0" },
-    { name = "soundfile", specifier = ">=0.14.0" },
+    { name = "numpy" },
+    { name = "pydantic", specifier = ">=2" },
+    { name = "reachy-mini", specifier = ">=1.10.0,<2" },
+    { name = "soundfile" },
 ]
 
 [package.metadata.requires-dev]
