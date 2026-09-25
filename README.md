@@ -8,7 +8,6 @@ pinned: false
 short_description: A Reachy Mini that feels alive, even when idle.
 tags:
  - reachy_mini
- - reachy_mini_python_app
 ---
 
 # Reachy Alive
