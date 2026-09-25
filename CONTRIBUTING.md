@@ -88,21 +88,12 @@ recording into the project's dataset, `HTurlet15/reachy-alive`.
 from a contributor's. That way, the app doesn't break if a personal
 dataset is renamed, made private or deleted.
 
-## Before opening a pull request
-
-- [ ] `uv run pytest` passes.
-- [ ] The move plays with `uv run try-move`, in simulation or on a robot.
-- [ ] Every sound starts from `base.jsfxr.json` and stays in the
-      slide-whistle family.
-- [ ] Every `.wav` is committed next to the `.jsfxr.json` preset that
-      produced it.
-- [ ] The move is registered in `main.py`, `reachy_alive/scripts/try_move.py`
-      and, if it's a `PhasedMove`, `tests/moves/test_pose_contract.py`.
-- [ ] Mixed move: `compose.py` and `PHASE_PADDING_S` match, and each
-      has a comment pointing to the other.
-- [ ] The head never goes below z = -170 mm.
-
 ## The pull request
+
+When you open it, GitHub fills in a template with a checklist for moves:
+go through it before asking for a review. The tests also run
+automatically on every pull request, and it can only be merged once
+they pass.
 
 - **One move per pull request.**
 - **Attach a short video** of the move, in simulation or on the robot.
