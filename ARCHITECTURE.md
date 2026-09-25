@@ -3,6 +3,36 @@
 Why the code is organized this way. For what the project does and how to
 run it, see the [README](./README.md).
 
+## The goal
+
+A creature doesn't run one program. It breathes without thinking, flinches
+before it understands, and sometimes stops to consider. Reachy Alive is
+built the same way, as layers that share one body:
+
+- **automatic**: breathing and idle gestures, always running;
+- **reflexes**: fast, local reactions that fire in milliseconds;
+- **deliberation**: slow, considered responses that can take seconds.
+
+The architecture exists to let these layers drive the same robot without
+the slow ones freezing the fast ones, and to let someone add to one layer
+without touching the others.
+
+```mermaid
+flowchart LR
+    senses["sensory_cortex<br/>(perceives)"] -->|writes| state[("SharedState")]
+    state --> brainstem["brainstem<br/>(automatic)"]
+    state --> amygdala["amygdala<br/>(reflexes)"]
+    state --> cortex["prefrontal_cortex<br/>(deliberation)"]
+    brainstem -->|what to do| manager["RobotManager<br/>(control loop)"]
+    amygdala -->|what to do| manager
+    cortex -->|what to do| manager
+    manager --> robot(["Reachy Mini"])
+```
+
+This is the target. Today only `brainstem` exists, and it still executes
+its own gestures instead of handing them to `RobotManager` — see
+[Known debt](#known-debt).
+
 ## The core constraint
 
 The robot must keep moving while it thinks. A cloud LLM call takes 1-3
@@ -11,10 +41,12 @@ opposite of the point. Every decision below follows from this.
 
 ## Four rules
 
-**1. A module's folder is decided by its execution regime, not by anatomy.**
+**1. Folders are named after brain regions; code goes where its speed fits.**
 Fast, local, synchronous goes to `amygdala/`. Slow, remote, asynchronous
-goes to `prefrontal_cortex/`. This avoids arguing about which lobe face
-detection belongs to, and it maps to a real engineering boundary.
+goes to `prefrontal_cortex/`. Reacting to a face can mean both: a startle
+belongs in the first, a greeting in the second. Sorting by speed rather
+than by topic keeps anything that can block out of the fast path — and the
+brain itself works this way.
 
 **2. The cortex never blocks the loop.**
 LLM calls are async. The control loop keeps running while a request is in
@@ -51,10 +83,29 @@ handles everything around the gesture so a move only describes motion.
 Most gestures share one shape: a sequence of phases, each timed by its own
 sound. That shape lives in `PhasedMove`, extracted once `yawning` and
 `stretching` had duplicated the same ~60 lines of timing machinery. A move
-written on top of it declares its phases and writes one pose per phase.
+written on top of it declares its phases and writes one pose per phase:
+head, antennas and body yaw. The body was left out at first, because the
+two moves it was extracted from never turned it; `sneezing` did.
 
 `LibraryMove` wraps a recorded move from a Hugging Face dataset — Pollen's
 emotion library, or one recorded with Marionette. No code at all.
+
+A **mixed** move is a regular `PhasedMove` whose head is read from a
+Marionette recording instead of computed. The head is recorded against a
+file composed from the phase sounds themselves, so the recording and the
+phases share one timeline: a phase boundary is a moment in the recording,
+with nothing to measure by hand. That's why `_pose_at` receives
+`elapsed_s` as well as `p` — a recording runs on one continuous clock,
+while `p` restarts at every phase. `sneezing` is the only mixed move so
+far, so there is no `MixedMove` base class: extracting one from a single
+example would freeze the wrong shape.
+
+**Moves are registered by hand, in `main.py`.** Nothing is loaded
+automatically from a folder: each line in the list is a move someone
+reviewed. What the review can't catch by eye, the tests do —
+`test_pose_contract.py` samples every `PhasedMove` and fails if a pose
+breaks the contract or sends the head below the reachable workspace, and
+fails if a `PhasedMove` isn't in its list.
 
 ## Sound upload
 
@@ -99,12 +150,14 @@ validate the design — designing it cold would be guesswork.
   `play_sound()` instead of streamed samples.
 
 ## Roadmap
+
 **Done** — structure refactor: `moves/` at root, `RobotManager` lifted out of
 `brainstem/`, dependencies injected.
 
-**Current — v1 release.** Five idle gestures, contributor guides, README,
-CONTRIBUTING, CI, Hugging Face Space. Ships early so gestures can be
-contributed while perception is built.
+**Current — v1 release.** Idle gestures of all three kinds (coded,
+Marionette, mixed), contributor guides, README, CONTRIBUTING, CI, Hugging
+Face Space. Ships early so gestures can be contributed while perception is
+built.
 
 **Next — perception.** `sensory_cortex/`: camera, motion and face detection,
 writing to `SharedState`, plus the mechanism to aim the head at a point.
@@ -125,9 +178,3 @@ to a behavior tree.
 **Then — memory.** `hippocampus/` conditioning: the cortex writes what it
 judged, the amygdala reads it back in milliseconds. The robot's fast reaction
 becomes right because it was slow once.
-
-## Deliberate non-goals
-
-**The robot doesn't follow faces around.** Aiming the head at a point is a
-mechanism; using it is a decision. A robot that tracks everyone by default
-reads as a security camera, not a creature.
