@@ -61,10 +61,10 @@ You don't need a physical robot: everything runs in simulation.
 > env -u WAYLAND_DISPLAY GDK_BACKEND=x11 uv run reachy-mini-daemon --sim
 > ```
 
-> **Testing on a real robot?** The SDK version is pinned in
-> `pyproject.toml` to match the robot's daemon. If your robot runs another
-> version, update it first: a mismatch can crash the daemon without a
-> clear error.
+> **Testing on a real robot?** `uv.lock` pins the SDK version used for
+> development. If your robot's daemon runs another version, align the
+> two first (`uv lock --upgrade-package reachy-mini`): a mismatch can
+> crash the daemon without a clear error.
 
 ## Make your move
 

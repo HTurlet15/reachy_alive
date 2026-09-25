@@ -10,11 +10,13 @@ description = "Turns a Reachy Mini into a desk companion that feels alive."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "numpy>=2.4.6",
-    # Must match the daemon running on the robot.
-    "pydantic>=2.13.5",
-    "reachy-mini==1.10.0",
-    "soundfile>=0.14.0",
+    "numpy",
+    "pydantic>=2",
+    # Installed into the robot's shared apps environment, next to the
+    # daemon's SDK: accept any compatible version rather than force one.
+    # uv.lock pins the exact version used for development.
+    "reachy-mini>=1.10.0,<2",
+    "soundfile",
 ]
 keywords = ["reachy-mini-app"]
 
