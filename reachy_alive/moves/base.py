@@ -45,6 +45,11 @@ class Move(ABC):
     RETURN_DURATION_S = 0.5
     SOUNDS_DIR = Path(__file__).resolve().parent.parent / "assets" / "sounds"
 
+    @property
+    def name(self) -> str:
+        """Name of the move, as shown in logs: its class name by default."""
+        return type(self).__name__
+
     def play(self, reachy_mini: ReachyMini) -> None:
         """Play this move, then return the robot to neutral.
 
@@ -315,6 +320,11 @@ class LibraryMove(Move):
         """
         self.move_name = move_name
         self._library = library
+
+    @property
+    def name(self) -> str:
+        """The recording's name: every LibraryMove shares the same class."""
+        return self.move_name
 
     def sound_paths(self) -> list[Path]:
         # The recording carries its own sound, played by the SDK itself.
