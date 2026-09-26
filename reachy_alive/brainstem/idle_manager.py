@@ -39,6 +39,8 @@ class IdleManager:
         self._next_behavior: Optional[Move] = None
         self._next_interval_s = 0.0
         self._preparing: Optional[threading.Thread] = None
+        # When the current stretch of breathing began; None until the next tick.
+        self._breathing_started_at_s: Optional[float] = None
 
     def get_pose(
         self,
@@ -64,9 +66,14 @@ class IdleManager:
         if shared_state.seconds_since_last_activity() >= self._next_interval_s:
             self._play_next_gesture(reachy_mini)
             shared_state.mark_activity()
+            # play() leaves the robot at neutral, and breathing starts there.
+            self._breathing_started_at_s = None
             return None
 
-        return get_breathing_pose(t, antennas_enabled=antennas_enabled)
+        if self._breathing_started_at_s is None:
+            self._breathing_started_at_s = t
+        breathing_t = t - self._breathing_started_at_s
+        return get_breathing_pose(breathing_t, antennas_enabled=antennas_enabled)
 
     def _schedule_next_gesture(self, reachy_mini: ReachyMini) -> None:
         """Pick the next gesture and its delay, and start uploading its sounds."""
