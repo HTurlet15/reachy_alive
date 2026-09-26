@@ -1,29 +1,43 @@
+# reachy_alive/brainstem/breathing.py
+"""Continuous breathing: the pose the robot holds between gestures."""
+
 import numpy as np
 from reachy_mini.utils import create_head_pose
 
+from reachy_alive.moves.base import NEUTRAL_ANTENNAS_RAD
 
-def get_breathing_pose( t: float, antennas_enabled: bool = True, amplitude_mm: float = 4.0, frequency_hz: float = 0.25,
-    antenna_amplitude_deg: float = 15.0, antenna_frequency_hz: float = 0.25, ):
-    """
-    Calculates head + antenna pose for continuous breathing.
+
+def get_breathing_pose(
+    t: float,
+    antennas_enabled: bool = True,
+    amplitude_mm: float = 4.0,
+    frequency_hz: float = 0.25,
+    antenna_amplitude_deg: float = 15.0,
+    antenna_frequency_hz: float = 0.25,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Return the head and antenna pose for continuous breathing.
+
+    At t = 0 this is the neutral pose, where every gesture ends, so
+    breathing can restart from 0 after a gesture without a jump.
 
     Args:
-        t: elapsed time in seconds
-        antennas_enabled: if False, antennas stay neutral (still breathe with the head)
-        amplitude_mm / frequency_hz: head vertical motion
-        antenna_amplitude_deg / antenna_frequency_hz: antenna sway
+        t: Seconds since breathing started.
+        antennas_enabled: If False, the antennas stay at neutral while the
+            head keeps breathing.
+        amplitude_mm: Vertical head motion, in millimeters.
+        frequency_hz: Breathing rate.
+        antenna_amplitude_deg: Antenna sway around neutral, in degrees.
+        antenna_frequency_hz: Antenna sway rate.
 
     Returns:
-        (head_pose, antennas_rad) - ready for reachy_mini.set_target(head=..., antennas=...)
+        (head pose, [left antenna, right antenna] in radians).
     """
     z = amplitude_mm * np.sin(2 * np.pi * frequency_hz * t)
     head_pose = create_head_pose(z=z, mm=True)
 
+    antennas_rad = np.array(NEUTRAL_ANTENNAS_RAD)
     if antennas_enabled:
-        a = antenna_amplitude_deg * np.sin(2 * np.pi * antenna_frequency_hz * t)
-        antennas_deg = np.array([a, -a])
-    else:
-        antennas_deg = np.zeros(2)
+        sway_rad = np.deg2rad(antenna_amplitude_deg) * np.sin(2 * np.pi * antenna_frequency_hz * t)
+        antennas_rad = antennas_rad + np.array([sway_rad, -sway_rad])
 
-    antennas_rad = np.deg2rad(antennas_deg)
     return head_pose, antennas_rad
