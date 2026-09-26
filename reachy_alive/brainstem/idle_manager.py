@@ -1,6 +1,7 @@
 # reachy_alive/brainstem/idle_manager.py
 """Idle-behavior arbitration for the Brainstem."""
 
+import logging
 import random
 import threading
 from typing import List, Optional, Tuple
@@ -11,6 +12,8 @@ from reachy_mini import ReachyMini
 from reachy_alive.brainstem.breathing import get_breathing_pose
 from reachy_alive.moves.base import Move
 from reachy_alive.shared_state import SharedState
+
+logger = logging.getLogger(__name__)
 
 
 class IdleManager:
@@ -87,5 +90,6 @@ class IdleManager:
     def _play_next_gesture(self, reachy_mini: ReachyMini) -> None:
         """Play the scheduled gesture, once its sounds have finished uploading."""
         self._preparing.join()  # usually finished long ago
+        logger.info("Playing %s", self._next_behavior.name)
         self._next_behavior.play(reachy_mini)
         self._next_behavior = None
