@@ -15,7 +15,7 @@ dependencies = [
     # Installed into the robot's shared apps environment, next to the
     # daemon's SDK: accept any compatible version rather than force one.
     # uv.lock pins the exact version used for development.
-    "reachy-mini>=1.10.0,<2",
+    "reachy-mini>=1.11.0,<2",
     "soundfile",
 ]
 keywords = ["reachy-mini-app"]
