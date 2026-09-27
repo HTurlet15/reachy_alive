@@ -1,4 +1,3 @@
-# tests/moves/test_pose_contract.py
 """Checks every PhasedMove against the pose contract and the robot's limits.
 
 Samples each phase without running the motion loop, so it's fast. Add your
@@ -32,12 +31,10 @@ LOWEST_HEAD_Z_M = -0.170
 def _sampled_poses(move, samples_per_phase=25):
     """Yield (phase, pose) across the whole gesture, phase by phase."""
     phase_start_s = 0.0
-    step = 0
     for phase, phase_end_s in move.phase_ends_s.items():
         for p in np.linspace(0.0, 1.0, samples_per_phase):
             elapsed_s = phase_start_s + p * (phase_end_s - phase_start_s)
-            yield phase, move._pose_at(phase, p, step, elapsed_s)
-            step += 1
+            yield phase, move._pose_at(phase, p, elapsed_s)
         phase_start_s = phase_end_s
 
 

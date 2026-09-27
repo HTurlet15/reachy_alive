@@ -1,4 +1,3 @@
-# tests/moves/test_sneezing.py
 """Unit tests for Sneezing.
 
 The head comes from a fake recording (see conftest.py). The play test runs
@@ -26,7 +25,7 @@ def test_play_uploads_sounds_streams_poses_and_returns_to_neutral(
 def test_head_and_body_come_from_the_recording(fake_library, fake_recording):
     sneezing = Sneezing(fake_library)
 
-    head, _, body_yaw = sneezing._pose_at("inhale1", 0.5, 0, elapsed_s=0.5)
+    head, _, body_yaw = sneezing._pose_at("inhale1", 0.5, elapsed_s=0.5)
 
     assert head is fake_recording.HEAD
     assert body_yaw == fake_recording.BODY_YAW_RAD
@@ -36,13 +35,13 @@ def test_head_is_never_read_at_or_past_the_recording_end(fake_library, fake_reco
     sneezing = Sneezing(fake_library)
     fake_recording.timestamps = [0.0, sneezing.duration_s]  # ends with the phases
 
-    sneezing._pose_at("relief", 1.0, 0, elapsed_s=sneezing.duration_s)
+    sneezing._pose_at("relief", 1.0, elapsed_s=sneezing.duration_s)
 
     assert fake_recording.evaluated_at[-1] < sneezing.duration_s
 
 
 def _antenna(sneezing, phase, p, elapsed_s):
-    _, antennas, _ = sneezing._pose_at(phase, p, 0, elapsed_s)
+    _, antennas, _ = sneezing._pose_at(phase, p, elapsed_s)
     return antennas[0]
 
 
