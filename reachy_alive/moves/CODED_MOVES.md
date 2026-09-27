@@ -95,9 +95,9 @@ serves two cases:
   sign = alternating_sign(elapsed_s, self.SHAKE_HALF_PERIOD_S)
   ```
 
-  `yawning.py` uses it to shake, `stretching.py` to tremble. Keep the
-  half period at 0.02 s or more: the pose is updated every 20 ms, so a
-  faster alternation can't be sent.
+  `yawning.py` uses it to shake, `stretching.py` to tremble. Keep
+  alternations at 0.02 s per side or slower: faster ones don't reach the
+  robot.
 - reading a recording, which runs on a single timeline —
   [`MIXED_MOVES.md`](MIXED_MOVES.md) explains it.
 
@@ -136,11 +136,3 @@ Add it to `coded_moves` in `main.py`, to `_CODED_MOVES` in
 `../scripts/try_move.py`, and to `MOVES` in
 `tests/moves/test_pose_contract.py` — that test checks every pose follows
 the contract and never sends the head below the reachable workspace.
-
-## If your gesture isn't a sequence of phases
-
-Subclass `Move` directly and write `_perform()` and `sound_paths()`
-yourself. Play sounds with `self.play_sound()`, never
-`reachy_mini.media.play_sound()`. Both work, but only the first uses the
-copy already uploaded to the robot; calling the SDK directly re-uploads
-the file mid-gesture, and the motion stutters at every sound.

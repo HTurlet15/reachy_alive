@@ -1,18 +1,18 @@
-"""Base class for every discrete gesture the robot can play.
+"""Base classes for the robot's moves.
 
-Playing a move goes through three steps:
+There are two supported ways to write a move:
 
-1. Its sounds are uploaded to the robot -- ahead of time if ``prepare``
-   was called, otherwise right before the gesture.
-2. The gesture itself runs -- this is ``_perform``, written by each move.
-3. The robot returns to neutral, so the next behavior starts from a known
-   pose.
+- ``PhasedMove``: a gesture written in code, or mixed with a recording.
+- ``LibraryMove``: a move recorded in a Hugging Face dataset.
 
-To write a move, subclass ``Move`` and implement ``_perform`` and
-``sound_paths``. Most gestures are a sequence of phases timed by their
-sounds -- subclass ``PhasedMove`` instead and you only write the poses;
-``yawning.py`` is the reference. A move recorded in a Hugging Face dataset
-needs no code at all -- wrap it in ``LibraryMove``.
+Every move is a ``Move``, whose ``play``, ``prepare`` and ``name`` are
+stable. Don't subclass ``Move`` directly: its execution loop is internal
+and will change.
+
+``alternating_sign`` times shakes and trembles. Keep alternations at
+0.02 s per side or slower.
+
+See ``moves/README.md`` for how to make a move.
 """
 
 import itertools
@@ -39,8 +39,8 @@ def alternating_sign(elapsed_s: float, half_period_s: float) -> int:
 
     For motion that alternates rather than interpolates -- a shake or a
     tremble. Based on time, not on ticks, so the rhythm doesn't depend on
-    how often the pose is updated. The pose must still be updated at
-    least once per half period, or some sides are never sent.
+    how often the pose is updated. Keep half_period_s at 0.02 s or more:
+    faster alternations don't reach the robot.
 
     Args:
         elapsed_s: Seconds since the gesture started.
@@ -55,9 +55,13 @@ def alternating_sign(elapsed_s: float, half_period_s: float) -> int:
 class Move(ABC):
     """A discrete, one-off gesture the robot can play.
 
-    Subclasses implement ``_perform`` and ``sound_paths``. Callers only
-    ever use ``play``, which handles everything around the gesture:
-    uploading its sounds before it, and returning to neutral after it.
+    Callers only ever use ``play``, which handles everything around the
+    gesture: uploading its sounds before it, and returning to neutral
+    after it. ``play``, ``prepare`` and ``name`` are stable.
+
+    To write a move, subclass ``PhasedMove`` or use ``LibraryMove``,
+    never ``Move`` itself: ``_perform`` is the internal execution loop,
+    and will change.
     """
 
     RETURN_DURATION_S = 0.5
@@ -223,6 +227,8 @@ class PhasedMove(Move):
         if unknown:
             raise ValueError(f"{name}: PHASE_PADDING_S names unknown phases: {sorted(unknown)}")
 
+        # Stretching and Sneezing tremble at 0.02 s per side: keep the pose
+        # updated at 50 Hz or more.
         self.step_s = 1.0 / tick_hz
 
         durations = [self._phase_duration(phase) for phase in self.PHASE_SOUNDS]
@@ -238,6 +244,9 @@ class PhasedMove(Move):
         self, phase: str, p: float, elapsed_s: float
     ) -> tuple[np.ndarray, list[float], float]:
         """Return the pose for the running phase.
+
+        Only computes the pose: never talk to the robot here. Time anything
+        rhythmic in seconds from ``elapsed_s``, never by counting calls.
 
         Args:
             phase: Name of the running phase.
