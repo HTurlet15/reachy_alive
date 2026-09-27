@@ -22,7 +22,7 @@ class YourMove(PhasedMove):
 
     PHASE_SOUNDS = {"rise": "rising.wav", "fall": "falling.wav"}
 
-    def _pose_at(self, phase, p, step, elapsed_s):
+    def _pose_at(self, phase, p, elapsed_s):
         ...
 ```
 
@@ -55,7 +55,7 @@ On every tick, `PhasedMove` works out which phase is running and how far
 through it, then calls `_pose_at`. Dispatch to one method per phase:
 
 ```python
-def _pose_at(self, phase, p, step, elapsed_s):
+def _pose_at(self, phase, p, elapsed_s):
     if phase == "rise":
         return self._rise_pose(p)
     ...
@@ -83,14 +83,23 @@ one separately.
 The body yaw is the last value. Return `NEUTRAL_BODY_YAW_RAD` unless your
 gesture turns the body.
 
-The other two arguments are clocks:
+The last argument, `elapsed_s`, is the time since the gesture started.
+Unlike `p`, it doesn't reset between phases. Most phases ignore it; it
+serves two cases:
 
-- `step` counts ticks, for motion that alternates rather than
-  interpolates. `yawning.py` uses it to shake, `stretching.py` to
-  tremble.
-- `elapsed_s` is the time since the gesture started. Unlike `p`, it
-  doesn't reset between phases. A move written in code can ignore it;
-  [`MIXED_MOVES.md`](MIXED_MOVES.md) explains what it's for.
+- motion that alternates rather than interpolates, like a shake or a
+  tremble. Give it to `alternating_sign`, which returns +1 or -1 and
+  switches every half period, in seconds:
+
+  ```python
+  sign = alternating_sign(elapsed_s, self.SHAKE_HALF_PERIOD_S)
+  ```
+
+  `yawning.py` uses it to shake, `stretching.py` to tremble. Keep the
+  half period at 0.02 s or more: the pose is updated every 20 ms, so a
+  faster alternation can't be sent.
+- reading a recording, which runs on a single timeline —
+  [`MIXED_MOVES.md`](MIXED_MOVES.md) explains it.
 
 ## 3. Vary between plays
 

@@ -13,6 +13,7 @@ from reachy_alive.moves.base import (
     NEUTRAL_BODY_YAW_RAD,
     Move,
     PhasedMove,
+    alternating_sign,
 )
 
 
@@ -40,10 +41,10 @@ class Yawning(PhasedMove):
     ANTENNA_LOWERED_RAD = -1.0
 
     SHAKE_YAW_AMPLITUDE_DEG = 12.5
-    SHAKE_ALTERNATION_STEPS = 5  # ticks held per side
+    SHAKE_HALF_PERIOD_S = 0.1  # seconds held per side
 
     def _pose_at(
-        self, phase: str, p: float, step: int, elapsed_s: float
+        self, phase: str, p: float, elapsed_s: float
     ) -> tuple[np.ndarray, list[float], float]:
         if phase == "rise":
             return self._rise_pose(p)
@@ -51,7 +52,7 @@ class Yawning(PhasedMove):
             return self._hold_pose()
         if phase == "exhale":
             return self._exhale_pose(p)
-        return self._shake_pose(step)
+        return self._shake_pose(elapsed_s)
 
     def _rise_pose(self, p: float) -> tuple[np.ndarray, list[float], float]:
         """Tilt the head up and lower the antennas. p: 0 -> 1."""
@@ -73,12 +74,12 @@ class Yawning(PhasedMove):
         head = create_head_pose(pitch=pitch, degrees=True)
         return head, [antenna, -antenna], NEUTRAL_BODY_YAW_RAD
 
-    def _shake_pose(self, step: int) -> tuple[np.ndarray, list[float], float]:
+    def _shake_pose(self, elapsed_s: float) -> tuple[np.ndarray, list[float], float]:
         """Keep the head level while yaw alternates side to side.
 
         Only the head shakes -- the body stays facing forward.
         """
-        sign = 1 if (step // self.SHAKE_ALTERNATION_STEPS) % 2 == 0 else -1
+        sign = alternating_sign(elapsed_s, self.SHAKE_HALF_PERIOD_S)
         yaw = sign * self.SHAKE_YAW_AMPLITUDE_DEG
         head = create_head_pose(yaw=yaw, degrees=True)
         return head, NEUTRAL_ANTENNAS_RAD, NEUTRAL_BODY_YAW_RAD
