@@ -1,18 +1,18 @@
-"""Base class for every discrete gesture the robot can play.
+"""Base classes for the robot's moves.
 
-Playing a move goes through three steps:
+There are two supported ways to write a move:
 
-1. Its sounds are uploaded to the robot -- ahead of time if ``prepare``
-   was called, otherwise right before the gesture.
-2. The gesture itself runs -- this is ``_perform``, written by each move.
-3. The robot returns to neutral, so the next behavior starts from a known
-   pose.
+- ``PhasedMove``: a gesture written in code, or mixed with a recording.
+- ``LibraryMove``: a move recorded in a Hugging Face dataset.
 
-To write a move, subclass ``Move`` and implement ``_perform`` and
-``sound_paths``. Most gestures are a sequence of phases timed by their
-sounds -- subclass ``PhasedMove`` instead and you only write the poses;
-``yawning.py`` is the reference. A move recorded in a Hugging Face dataset
-needs no code at all -- wrap it in ``LibraryMove``.
+Every move is a ``Move``, whose ``play``, ``prepare`` and ``name`` are
+stable. Don't subclass ``Move`` directly: its execution loop is internal
+and will change.
+
+``alternating_sign`` times shakes and trembles. Keep alternations at
+0.02 s per side or slower.
+
+See ``moves/README.md`` for how to make a move.
 """
 
 import itertools
@@ -34,12 +34,34 @@ NEUTRAL_ANTENNAS_RAD = [-0.1745, 0.1745]
 NEUTRAL_BODY_YAW_RAD = 0.0
 
 
+def alternating_sign(elapsed_s: float, half_period_s: float) -> int:
+    """Return +1 or -1, switching every half_period_s seconds.
+
+    For motion that alternates rather than interpolates -- a shake or a
+    tremble. Based on time, not on ticks, so the rhythm doesn't depend on
+    how often the pose is updated. Keep half_period_s at 0.02 s or more:
+    faster alternations don't reach the robot.
+
+    Args:
+        elapsed_s: Seconds since the gesture started.
+        half_period_s: Seconds spent on each side.
+
+    Returns:
+        +1 during even half periods, -1 during odd ones.
+    """
+    return 1 if int(elapsed_s / half_period_s) % 2 == 0 else -1
+
+
 class Move(ABC):
     """A discrete, one-off gesture the robot can play.
 
-    Subclasses implement ``_perform`` and ``sound_paths``. Callers only
-    ever use ``play``, which handles everything around the gesture:
-    uploading its sounds before it, and returning to neutral after it.
+    Callers only ever use ``play``, which handles everything around the
+    gesture: uploading its sounds before it, and returning to neutral
+    after it. ``play``, ``prepare`` and ``name`` are stable.
+
+    To write a move, subclass ``PhasedMove`` or use ``LibraryMove``,
+    never ``Move`` itself: ``_perform`` is the internal execution loop,
+    and will change.
     """
 
     RETURN_DURATION_S = 0.5
@@ -157,7 +179,8 @@ class PhasedMove(Move):
     Declare the phases in ``PHASE_SOUNDS`` and write ``_pose_at``; this
     class handles the rest -- reading durations from the sound files,
     tracking which phase is running, firing its sound as it begins, and
-    streaming poses to the robot.
+    streaming poses to the robot. To vary something between plays, like a
+    random angle, override ``_on_start``.
 
     Re-exporting a sound at a different length stretches or shrinks the
     matching phase, so motion and audio stay in sync.
@@ -204,6 +227,8 @@ class PhasedMove(Move):
         if unknown:
             raise ValueError(f"{name}: PHASE_PADDING_S names unknown phases: {sorted(unknown)}")
 
+        # Stretching and Sneezing tremble at 0.02 s per side: keep the pose
+        # updated at 50 Hz or more.
         self.step_s = 1.0 / tick_hz
 
         durations = [self._phase_duration(phase) for phase in self.PHASE_SOUNDS]
@@ -216,18 +241,20 @@ class PhasedMove(Move):
 
     @abstractmethod
     def _pose_at(
-        self, phase: str, p: float, step: int, elapsed_s: float
+        self, phase: str, p: float, elapsed_s: float
     ) -> tuple[np.ndarray, list[float], float]:
         """Return the pose for the running phase.
+
+        Only computes the pose: never talk to the robot here. Time anything
+        rhythmic in seconds from ``elapsed_s``, never by counting calls.
 
         Args:
             phase: Name of the running phase.
             p: Progress within that phase, 0 to 1.
-            step: Tick counter, for motion that alternates rather than
-                interpolates -- a shake or a tremble.
             elapsed_s: Seconds since the gesture started. Unlike ``p``, it
                 doesn't reset between phases -- for moves that read a
-                recording, which runs on a single timeline.
+                recording, which runs on a single timeline, and for motion
+                that alternates, through ``alternating_sign``.
 
         Returns:
             (head pose, [left antenna, right antenna], body yaw), angles in
@@ -235,10 +262,20 @@ class PhasedMove(Move):
             the body.
         """
 
+    def _on_start(self) -> None:
+        """Called once at the start of every play, before the first pose.
+
+        Override it to draw what should vary between plays, like a random
+        angle; store it on self and read it in _pose_at. Does nothing by
+        default.
+        """
+
     def _perform(self, reachy_mini: ReachyMini) -> None:
         """Run the gesture, firing each phase's sound as the phase begins."""
+        # Before the clock starts, so the preparation never eats into the
+        # first phase.
+        self._on_start()
         start = time.monotonic()
-        step = 0
         previous_phase = None
 
         while (elapsed_s := time.monotonic() - start) < self.duration_s:
@@ -249,12 +286,9 @@ class PhasedMove(Move):
                 self._play_phase_sound(reachy_mini, phase)
                 previous_phase = phase
 
-            head, antennas, body_yaw = self._pose_at(
-                phase, phase_progress, step, elapsed_s
-            )
+            head, antennas, body_yaw = self._pose_at(phase, phase_progress, elapsed_s)
             reachy_mini.set_target(head=head, antennas=antennas, body_yaw=body_yaw)
 
-            step += 1
             time.sleep(self.step_s)
 
     def _phase_duration(self, phase: str) -> float:

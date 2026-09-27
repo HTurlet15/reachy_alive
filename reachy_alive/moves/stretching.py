@@ -12,6 +12,7 @@ from reachy_alive.moves.base import (
     NEUTRAL_BODY_YAW_RAD,
     Move,
     PhasedMove,
+    alternating_sign,
 )
 
 
@@ -33,6 +34,8 @@ class Stretching(PhasedMove):
     MAX_Z_MM = 15.0
     REACH_ROLL_DEG = 10.0
 
+    # Switches side every 20 ms: needs the pose updated at 50 Hz or more.
+    TREMBLE_HALF_PERIOD_S = 0.02
     TREMBLE_Z_OSCILLATION_MM = 1.0
     TREMBLE_LOOK_UP_PITCH_DEG = -15.0
 
@@ -43,14 +46,14 @@ class Stretching(PhasedMove):
     TREMBLE_ANTENNA_AMPLITUDE_RAD = np.deg2rad(8.6)
 
     def _pose_at(
-        self, phase: str, p: float, step: int, elapsed_s: float
+        self, phase: str, p: float, elapsed_s: float
     ) -> tuple[np.ndarray, list[float], float]:
         if phase == "crouch":
             return self._crouch_pose(p)
         if phase == "rise":
             return self._rise_pose(p)
         if phase == "tremble":
-            return self._tremble_pose(p, step)
+            return self._tremble_pose(p, elapsed_s)
         return self._release_pose(p)
 
     def _crouch_pose(self, p: float) -> tuple[np.ndarray, list[float], float]:
@@ -76,9 +79,11 @@ class Stretching(PhasedMove):
         antenna = interpolate(self.ANTENNA_DOWN_RAD, self.ANTENNA_UP_RAD, p)
         return head, [antenna, -antenna], NEUTRAL_BODY_YAW_RAD
 
-    def _tremble_pose(self, p: float, step: int) -> tuple[np.ndarray, list[float], float]:
+    def _tremble_pose(
+        self, p: float, elapsed_s: float
+    ) -> tuple[np.ndarray, list[float], float]:
         """Hold at full extension, shaking with effort. p: 0 -> 1."""
-        sign = 1 if step % 2 == 0 else -1
+        sign = alternating_sign(elapsed_s, self.TREMBLE_HALF_PERIOD_S)
         head = create_head_pose(
             pitch=interpolate(0.0, self.TREMBLE_LOOK_UP_PITCH_DEG, p),
             z=self.MAX_Z_MM + sign * self.TREMBLE_Z_OSCILLATION_MM,

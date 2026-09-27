@@ -14,6 +14,7 @@ from reachy_alive.moves.base import (
     LibraryMove,
     Move,
     PhasedMove,
+    alternating_sign,
 )
 
 # --- Move ---------------------------------------------------------------
@@ -78,6 +79,22 @@ def test_play_returns_head_antennas_and_body_to_neutral(fake_reachy_mini):
     assert kwargs["body_yaw"] == NEUTRAL_BODY_YAW_RAD
 
 
+# --- alternating_sign ---------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "elapsed_s, expected_sign",
+    [
+        (0.00, 1),
+        (0.05, 1),  # still in the first half period
+        (0.15, -1),  # second half period
+        (0.25, 1),  # third: back to the first side
+    ],
+)
+def test_alternating_sign_switches_every_half_period(elapsed_s, expected_sign):
+    assert alternating_sign(elapsed_s, half_period_s=0.1) == expected_sign
+
+
 # --- PhasedMove ---------------------------------------------------------
 
 
@@ -98,7 +115,7 @@ def _phased_move_class(sounds_dir, **attributes):
         "PHASE_PADDING_S": {"a": 0.05},
     }
 
-    def _pose_at(self, phase, p, step, elapsed_s):
+    def _pose_at(self, phase, p, elapsed_s):
         self.calls.append((phase, p, elapsed_s))
         return np.eye(4), [0.0, 0.0], 0.25
 
@@ -174,6 +191,22 @@ def test_elapsed_s_runs_through_the_gesture_while_p_restarts_each_phase(
     for phase, p, _ in move.calls:
         first_p_of_each_phase.setdefault(phase, p)
     assert all(p < 0.2 for p in first_p_of_each_phase.values())
+
+
+def test_on_start_runs_once_per_play_before_the_first_pose(fake_reachy_mini, sounds_dir):
+    # Each entry: how many poses had been computed when _on_start ran.
+    poses_before_start = []
+
+    def _on_start(self):
+        poses_before_start.append(len(self.calls))
+
+    move = _phased_move_class(sounds_dir, _on_start=_on_start)()
+
+    move.play(fake_reachy_mini)
+    poses_in_first_play = len(move.calls)
+    move.play(fake_reachy_mini)
+
+    assert poses_before_start == [0, poses_in_first_play]
 
 
 # --- LibraryMove --------------------------------------------------------

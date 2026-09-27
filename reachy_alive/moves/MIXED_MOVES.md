@@ -36,7 +36,7 @@ def __init__(self, library: RecordedMoves, tick_hz: float = 50.0) -> None:
     super().__init__(tick_hz)
     self._recording = library.get("sneezing")
 
-def _pose_at(self, phase, p, step, elapsed_s):
+def _pose_at(self, phase, p, elapsed_s):
     t = min(elapsed_s, self._recording.duration - self.step_s)
     head, _, body_yaw = self._recording.evaluate(t)
     antenna = ...
@@ -53,7 +53,7 @@ sounds, so there's no double audio.
 
 Code what a hand can't do: a fast shake, a drop in a few ticks, a
 variation between plays. `sneezing.py` draws its drop angle in
-`_perform()`, then hands over to `PhasedMove`.
+`_on_start()` — see [Vary between plays](CODED_MOVES.md#3-vary-between-plays).
 
 ## Register it
 

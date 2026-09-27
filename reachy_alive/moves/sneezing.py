@@ -8,11 +8,15 @@ This is the reference mixed move. See moves/README.md for how to write one.
 import random
 
 import numpy as np
-from reachy_mini import ReachyMini
 from reachy_mini.motion.recorded_move import RecordedMoves
 
 from reachy_alive.interpolate import interpolate
-from reachy_alive.moves.base import NEUTRAL_ANTENNAS_RAD, Move, PhasedMove
+from reachy_alive.moves.base import (
+    NEUTRAL_ANTENNAS_RAD,
+    Move,
+    PhasedMove,
+    alternating_sign,
+)
 
 
 class Sneezing(PhasedMove):
@@ -47,6 +51,8 @@ class Sneezing(PhasedMove):
     RISE_PER_INHALE_RAD = np.deg2rad(5.0)
     RELAX_IN_SILENCE_RAD = np.deg2rad(2.0)
     INHALE_SHAKE_AMPLITUDE_RAD = np.deg2rad(5.0)
+    # Switches side every 20 ms: needs the pose updated at 50 Hz or more.
+    INHALE_SHAKE_HALF_PERIOD_S = 0.02
 
     # Sneeze: the antennas drop at once, a little differently each play.
     ANTENNA_SNEEZE_RAD = np.deg2rad(-60.0)
@@ -70,25 +76,26 @@ class Sneezing(PhasedMove):
             for phase in self.INHALE_PHASES
         }
 
+        # Redrawn by _on_start at every play. This default is for callers
+        # that read a pose without playing the move, like the tests.
         self._sneeze_angle_rad = self.ANTENNA_SNEEZE_RAD
 
-    def _perform(self, reachy_mini: ReachyMini) -> None:
-        """Draw this play's sneeze angle, then run the gesture."""
+    def _on_start(self) -> None:
+        """Draw this play's sneeze angle."""
         variation = random.uniform(
             -self.SNEEZE_ANGLE_VARIATION_RAD, self.SNEEZE_ANGLE_VARIATION_RAD
         )
         self._sneeze_angle_rad = self.ANTENNA_SNEEZE_RAD + variation
-        super()._perform(reachy_mini)
 
     def _pose_at(
-        self, phase: str, p: float, step: int, elapsed_s: float
+        self, phase: str, p: float, elapsed_s: float
     ) -> tuple[np.ndarray, list[float], float]:
         # evaluate() raises at the recording's last frame: stop one tick before.
         t = min(elapsed_s, self._recording.duration - self.step_s)
         head, _, body_yaw = self._recording.evaluate(t)
 
         if phase in self.INHALE_PHASES:
-            antenna = self._inhale_antenna(phase, p, step)
+            antenna = self._inhale_antenna(phase, p, elapsed_s)
         elif phase == "sneeze":
             antenna = self._sneeze_antenna(elapsed_s)
         else:
@@ -96,7 +103,7 @@ class Sneezing(PhasedMove):
 
         return head, [antenna, -antenna], body_yaw
 
-    def _inhale_antenna(self, phase: str, p: float, step: int) -> float:
+    def _inhale_antenna(self, phase: str, p: float, elapsed_s: float) -> float:
         """Climb one step while shaking, then relax in the silence. p: 0 -> 1."""
         index = self.INHALE_PHASES.index(phase)
         top = self.ANTENNA_START_RAD + (index + 1) * self.RISE_PER_INHALE_RAD
@@ -108,7 +115,7 @@ class Sneezing(PhasedMove):
             else:
                 start = top - self.RISE_PER_INHALE_RAD - self.RELAX_IN_SILENCE_RAD
             climb = interpolate(start, top, p / silence_start_p)
-            shake_sign = 1 if step % 2 == 0 else -1
+            shake_sign = alternating_sign(elapsed_s, self.INHALE_SHAKE_HALF_PERIOD_S)
             return climb + shake_sign * self.INHALE_SHAKE_AMPLITUDE_RAD
 
         relax = (p - silence_start_p) / (1.0 - silence_start_p)
