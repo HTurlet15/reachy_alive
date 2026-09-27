@@ -53,7 +53,7 @@ sounds, so there's no double audio.
 
 Code what a hand can't do: a fast shake, a drop in a few ticks, a
 variation between plays. `sneezing.py` draws its drop angle in
-`_perform()`, then hands over to `PhasedMove`.
+`_on_start()` — see [Vary between plays](CODED_MOVES.md#3-vary-between-plays).
 
 ## Register it
 

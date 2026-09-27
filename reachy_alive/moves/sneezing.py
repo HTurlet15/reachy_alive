@@ -8,7 +8,6 @@ This is the reference mixed move. See moves/README.md for how to write one.
 import random
 
 import numpy as np
-from reachy_mini import ReachyMini
 from reachy_mini.motion.recorded_move import RecordedMoves
 
 from reachy_alive.interpolate import interpolate
@@ -70,15 +69,16 @@ class Sneezing(PhasedMove):
             for phase in self.INHALE_PHASES
         }
 
+        # Redrawn by _on_start at every play. This default is for callers
+        # that read a pose without playing the move, like the tests.
         self._sneeze_angle_rad = self.ANTENNA_SNEEZE_RAD
 
-    def _perform(self, reachy_mini: ReachyMini) -> None:
-        """Draw this play's sneeze angle, then run the gesture."""
+    def _on_start(self) -> None:
+        """Draw this play's sneeze angle."""
         variation = random.uniform(
             -self.SNEEZE_ANGLE_VARIATION_RAD, self.SNEEZE_ANGLE_VARIATION_RAD
         )
         self._sneeze_angle_rad = self.ANTENNA_SNEEZE_RAD + variation
-        super()._perform(reachy_mini)
 
     def _pose_at(
         self, phase: str, p: float, step: int, elapsed_s: float

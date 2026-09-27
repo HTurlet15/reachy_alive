@@ -92,6 +92,35 @@ The other two arguments are clocks:
   doesn't reset between phases. A move written in code can ignore it;
   [`MIXED_MOVES.md`](MIXED_MOVES.md) explains what it's for.
 
+## 3. Vary between plays
+
+Optional. A gesture that plays exactly the same every time looks
+mechanical. To vary something from one play to the next — an angle, an
+amplitude — draw it in `_on_start()`, store it on `self`, and read it in
+`_pose_at`:
+
+```python
+def __init__(self, tick_hz: float = 50.0) -> None:
+    super().__init__(tick_hz)
+    self._drop_angle_rad = self.DROP_ANGLE_RAD
+
+def _on_start(self) -> None:
+    self._drop_angle_rad = self.DROP_ANGLE_RAD + random.uniform(-0.1, 0.1)
+```
+
+`PhasedMove` calls `_on_start()` once at the start of every play, before
+the first pose. Draw there, not elsewhere:
+
+- not in `_pose_at`, which runs on every tick: the value would change
+  50 times a second;
+- not in `__init__`, which runs once for the whole session: every play
+  would get the same value.
+
+Keep a default in `__init__`, as above: the tests read poses without
+playing the move, so `_on_start()` never runs for them.
+
+`sneezing.py` uses this to vary how far its antennas drop.
+
 ## Register it
 
 Add it to `coded_moves` in `main.py`, to `_CODED_MOVES` in

@@ -157,7 +157,8 @@ class PhasedMove(Move):
     Declare the phases in ``PHASE_SOUNDS`` and write ``_pose_at``; this
     class handles the rest -- reading durations from the sound files,
     tracking which phase is running, firing its sound as it begins, and
-    streaming poses to the robot.
+    streaming poses to the robot. To vary something between plays, like a
+    random angle, override ``_on_start``.
 
     Re-exporting a sound at a different length stretches or shrinks the
     matching phase, so motion and audio stay in sync.
@@ -235,8 +236,19 @@ class PhasedMove(Move):
             the body.
         """
 
+    def _on_start(self) -> None:
+        """Called once at the start of every play, before the first pose.
+
+        Override it to draw what should vary between plays, like a random
+        angle; store it on self and read it in _pose_at. Does nothing by
+        default.
+        """
+
     def _perform(self, reachy_mini: ReachyMini) -> None:
         """Run the gesture, firing each phase's sound as the phase begins."""
+        # Before the clock starts, so the preparation never eats into the
+        # first phase.
+        self._on_start()
         start = time.monotonic()
         step = 0
         previous_phase = None
