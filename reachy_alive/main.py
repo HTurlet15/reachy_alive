@@ -1,3 +1,4 @@
+import logging
 import threading
 
 from pydantic import BaseModel
@@ -101,6 +102,9 @@ class ReachyAlive(ReachyMiniApp):
 
 
 if __name__ == "__main__":
+    # The SDK's logging setup shows its own info logs; show this app's too.
+    logging.getLogger("reachy_alive").setLevel(logging.INFO)
+
     app = ReachyAlive()
     try:
         app.wrapped_run()

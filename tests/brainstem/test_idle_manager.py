@@ -1,6 +1,7 @@
 # tests/brainstem/test_idle_manager.py
 """Unit tests for IdleManager."""
 
+import logging
 from unittest.mock import MagicMock
 
 import numpy as np
@@ -42,3 +43,14 @@ def test_breathing_restarts_from_neutral_after_a_gesture(fake_reachy_mini):
 
     np.testing.assert_allclose(head, np.eye(4), atol=1e-9)
     np.testing.assert_allclose(antennas, NEUTRAL_ANTENNAS_RAD)
+
+
+def test_logs_which_gesture_plays(fake_reachy_mini, caplog):
+    behavior = MagicMock()
+    behavior.name = "sneezing"
+    manager = IdleManager([behavior], gesture_interval_range_s=(0.0, 0.0))
+
+    with caplog.at_level(logging.INFO, logger="reachy_alive"):
+        manager.get_pose(t=1.0, shared_state=SharedState(), reachy_mini=fake_reachy_mini)
+
+    assert "Playing sneezing" in caplog.text
