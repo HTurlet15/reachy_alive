@@ -27,16 +27,19 @@ opposite of the point. Every architectural decision follows from this.
 
     reachy_alive/
     ├── main.py             # composition root: builds and wires everything
-    ├── shared_state.py     # thread-safe blackboard
-    ├── robot_manager.py    # control loop; ONLY module that calls ReachyMini
+    ├── shared_state.py     # thread-safe blackboard: facts, not orders
+    ├── commands.py         # commands decision-makers hand to RobotManager
+    ├── robot_manager.py    # control loop; executes commands
     ├── interpolate.py      # interpolate(start, end, p)
     ├── moves/
     │   ├── base.py         # Move, PhasedMove, LibraryMove
     │   ├── yawning.py      # reference procedural move
-    │   └── stretching.py
+    │   ├── stretching.py
+    │   └── sneezing.py     # reference mixed move
     ├── brainstem/
     │   ├── idle_manager.py
     │   └── breathing.py    # continuous pose function, not a Move
+    ├── static/             # settings page (⚙️ in Reachy Mini Control)
     ├── assets/sounds/      # grouped per move, .wav next to its jsfxr preset
     ├── scripts/try_move.py
     └── tests/              # mirrors the package layout
@@ -45,9 +48,20 @@ Planned: `sensory_cortex/` (perception), `amygdala/` (reflexes),
 `prefrontal_cortex/` (deliberation), `hippocampus/` (memory — left as a
 good first issue for contributors).
 
+## Execution model
+
+`RobotManager` owns the control loop. It makes no decisions: each tick, it
+asks a decision-maker for a command (`commands.py`) and executes it.
+Decision-makers never drive the robot. Moves do talk to the robot, but only
+while `RobotManager` executes a `PlayMove`, from the loop's thread.
+
+State and orders travel separately. `SharedState` holds facts any module can
+read at any time. A command is an order: handed to `RobotManager`, executed
+once.
+
 ## The Move contract
 
-Callers use `play()`, which uploads the move's sounds, runs `_perform()`,
+Callers use `play()`, which uploads the move's sounds, runs the gesture,
 then sends the robot to neutral in `RETURN_DURATION_S`.
 
 A move may land on neutral as part of its own choreography, at its own tempo
@@ -56,16 +70,21 @@ reading where the robot is — for a move that already landed there, it's a
 no-op. The case that needs the net: recorded library moves end wherever their
 recording ended.
 
-**Three ways to write one:**
+**Two ways to write one:**
 
 - `PhasedMove` — a sequence of phases, each timed by its own sound. Declare
-  `PHASE_SOUNDS`, write `_pose_at(phase, p, step)` returning
-  `(head_pose, [left_antenna, right_antenna])`. Everything else — durations
-  read from the files, phase tracking, sound firing, `sound_paths()` — is
-  inherited. This is the normal case.
-- `Move` directly — implement `_perform()` and `sound_paths()`. For gestures
-  that aren't phase-based, including mixed recorded/coded ones.
-- `LibraryMove` — wraps a move from a Hugging Face dataset. No code at all.
+  `PHASE_SOUNDS` (plus `SILENT_PHASE_DURATIONS_S` and `PHASE_PADDING_S` when
+  needed), and write `_pose_at(phase, p, elapsed_s)` returning
+  `(head_pose, [left_antenna, right_antenna], body_yaw)`. It computes a pose
+  and never talks to the robot. Rhythms are in seconds (`alternating_sign`),
+  never in ticks. Anything that varies between plays goes in `_on_start()`.
+  Coded and mixed moves both use it.
+- `LibraryMove` — wraps a move from a Hugging Face dataset (Pollen's library
+  or a Marionette recording). No code at all.
+
+Never subclass `Move` directly: `_perform` is the internal loop and will
+change when gestures run tick by tick. A test fails if a move in `moves/`
+defines `_perform`.
 
 See `moves/README.md` for the full guide, `assets/sounds/README.md` for the
 jsfxr preset and sound packaging.
@@ -101,20 +120,23 @@ gesture becomes an explicit signal, and `RobotManager` may be renamed
 If you notice this and want to fix it, don't — say so and move on.
 
 The decision/execution split itself is done: decision-makers return commands
-(`commands.py`), `RobotManager` executes them.
+(`commands.py`), `RobotManager` executes them. It came earlier than planned
+because on-demand gestures from the web page are a second decision-maker.
 
 ## Sprints
 
-- A — structure refactor — **done**
-- **v1 release — current.** Five idle gestures, two contributor guides, then
-  README, CONTRIBUTING, CI, HF Space. Ships before sprint B so people can start
-  contributing gestures while perception is built.
+- **A — v1 release — current.** Structure refactor (done), idle gestures of
+  all three kinds (coded, Marionette, mixed), a stable Move contract,
+  contributor guides, README, CONTRIBUTING, CI, HF Space, settings page with
+  on-demand gestures. **Ends once the app is published and the promo video
+  is out**, so people can start contributing gestures while perception is
+  built.
 - B — `sensory_cortex/`: camera, motion and face detection, writing to
   `SharedState`. Also the mechanism to aim the head at a point — but nothing
   calls it yet. **No new behavior: the robot still just breathes.**
-- C — `amygdala/` + gestures that run tick by tick. Innate reflexes only: a sudden
-  noise, a face appearing, movement where there was none. No memory, no
-  judgement. **Milestone: the robot perceives and reacts.**
+- C — `amygdala/` + gestures that run tick by tick. Innate reflexes only: a
+  sudden noise, a face appearing, movement where there was none. No memory,
+  no judgement. **Milestone: the robot perceives and reacts.**
 - D — `prefrontal_cortex/`: async cloud LLM, API key, timeout, fallback. This
   is what decides to *look at* someone, rather than reflexively startle.
 - E — unified arbitration, migrate to a behavior tree.
@@ -145,7 +167,9 @@ fast reaction becomes right because it was slow once.
   (pollen-robotics/reachy_mini#1306).
 - Simulator: `env -u WAYLAND_DISPLAY GDK_BACKEND=x11 reachy-mini-daemon --sim`
   (the env vars work around a MuJoCo/GLFW bug on Wayland). The simulator never
-  exercises the upload path — its audio backend reads files directly.
+  exercises the upload path — its audio backend reads files directly. If it
+  fails with `Address already in use`, another daemon is running: find it with
+  `ss -ltnp | grep -E ':8000|:8443'`.
 - Recorded moves are cached locally. A move added to a dataset after its first
   download is invisible until the cache is cleared:
   `rm -rf ~/.cache/huggingface/hub/datasets--<user>--<dataset>`.
@@ -169,18 +193,28 @@ Key points already learned from them:
 - `goto_target()` is the default (gestures, choreography). It cannot react to
   anything mid-interpolation.
 - `set_target()` only inside a single control loop at 50-100 Hz. Multiple
-  scattered `set_target()` calls is a documented anti-pattern — set_target() 
-  now lives in RobotManager, plus PhasedMove._perform until gestures run tick by tick
+  scattered `set_target()` calls is a documented anti-pattern — `set_target()`
+  now lives in `RobotManager`, plus `PhasedMove._perform` until gestures run
+  tick by tick.
 - `enable_motors()` pins targets to the present pose, so call it before any
   `set_target`.
 - Use `time.monotonic()`, never `time.time()`.
 
 ## Accepted hardware limits
 
-- **Streaming `set_target` from a far pose can take the daemon down.** It
-  doesn't interpolate, so from the sleep pose it asks for a huge instant jump;
-  the daemon restarts (`1012`) or the serial link to the motors retries.
-  `try-move` eases into neutral with `goto_target` first.
+- **Robot inert while the daemon reports healthy.** The motor controller
+  retries reads but not writes, and silently drops write errors: a transient
+  serial error can lose the torque-enable order. The daemon then reports
+  `enabled` and `nb_error: 0`, accepts every command, and nothing moves. The
+  marker is `Serial I/O recovered after N retries` in the journal. Only
+  `sudo systemctl restart reachy-mini-daemon` recovers —
+  `POST /api/daemon/restart` isn't enough
+  (pollen-robotics/reachy-mini-motor-controller#47; see also
+  pollen-robotics/reachy_mini#1306, #1417, #1430).
+- **Ease into neutral before streaming.** `set_target` doesn't interpolate, so
+  from the sleep pose it asks for a huge instant jump. Entry points (and
+  `try-move`) ease into neutral with `goto_target` first. It reduces motor
+  strain but doesn't prevent the issue above.
 - **Head below z = -170 mm wedges the IK solver permanently** — commands and
   sounds keep being accepted, nothing moves, until the daemon restarts. The
   recorded moves `waiting`, `mini-deep-sleep` and `toc-toc-toc` do this
@@ -198,12 +232,15 @@ Key points already learned from them:
 
 - Docstrings say what the code does; the *why* goes in the commit message.
   Google style (`Args:` / `Returns:`).
+- Docstrings and comments in English, always.
 - Inline comments only when a line genuinely needs one. `TODO` only if
   actionable.
 - Self-explanatory names. No abstraction without two real cases to justify it.
 - Conventional Commits, frequent commits.
 - One or two examples per creation method — never more. Two says "add another";
   five says "it's finished".
+- Before any refactor, reread ARCHITECTURE.md and this file: they hold the
+  decisions not to re-litigate and the debt not to fix yet.
 
 ## How to work with me
 
