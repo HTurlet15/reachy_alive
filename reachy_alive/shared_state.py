@@ -5,10 +5,12 @@ from typing import Optional
 
 
 class SharedState:
-    """Central, thread-safe blackboard shared across all cognitive modules.
+    """Central, thread-safe blackboard of state shared across modules.
 
-    Cognitive modules (Brainstem, Amygdala, Prefrontal Cortex, etc.) never
-    call each other directly; they only read and write this object.
+    It holds facts any module may read at any time, such as when the last
+    notable activity happened. It does not carry orders: a module that
+    wants something done hands over a command instead (see
+    reachy_alive.commands).
 
     Attributes:
         lock: Guards all reads/writes to prevent race conditions.
@@ -16,16 +18,11 @@ class SharedState:
             last notable activity — either IdleManager playing a discrete
             gesture, or (later) an external reaction from Amygdala/Prefrontal
             Cortex. None means nothing notable has happened since startup.
-        current_animation_target: Name of a specific move that an external
-            module wants played right now. None means nothing external is
-            pending. Not written anywhere yet — reserved for Amygdala.
     """
 
     def __init__(self) -> None:
         self.lock = threading.Lock()
         self.last_activity_at: Optional[float] = time.monotonic() # start counting from app launch
-        # TODO: written by Amygdala once it exists; read by RobotManager.
-        self.current_animation_target: Optional[str] = None
 
     def mark_activity(self) -> None:
         """Record that something notable just happened, resetting the idle timer."""
