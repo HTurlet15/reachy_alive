@@ -29,9 +29,8 @@ flowchart LR
     manager --> robot(["Reachy Mini"])
 ```
 
-This is the target. Today only `brainstem` exists, and it still executes
-its own gestures instead of handing them to `RobotManager` — see
-[Known debt](#known-debt).
+This is the target. Today only `brainstem` exists; it already hands its
+decisions to `RobotManager` as commands.
 
 ## The core constraint
 
@@ -68,12 +67,18 @@ tests. Anything with a side effect at construction time is built in
 `main.py` is the composition root: it builds every object and wires them
 together, once, at startup.
 
-`RobotManager` owns the control loop. It is the only module that calls
-`ReachyMini`. It makes no decisions — it asks a decision-maker what to do
-and executes the answer.
+`RobotManager` owns the control loop. It makes no decisions: each tick, it
+asks a decision-maker for a command (`commands.py`) and executes it.
+Decision-makers never drive the robot. Moves do talk to the robot, but only
+while `RobotManager` executes a `PlayMove`, from the loop's thread.
 
 Decision-makers (`IdleManager` today; reflexes and deliberation later) are
-plain objects, testable without a robot.
+plain objects that return commands, testable without a robot.
+
+State and orders travel separately. `SharedState` holds facts any module can
+read at any time. A command is an order: handed to `RobotManager`, executed
+once. The split came earlier than planned: on-demand gestures from the web
+page are a second decision-maker, which is what the design was waiting for.
 
 ## Moves
 
@@ -125,14 +130,18 @@ laptop would remove it.
 
 ## Known debt
 
-`IdleManager.get_pose()` decides, executes (`behavior.play()`) **and**
-signals with a `None` sentinel. It also prepares the next gesture. The
-execution path is locked inside idle behavior, which will get in the way
-once a second decision-maker exists.
+`Move.play()` blocks the control loop for the whole gesture. Everything
+below follows from it:
 
-Target: decision-makers return an intent, `RobotManager` is the only
-executor. Scheduled for sprint C, when a second decision-maker exists to
-validate the design — designing it cold would be guesswork.
+- a gesture can't be interrupted;
+- `PlayMove` exists only because of it;
+- moves still talk to the robot themselves during `play()`;
+- `IdleManager` restarts its idle timer on the call after a gesture, which
+  only works because that call waits for the gesture to end.
+
+Target: gestures return a pose each tick, like breathing does. `PlayMove`
+goes away, and the end of a gesture becomes an explicit signal. Scheduled
+with reflexes, which need interruption anyway.
 
 ## Accepted hardware limits
 
@@ -153,6 +162,8 @@ validate the design — designing it cold would be guesswork.
 
 **Done** — structure refactor: `moves/` at root, `RobotManager` lifted out of
 `brainstem/`, dependencies injected.
+Decision/execution split: decision-makers return commands, `RobotManager`
+executes them.
 
 **Current — v1 release.** Idle gestures of all three kinds (coded,
 Marionette, mixed), contributor guides, README, CONTRIBUTING, CI, Hugging
@@ -163,10 +174,10 @@ built.
 writing to `SharedState`, plus the mechanism to aim the head at a point.
 Nothing calls it yet — the robot still just breathes.
 
-**Then — reflexes.** `amygdala/`, plus the decision/execution split. Innate
-triggers only: a sudden noise, a face appearing, movement where there was
-none. The milestone the project is built for: the robot perceives and reacts,
-without waiting on anything slow.
+**Then — reflexes.** `amygdala/`, plus gestures that run tick by tick, 
+so a reflex can interrupt one. Innate triggers only: a sudden noise, a 
+face appearing, movement where there was none. The milestone the project 
+is built for: the robot perceives and reacts, without waiting on anything slow.
 
 **Then — deliberation.** `prefrontal_cortex/`: an async cloud LLM call, with
 timeout and fallback. This is what decides to *look at* someone or comment on
