@@ -88,15 +88,20 @@ phase. Accepted for now — running the app on the robot itself should remove it
 
 ## Known debt — do NOT fix yet
 
-`IdleManager.get_pose()` decides, executes (`behavior.play()`) AND signals
-with a `None` sentinel. It also prepares the next gesture.
+`Move.play()` blocks the control loop for the whole gesture. So a gesture
+can't be interrupted, `PlayMove` exists, moves still talk to the robot during
+`play()`, and `IdleManager` relies on that blocking to restart its idle timer
+after a gesture.
 
-Target: decision-makers return an intent, `RobotManager` is the only executor,
-and gets renamed to `RobotController`.
+Target: gestures return a pose each tick, `PlayMove` goes away, the end of a
+gesture becomes an explicit signal, and `RobotManager` may be renamed
+`RobotController`.
 
-**Scheduled for sprint C**, when a second decision-maker exists to validate the
-design. Designing it now would be guesswork. If you notice this and want to fix
-it, don't — say so and move on.
+**Scheduled for sprint C**, with reflexes, which need interruption anyway.
+If you notice this and want to fix it, don't — say so and move on.
+
+The decision/execution split itself is done: decision-makers return commands
+(`commands.py`), `RobotManager` executes them.
 
 ## Sprints
 
@@ -107,7 +112,7 @@ it, don't — say so and move on.
 - B — `sensory_cortex/`: camera, motion and face detection, writing to
   `SharedState`. Also the mechanism to aim the head at a point — but nothing
   calls it yet. **No new behavior: the robot still just breathes.**
-- C — `amygdala/` + decision/execution split. Innate reflexes only: a sudden
+- C — `amygdala/` + gestures that run tick by tick. Innate reflexes only: a sudden
   noise, a face appearing, movement where there was none. No memory, no
   judgement. **Milestone: the robot perceives and reacts.**
 - D — `prefrontal_cortex/`: async cloud LLM, API key, timeout, fallback. This
@@ -164,8 +169,8 @@ Key points already learned from them:
 - `goto_target()` is the default (gestures, choreography). It cannot react to
   anything mid-interpolation.
 - `set_target()` only inside a single control loop at 50-100 Hz. Multiple
-  scattered `set_target()` calls is a documented anti-pattern — and is exactly
-  the debt above.
+  scattered `set_target()` calls is a documented anti-pattern — set_target() 
+  now lives in RobotManager, plus PhasedMove._perform until gestures run tick by tick
 - `enable_motors()` pins targets to the present pose, so call it before any
   `set_target`.
 - Use `time.monotonic()`, never `time.time()`.
