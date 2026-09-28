@@ -85,6 +85,10 @@ page are a second decision-maker, which is what the design was waiting for.
 A move is one discrete gesture. `Move` defines the contract; `play()`
 handles everything around the gesture so a move only describes motion.
 
+Contributors write a `PhasedMove` or a `LibraryMove`; `Move` itself is never
+subclassed directly, because its `_perform` is the internal loop and will
+change when gestures run tick by tick.
+
 Most gestures share one shape: a sequence of phases, each timed by its own
 sound. That shape lives in `PhasedMove`, extracted once `yawning` and
 `stretching` had duplicated the same ~60 lines of timing machinery. A move
@@ -145,9 +149,16 @@ with reflexes, which need interruption anyway.
 
 ## Accepted hardware limits
 
-- **Streaming `set_target` from a far pose can take the daemon down.** It
-  doesn't interpolate, so from the sleep pose it asks for a huge instant
-  jump. Entry points ease into neutral with `goto_target` first.
+- **Robot inert while the daemon reports healthy.** The motor controller
+  retries reads but not writes, and silently drops write errors: a transient
+  serial error can lose the torque-enable order. The daemon then reports
+  `enabled` and `nb_error: 0`, accepts every command, and nothing moves. Only
+  restarting the daemon service recovers
+  ([motor-controller#47](https://github.com/pollen-robotics/reachy-mini-motor-controller/issues/47)).
+- **Ease into neutral before streaming.** `set_target` doesn't interpolate,
+  so from the sleep pose it asks for a huge instant jump. Entry points ease
+  into neutral with `goto_target` first. It reduces motor strain but doesn't
+  prevent the issue above.
 - **Head below z = -170 mm wedges the IK solver permanently** — commands
   and sounds keep being accepted, nothing moves, until the daemon restarts
   ([#1417](https://github.com/pollen-robotics/reachy_mini/issues/1417)).
@@ -166,9 +177,10 @@ Decision/execution split: decision-makers return commands, `RobotManager`
 executes them.
 
 **Current — v1 release.** Idle gestures of all three kinds (coded,
-Marionette, mixed), contributor guides, README, CONTRIBUTING, CI, Hugging
-Face Space. Ships early so gestures can be contributed while perception is
-built.
+Marionette, mixed), a stable Move contract, contributor guides, README,
+CONTRIBUTING, CI, Hugging Face Space, settings page with on-demand
+gestures. Ends once the app is published and the promo video is out, so
+gestures can be contributed while perception is built.
 
 **Next — perception.** `sensory_cortex/`: camera, motion and face detection,
 writing to `SharedState`, plus the mechanism to aim the head at a point.
