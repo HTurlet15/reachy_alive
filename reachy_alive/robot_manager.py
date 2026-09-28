@@ -12,7 +12,8 @@ class RobotManager:
     """Runs the control loop and executes the commands it receives.
 
     It makes no decisions of its own: each tick, it asks IdleManager for a
-    command and carries it out. Decision-makers never drive the robot.
+    command and carries it out. It also records in SharedState when a 
+    gesture ends, whoever asked for it.Decision-makers never drive the robot.
     Moves do talk to the robot, but only while RobotManager executes a
     PlayMove, from this loop's thread.
 
@@ -41,7 +42,8 @@ class RobotManager:
 
         Args:
             reachy_mini: Connected robot instance.
-            shared_state: Shared blackboard, passed through to IdleManager.
+            shared_state: Shared blackboard. Passed to IdleManager, and
+                updated when a gesture ends.
             stop_event: Set externally (e.g. on Ctrl+C) to terminate the loop.
             get_antennas_enabled: Returns whether antennas should move.
         """
@@ -69,7 +71,7 @@ class RobotManager:
         Args:
             command: The command to execute.
             reachy_mini: Connected robot instance.
-            shared_state: Where the end of a gesture is recorded.
+            shared_state: Shared blackboard, updated when a gesture ends.
 
         Raises:
             TypeError: If the command type is unknown.
