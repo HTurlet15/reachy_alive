@@ -71,6 +71,8 @@ together, once, at startup.
 asks a decision-maker for a command (`commands.py`) and executes it.
 Decision-makers never drive the robot. Moves do talk to the robot, but only
 while `RobotManager` executes a `PlayMove`, from the loop's thread.
+It also records in `SharedState` when a gesture ends, whoever asked for it:
+it is the only module that knows for sure.
 
 Decision-makers (`IdleManager` today; reflexes and deliberation later) are
 plain objects that return commands, testable without a robot.
@@ -140,12 +142,10 @@ below follows from it:
 - a gesture can't be interrupted;
 - `PlayMove` exists only because of it;
 - moves still talk to the robot themselves during `play()`;
-- `IdleManager` restarts its idle timer on the call after a gesture, which
-  only works because that call waits for the gesture to end.
 
-Target: gestures return a pose each tick, like breathing does. `PlayMove`
-goes away, and the end of a gesture becomes an explicit signal. Scheduled
-with reflexes, which need interruption anyway.
+Target: gestures return a pose each tick, like breathing does, and
+`PlayMove` goes away. Scheduled with reflexes, which need interruption
+anyway.
 
 ## Accepted hardware limits
 

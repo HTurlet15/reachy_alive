@@ -54,6 +54,8 @@ good first issue for contributors).
 asks a decision-maker for a command (`commands.py`) and executes it.
 Decision-makers never drive the robot. Moves do talk to the robot, but only
 while `RobotManager` executes a `PlayMove`, from the loop's thread.
+It also records in `SharedState` when a gesture ends, whoever asked for it:
+it is the only module that knows for sure.
 
 State and orders travel separately. `SharedState` holds facts any module can
 read at any time. A command is an order: handed to `RobotManager`, executed
@@ -108,13 +110,11 @@ phase. Accepted for now — running the app on the robot itself should remove it
 ## Known debt — do NOT fix yet
 
 `Move.play()` blocks the control loop for the whole gesture. So a gesture
-can't be interrupted, `PlayMove` exists, moves still talk to the robot during
-`play()`, and `IdleManager` relies on that blocking to restart its idle timer
-after a gesture.
+can't be interrupted, `PlayMove` exists, and moves still talk to the robot
+during `play()`.
 
-Target: gestures return a pose each tick, `PlayMove` goes away, the end of a
-gesture becomes an explicit signal, and `RobotManager` may be renamed
-`RobotController`.
+Target: gestures return a pose each tick, `PlayMove` goes away, and
+`RobotManager` may be renamed `RobotController`.
 
 **Scheduled for sprint C**, with reflexes, which need interruption anyway.
 If you notice this and want to fix it, don't — say so and move on.
