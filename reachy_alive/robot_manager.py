@@ -17,7 +17,7 @@ class RobotManager:
     PlayMove, from this loop's thread.
 
     Attributes:
-        idle_manager: Supplies a command for each tick.
+        idle_manager: Supplies an idle command for each tick.
         tick_period_s: Time, in seconds, between control loop ticks.
     """
 
@@ -55,18 +55,21 @@ class RobotManager:
                 command = self.idle_manager.decide(
                     t, shared_state, reachy_mini, antennas_enabled=get_antennas_enabled()
                 )
-                self._execute(command, reachy_mini)
+                self._execute(command, reachy_mini, shared_state)
                 time.sleep(self.tick_period_s)
         finally:
             reachy_mini.goto_sleep()
             reachy_mini.disable_motors()
 
-    def _execute(self, command: Command, reachy_mini: ReachyMini) -> None:
+    def _execute(
+        self, command: Command, reachy_mini: ReachyMini, shared_state: SharedState
+    ) -> None:
         """Carry out one command on the robot.
 
         Args:
             command: The command to execute.
             reachy_mini: Connected robot instance.
+            shared_state: Where the end of a gesture is recorded.
 
         Raises:
             TypeError: If the command type is unknown.
@@ -75,5 +78,6 @@ class RobotManager:
             reachy_mini.set_target(head=command.head, antennas=command.antennas)
         elif isinstance(command, PlayMove):
             command.move.play(reachy_mini)
+            shared_state.mark_activity()
         else:
             raise TypeError(f"Unknown command: {command!r}")

@@ -22,8 +22,8 @@ class IdleManager:
     It never drives the robot: it returns a command that RobotManager
     executes. Gestures fire at random intervals; breathing runs the rest
     of the time. The next gesture is chosen in advance, so its sounds
-    upload in the background while the robot is still breathing. The idle
-    timer lives in SharedState so other decision-makers can reset it.
+    upload in the background while the robot is still breathing. It only 
+    reads the idle timer: RobotManager restarts it whenever a gesture ends.
     """
 
     def __init__(
@@ -45,9 +45,6 @@ class IdleManager:
         self._preparing: Optional[threading.Thread] = None
         # When the current stretch of breathing began; None until the next tick.
         self._breathing_started_at_s: Optional[float] = None
-        # Set when a gesture is handed off: the idle timer restarts on the
-        # next call, once the gesture has finished playing.
-        self._reset_idle_timer_next_tick = False
 
     def decide(
         self,
@@ -60,7 +57,7 @@ class IdleManager:
 
         Args:
             t: Elapsed time in seconds since the control loop started.
-            shared_state: Read and reset the idle timer.
+            shared_state: Read the idle timer.
             reachy_mini: Robot instance, used only to upload the next
                 gesture's sounds ahead of time.
             antennas_enabled: Whether antennas move during breathing.
@@ -68,13 +65,6 @@ class IdleManager:
         Returns:
             HoldPose while breathing, PlayMove when a gesture is due.
         """
-        # PlayMove blocks the control loop until the gesture ends, so this
-        # call only happens once it has finished. This relies on Move.play()
-        # blocking: gestures running tick by tick will need an explicit
-        # end-of-gesture signal instead.
-        if self._reset_idle_timer_next_tick:
-            shared_state.mark_activity()
-            self._reset_idle_timer_next_tick = False
 
         if self._next_behavior is None:
             self._schedule_next_gesture(reachy_mini)
@@ -105,5 +95,4 @@ class IdleManager:
         self._next_behavior = None
         # play() leaves the robot at neutral, and breathing starts there.
         self._breathing_started_at_s = None
-        self._reset_idle_timer_next_tick = True
         return command
