@@ -23,7 +23,7 @@ def test_follows_idle_when_nothing_is_requested(fake_reachy_mini):
     idle_manager.interrupt.assert_not_called()
 
 
-def test_a_requested_gesture_wins_over_idle(fake_reachy_mini):
+def test_a_requested_move_wins_over_idle(fake_reachy_mini):
     idle_manager = MagicMock()
     requests = queue.Queue()
     move = MagicMock()
