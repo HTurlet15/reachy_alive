@@ -19,6 +19,10 @@ body {
     background-color: #3498db;
 }
 
+#move-status {
+    min-height: 1.2em;
+}
+
 #status {
     margin-top: 16px;
     font-weight: bold;
