@@ -20,9 +20,3 @@ def test_antennas_sway_around_neutral_not_vertical():
 
     sway = np.deg2rad(15.0)
     np.testing.assert_allclose(antennas, [NEUTRAL_ANTENNAS_RAD[0] + sway, NEUTRAL_ANTENNAS_RAD[1] - sway])
-
-
-def test_disabled_antennas_stay_at_neutral():
-    _, antennas = get_breathing_pose(1.0, antennas_enabled=False)
-
-    np.testing.assert_allclose(antennas, NEUTRAL_ANTENNAS_RAD)

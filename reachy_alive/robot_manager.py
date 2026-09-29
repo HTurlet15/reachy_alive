@@ -1,5 +1,4 @@
 import time
-from typing import Callable
 
 from reachy_mini import ReachyMini
 
@@ -31,13 +30,7 @@ class RobotManager:
         self.action_selector = action_selector
         self.tick_period_s = 1.0 / tick_hz
 
-    def run(
-        self,
-        reachy_mini: ReachyMini,
-        shared_state: SharedState,
-        stop_event,
-        get_antennas_enabled: Callable[[], bool],
-    ) -> None:
+    def run(self, reachy_mini: ReachyMini, shared_state: SharedState, stop_event) -> None:
         """Run the control loop until stop_event is set.
 
         Args:
@@ -45,7 +38,6 @@ class RobotManager:
             shared_state: Shared blackboard. Passed to the ActionSelector,
                 and updated when a gesture ends.
             stop_event: Set externally (e.g. on Ctrl+C) to terminate the loop.
-            get_antennas_enabled: Returns whether antennas should move.
         """
         reachy_mini.enable_motors()
         reachy_mini.wake_up()
@@ -54,9 +46,7 @@ class RobotManager:
             t0 = time.monotonic()
             while not stop_event.is_set():
                 t = time.monotonic() - t0
-                command = self.action_selector.decide(
-                    t, shared_state, reachy_mini, antennas_enabled=get_antennas_enabled()
-                )
+                command = self.action_selector.decide(t, shared_state, reachy_mini)
                 self._execute(command, reachy_mini, shared_state)
                 time.sleep(self.tick_period_s)
         finally:
