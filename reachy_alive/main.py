@@ -1,6 +1,8 @@
 import logging
+import queue
 import threading
 
+from fastapi import HTTPException
 from pydantic import BaseModel
 from typing import Callable
 from reachy_mini import ReachyMini, ReachyMiniApp
@@ -25,7 +27,8 @@ class ReachyAlive(ReachyMiniApp):
         gestures = {move.name: move for move in behaviors}
         if len(gestures) != len(behaviors):
             raise ValueError("Two gestures share the same name")
-        self._register_gesture_routes(gestures)
+        gesture_requests: queue.Queue[Move] = queue.Queue()
+        self._register_gesture_routes(gestures, gesture_requests)
 
         shared_state = SharedState()
         idle_manager = IdleManager(behaviors)
@@ -57,16 +60,26 @@ class ReachyAlive(ReachyMiniApp):
 
         return lambda: antennas_enabled
 
-    def _register_gesture_routes(self, gestures: dict[str, Move]) -> None:
-        """Register the route that lists the gestures.
+    def _register_gesture_routes(
+        self, gestures: dict[str, Move], gesture_requests: queue.Queue
+    ) -> None:
+        """Register the routes that list gestures and request one.
 
         Args:
             gestures: Every gesture the robot can play, by name.
+            gesture_requests: Where requested gestures wait to be played.
         """
 
         @self.settings_app.get("/gestures")
         def list_gestures() -> list[str]:
             return sorted(gestures)
+
+        @self.settings_app.post("/gestures/{name}/play", status_code=202)
+        def request_gesture(name: str) -> dict[str, str]:
+            if name not in gestures:
+                raise HTTPException(status_code=404, detail=f"Unknown gesture: {name}")
+            gesture_requests.put(gestures[name])
+            return {"requested": name}
 
     def _build_idle_behaviors(self) -> list[Move]:
         """Build the discrete gestures the idle manager picks from.
