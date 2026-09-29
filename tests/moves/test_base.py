@@ -78,7 +78,16 @@ def test_play_returns_head_antennas_and_body_to_neutral(fake_reachy_mini):
     assert kwargs["antennas"] == NEUTRAL_ANTENNAS_RAD
     assert kwargs["body_yaw"] == NEUTRAL_BODY_YAW_RAD
 
+def test_name_joins_class_name_words_with_hyphens():
+    class DeepBreath(Move):
+        def _perform(self, reachy_mini):
+            pass
 
+        def sound_paths(self):
+            return []
+
+    assert DeepBreath().name == "deep-breath"
+    
 # --- alternating_sign ---------------------------------------------------
 
 

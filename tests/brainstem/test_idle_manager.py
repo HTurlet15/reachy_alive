@@ -34,18 +34,17 @@ def test_hands_off_a_gesture_without_playing_it(fake_reachy_mini):
     behavior.play.assert_not_called()
 
 
-def test_resets_idle_timer_on_the_call_after_a_gesture(fake_reachy_mini):
+def test_never_touches_the_idle_timer(fake_reachy_mini):
     state = SharedState()
     # Age the idle timer instead of sleeping: nothing happened for 50 s.
     state.last_activity_at = time.monotonic() - 50.0
     manager = IdleManager([MagicMock()], gesture_interval_range_s=(0.0, 0.0))
 
-    manager.decide(t=1.0, shared_state=state, reachy_mini=fake_reachy_mini)
-    assert state.seconds_since_last_activity() >= 50.0  # not reset yet
+    manager.decide(t=1.0, shared_state=state, reachy_mini=fake_reachy_mini)  # hands off
+    manager.gesture_interval_range_s = (100.0, 100.0)
+    manager.decide(t=9.0, shared_state=state, reachy_mini=fake_reachy_mini)  # breathes
 
-    manager.gesture_interval_range_s = (100.0, 100.0)  # no gesture next tick
-    manager.decide(t=9.0, shared_state=state, reachy_mini=fake_reachy_mini)
-    assert state.seconds_since_last_activity() < 0.1  # reset once the gesture is over
+    assert state.seconds_since_last_activity() >= 50.0
 
 
 def test_breathing_restarts_from_neutral_after_a_gesture(fake_reachy_mini):
@@ -70,3 +69,15 @@ def test_logs_which_gesture_plays(fake_reachy_mini, caplog):
         manager.decide(t=1.0, shared_state=SharedState(), reachy_mini=fake_reachy_mini)
 
     assert "Playing sneezing" in caplog.text
+
+def test_breathing_restarts_from_neutral_after_an_interrupt(fake_reachy_mini):
+    state = SharedState()
+    state.mark_activity()
+    manager = IdleManager([MagicMock()], gesture_interval_range_s=(100.0, 100.0))
+    manager.decide(t=5.0, shared_state=state, reachy_mini=fake_reachy_mini)  # breathing starts
+
+    manager.interrupt()
+    command = manager.decide(t=12.3, shared_state=state, reachy_mini=fake_reachy_mini)
+
+    np.testing.assert_allclose(command.head, np.eye(4), atol=1e-9)
+    np.testing.assert_allclose(command.antennas, NEUTRAL_ANTENNAS_RAD)

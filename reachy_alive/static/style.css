@@ -3,7 +3,13 @@ body {
     margin: 24px;
 }
 
-#sound-btn {
+#moves {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+#moves button {
     padding: 10px 20px;
     border: none;
     color: white;
@@ -11,6 +17,10 @@ body {
     font-size: 16px;
     border-radius: 6px;
     background-color: #3498db;
+}
+
+#move-status {
+    min-height: 1.2em;
 }
 
 #status {

@@ -23,14 +23,16 @@ flowchart LR
     state --> brainstem["brainstem<br/>(automatic)"]
     state --> amygdala["amygdala<br/>(reflexes)"]
     state --> cortex["prefrontal_cortex<br/>(deliberation)"]
-    brainstem -->|what to do| manager["RobotManager<br/>(control loop)"]
-    amygdala -->|what to do| manager
-    cortex -->|what to do| manager
+    page["settings page<br/>(on demand)"] -->|proposes| selector
+    brainstem -->|proposes| selector["ActionSelector<br/>(chooses)"]
+    amygdala -->|proposes| selector
+    cortex -->|proposes| selector
+    selector -->|what to do| manager["RobotManager<br/>(control loop)"]
     manager --> robot(["Reachy Mini"])
 ```
 
-This is the target. Today only `brainstem` exists; it already hands its
-decisions to `RobotManager` as commands.
+This is the target. For the moment, only `brainstem` and the settings page propose, and
+the `ActionSelector` chooses between them.
 
 ## The core constraint
 
@@ -68,23 +70,31 @@ tests. Anything with a side effect at construction time is built in
 together, once, at startup.
 
 `RobotManager` owns the control loop. It makes no decisions: each tick, it
-asks a decision-maker for a command (`commands.py`) and executes it.
-Decision-makers never drive the robot. Moves do talk to the robot, but only
-while `RobotManager` executes a `PlayMove`, from the loop's thread.
+asks for a command (`commands.py`) and executes it. Decision-makers never
+drive the robot. Moves do talk to the robot, but only while `RobotManager`
+executes a `PlayMove`, from the loop's thread. It also records in
+`SharedState` when a move ends, whoever asked for it: it is the only module
+that knows for sure.
 
-Decision-makers (`IdleManager` today; reflexes and deliberation later) are
-plain objects that return commands, testable without a robot.
+Decision-makers (`IdleManager` today; reflexes and deliberation later)
+propose; the `ActionSelector` chooses one proposal per tick and hands it to
+`RobotManager`. Today, a move requested from the settings page wins over
+idle behavior, and if several requests arrive during one move, only the
+latest plays. The idle manager isn't consulted while it loses, only told
+(`interrupt()`), so breathing restarts from neutral. The `ActionSelector` is
+where a behavior tree will go. All of them are plain objects, testable
+without a robot.
 
 State and orders travel separately. `SharedState` holds facts any module can
 read at any time. A command is an order: handed to `RobotManager`, executed
-once. The split came earlier than planned: on-demand gestures from the web
-page are a second decision-maker, which is what the design was waiting for.
+once. The split came earlier than planned: moves requested from the
+settings page are a second decision-maker, which is what the design was
+waiting for.
 
 ## Moves
 
 A move is one discrete gesture. `Move` defines the contract; `play()`
 handles everything around the gesture so a move only describes motion.
-
 Contributors write a `PhasedMove` or a `LibraryMove`; `Move` itself is never
 subclassed directly, because its `_perform` is the internal loop and will
 change when gestures run tick by tick.
@@ -116,6 +126,22 @@ reviewed. What the review can't catch by eye, the tests do —
 breaks the contract or sends the head below the reachable workspace, and
 fails if a `PhasedMove` isn't in its list.
 
+## Settings page
+
+The app serves a page (the ⚙️ in Reachy Mini Control) that plays any move on
+demand. `GET /moves` lists the move names; `POST /moves/{name}/play` checks
+the name (404 if unknown) and queues the move (202: accepted, played as soon
+as possible). The route only validates and queues: the control loop picks
+the request up on its next tick, through the `ActionSelector`.
+
+A move's name is its identifier in these routes: lowercase words joined by
+hyphens, like recorded moves (`hiccup-full`). Coded moves derive it from
+their class name (`DeepBreath` → `deep-breath`). The page builds its labels
+from the names.
+
+Volume and microphone stay in Reachy Mini Control: they are robot-wide
+settings, not this app's.
+
 ## Sound upload
 
 On Wireless, playing a local file uploads it over HTTP first, which freezes
@@ -132,6 +158,10 @@ What remains: the play command itself is an HTTP round trip, so a sound
 starts slightly after its phase. Running the app on the robot rather than a
 laptop would remove it.
 
+A move requested from the settings page isn't prepared ahead: `play()`
+uploads its sounds just before it starts, which can add a short pause on
+Wireless.
+
 ## Known debt
 
 `Move.play()` blocks the control loop for the whole gesture. Everything
@@ -139,13 +169,11 @@ below follows from it:
 
 - a gesture can't be interrupted;
 - `PlayMove` exists only because of it;
-- moves still talk to the robot themselves during `play()`;
-- `IdleManager` restarts its idle timer on the call after a gesture, which
-  only works because that call waits for the gesture to end.
+- moves still talk to the robot themselves during `play()`.
 
-Target: gestures return a pose each tick, like breathing does. `PlayMove`
-goes away, and the end of a gesture becomes an explicit signal. Scheduled
-with reflexes, which need interruption anyway.
+Target: gestures return a pose each tick, like breathing does, and
+`PlayMove` goes away. Scheduled with reflexes, which need interruption
+anyway.
 
 ## Accepted hardware limits
 
@@ -172,31 +200,30 @@ with reflexes, which need interruption anyway.
 ## Roadmap
 
 **Done** — structure refactor: `moves/` at root, `RobotManager` lifted out of
-`brainstem/`, dependencies injected.
-Decision/execution split: decision-makers return commands, `RobotManager`
-executes them.
+`brainstem/`, dependencies injected. Decision/execution split: decision-makers
+return commands, `RobotManager` executes them.
 
 **Current — v1 release.** Idle gestures of all three kinds (coded,
 Marionette, mixed), a stable Move contract, contributor guides, README,
-CONTRIBUTING, CI, Hugging Face Space, settings page with on-demand
-gestures. Ends once the app is published and the promo video is out, so
+CONTRIBUTING, CI, Hugging Face Space, settings page that plays any move on
+demand. Ends once the app is published and the promo video is out, so
 gestures can be contributed while perception is built.
 
 **Next — perception.** `sensory_cortex/`: camera, motion and face detection,
 writing to `SharedState`, plus the mechanism to aim the head at a point.
 Nothing calls it yet — the robot still just breathes.
 
-**Then — reflexes.** `amygdala/`, plus gestures that run tick by tick, 
-so a reflex can interrupt one. Innate triggers only: a sudden noise, a 
-face appearing, movement where there was none. The milestone the project 
-is built for: the robot perceives and reacts, without waiting on anything slow.
+**Then — reflexes.** `amygdala/`, plus gestures that run tick by tick, so a
+reflex can interrupt one. Innate triggers only: a sudden noise, a face
+appearing, movement where there was none. The milestone the project is built
+for: the robot perceives and reacts, without waiting on anything slow.
 
 **Then — deliberation.** `prefrontal_cortex/`: an async cloud LLM call, with
 timeout and fallback. This is what decides to *look at* someone or comment on
 what it sees, as opposed to reflexively startling.
 
 **Then — arbitration.** Three decision-makers competing for one body; migrate
-to a behavior tree.
+the `ActionSelector` to a behavior tree.
 
 **Then — memory.** `hippocampus/` conditioning: the cortex writes what it
 judged, the amygdala reads it back in milliseconds. The robot's fast reaction

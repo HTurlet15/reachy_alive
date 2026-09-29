@@ -1,11 +1,14 @@
 import logging
+import queue
 import threading
 
+from fastapi import HTTPException
 from pydantic import BaseModel
 from typing import Callable
 from reachy_mini import ReachyMini, ReachyMiniApp
 from reachy_mini.motion.recorded_move import RecordedMoves
 
+from reachy_alive.action_selector import ActionSelector
 from reachy_alive.brainstem.idle_manager import IdleManager
 from reachy_alive.moves.base import LibraryMove, Move
 from reachy_alive.moves.sneezing import Sneezing
@@ -21,9 +24,17 @@ class ReachyAlive(ReachyMiniApp):
     def run(self, reachy_mini: ReachyMini, stop_event: threading.Event):
         get_antennas_enabled = self._register_settings_routes()
 
+        behaviors = self._build_idle_behaviors()
+        moves = {move.name: move for move in behaviors}
+        if len(moves) != len(behaviors):
+            raise ValueError("Two moves share the same name")
+        move_requests: queue.Queue[Move] = queue.Queue()
+        self._register_move_routes(moves, move_requests)
+
         shared_state = SharedState()
-        idle_manager = IdleManager(self._build_idle_behaviors())
-        robot_manager = RobotManager(idle_manager)
+        idle_manager = IdleManager(behaviors)
+        action_selector = ActionSelector(idle_manager, move_requests)
+        robot_manager = RobotManager(action_selector)
 
         robot_manager.run(
             reachy_mini,
@@ -51,7 +62,27 @@ class ReachyAlive(ReachyMiniApp):
 
         return lambda: antennas_enabled
 
-        
+    def _register_move_routes(
+        self, moves: dict[str, Move], move_requests: queue.Queue
+    ) -> None:
+        """Register the routes that list moves and request one.
+
+        Args:
+            moves: Every move the robot can play, by name.
+            move_requests: Where requested moves wait to be played.
+        """
+
+        @self.settings_app.get("/moves")
+        def list_moves() -> list[str]:
+            return sorted(moves)
+
+        @self.settings_app.post("/moves/{name}/play", status_code=202)
+        def request_move(name: str) -> dict[str, str]:
+            if name not in moves:
+                raise HTTPException(status_code=404, detail=f"Unknown move: {name}")
+            move_requests.put(moves[name])
+            return {"requested": name}
+
     def _build_idle_behaviors(self) -> list[Move]:
         """Build the discrete gestures the idle manager picks from.
 

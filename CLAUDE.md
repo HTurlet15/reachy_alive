@@ -29,6 +29,7 @@ opposite of the point. Every architectural decision follows from this.
     ├── main.py             # composition root: builds and wires everything
     ├── shared_state.py     # thread-safe blackboard: facts, not orders
     ├── commands.py         # commands decision-makers hand to RobotManager
+    ├── action_selector.py  # chooses one proposal per tick (future behavior tree)
     ├── robot_manager.py    # control loop; executes commands
     ├── interpolate.py      # interpolate(start, end, p)
     ├── moves/
@@ -39,7 +40,7 @@ opposite of the point. Every architectural decision follows from this.
     ├── brainstem/
     │   ├── idle_manager.py
     │   └── breathing.py    # continuous pose function, not a Move
-    ├── static/             # settings page (⚙️ in Reachy Mini Control)
+    ├── static/             # settings page: plays any move on demand
     ├── assets/sounds/      # grouped per move, .wav next to its jsfxr preset
     ├── scripts/try_move.py
     └── tests/              # mirrors the package layout
@@ -51,13 +52,20 @@ good first issue for contributors).
 ## Execution model
 
 `RobotManager` owns the control loop. It makes no decisions: each tick, it
-asks a decision-maker for a command (`commands.py`) and executes it.
-Decision-makers never drive the robot. Moves do talk to the robot, but only
-while `RobotManager` executes a `PlayMove`, from the loop's thread.
+asks for a command (`commands.py`) and executes it. Decision-makers never
+drive the robot. Moves do talk to the robot, but only while `RobotManager`
+executes a `PlayMove`, from the loop's thread. It also records in
+`SharedState` when a move ends, whoever asked for it: it is the only module
+that knows for sure.
 
 State and orders travel separately. `SharedState` holds facts any module can
 read at any time. A command is an order: handed to `RobotManager`, executed
 once.
+
+Decision-makers propose; `ActionSelector` chooses one proposal per tick.
+A move requested from the settings page (`POST /moves/{name}/play`, queued)
+wins over idle, and only the latest request plays. The idle manager isn't
+consulted while it loses, only told (`interrupt()`).
 
 ## The Move contract
 
@@ -86,6 +94,10 @@ Never subclass `Move` directly: `_perform` is the internal loop and will
 change when gestures run tick by tick. A test fails if a move in `moves/`
 defines `_perform`.
 
+A move's `name` is its identifier, in logs and in the settings page routes:
+lowercase words joined by hyphens. Coded moves derive it from their class
+name (`DeepBreath` → `deep-breath`), recorded moves from their recording.
+
 See `moves/README.md` for the full guide, `assets/sounds/README.md` for the
 jsfxr preset and sound packaging.
 
@@ -105,32 +117,34 @@ Known limit: even with the file already on the robot, the play command is an
 HTTP round trip (~100-300 ms over Wi-Fi), so a sound starts slightly after its
 phase. Accepted for now — running the app on the robot itself should remove it.
 
+A move requested from the settings page isn't prepared ahead: `play()`
+uploads its sounds just before it starts, which can add a short pause on
+Wireless.
+
 ## Known debt — do NOT fix yet
 
 `Move.play()` blocks the control loop for the whole gesture. So a gesture
-can't be interrupted, `PlayMove` exists, moves still talk to the robot during
-`play()`, and `IdleManager` relies on that blocking to restart its idle timer
-after a gesture.
+can't be interrupted, `PlayMove` exists, and moves still talk to the robot
+during `play()`.
 
-Target: gestures return a pose each tick, `PlayMove` goes away, the end of a
-gesture becomes an explicit signal, and `RobotManager` may be renamed
-`RobotController`.
+Target: gestures return a pose each tick, `PlayMove` goes away, and
+`RobotManager` may be renamed `RobotController`.
 
 **Scheduled for sprint C**, with reflexes, which need interruption anyway.
 If you notice this and want to fix it, don't — say so and move on.
 
 The decision/execution split itself is done: decision-makers return commands
 (`commands.py`), `RobotManager` executes them. It came earlier than planned
-because on-demand gestures from the web page are a second decision-maker.
+because moves requested from the settings page are a second decision-maker.
 
 ## Sprints
 
 - **A — v1 release — current.** Structure refactor (done), idle gestures of
   all three kinds (coded, Marionette, mixed), a stable Move contract,
-  contributor guides, README, CONTRIBUTING, CI, HF Space, settings page with
-  on-demand gestures. **Ends once the app is published and the promo video
-  is out**, so people can start contributing gestures while perception is
-  built.
+  contributor guides, README, CONTRIBUTING, CI, HF Space, settings page that
+  plays any move on demand. **Ends once the app is published and the promo
+  video is out**, so people can start contributing gestures while perception
+  is built.
 - B — `sensory_cortex/`: camera, motion and face detection, writing to
   `SharedState`. Also the mechanism to aim the head at a point — but nothing
   calls it yet. **No new behavior: the robot still just breathes.**
@@ -139,7 +153,7 @@ because on-demand gestures from the web page are a second decision-maker.
   no judgement. **Milestone: the robot perceives and reacts.**
 - D — `prefrontal_cortex/`: async cloud LLM, API key, timeout, fallback. This
   is what decides to *look at* someone, rather than reflexively startle.
-- E — unified arbitration, migrate to a behavior tree.
+- E — unified arbitration, migrate the `ActionSelector` to a behavior tree.
 - F — packaging leftovers and polish.
 
 Later, not scheduled: `hippocampus/` conditioning — the cortex writes what it
@@ -156,6 +170,11 @@ fast reaction becomes right because it was slow once.
 - **Gaze is continuous, not a gesture.** When it lands, it should layer over
   breathing rather than replace it — the primary/secondary split in Pollen's
   motion docs. Not decided yet; revisit when a decision-maker actually wants it.
+- **Volume and microphone stay in Reachy Mini Control.** They are robot-wide
+  settings the daemon persists across apps; the app never changes them.
+- **One word: "move".** Code, routes and docs say "move", like the SDK.
+  "Gesture" is being phased out (idle code still uses it until its rename
+  to "idle move").
 
 ## Environment
 
@@ -175,6 +194,8 @@ fast reaction becomes right because it was slow once.
   `rm -rf ~/.cache/huggingface/hub/datasets--<user>--<dataset>`.
 - Manual visual check: `try-move yawning`, `try-move stretching`,
   `try-move recorded hiccup-full`, `try-move pollen boredom1`.
+- Settings page: `http://localhost:8042` while the app runs. Routes can be
+  tried with `curl -i -X POST http://localhost:8042/moves/<name>/play`.
 - `pytest` passing is not enough. Asset paths, real library loading, sound
   upload and visual correctness only show up when actually running.
 - Robot logs: `ssh pollen@<ip>` (password `root`), then
