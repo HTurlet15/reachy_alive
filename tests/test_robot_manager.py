@@ -21,15 +21,13 @@ def run_one_tick(command, reachy_mini, shared_state=None) -> None:
         stop_event.set()  # the loop exits after this tick
         return command
 
-    idle_manager = MagicMock()
-    idle_manager.decide.side_effect = decide
+    action_selector = MagicMock()
+    action_selector.decide.side_effect = decide
 
-    RobotManager(idle_manager).run(
-        reachy_mini,
-        shared_state or SharedState(),
-        stop_event,
-        get_antennas_enabled=lambda: True,
+    RobotManager(action_selector).run(
+        reachy_mini, shared_state or SharedState(), stop_event
     )
+
 
 def test_restarts_idle_timer_once_the_gesture_has_ended(fake_reachy_mini):
     state = SharedState()

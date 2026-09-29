@@ -22,14 +22,3 @@ body {
 #move-status {
     min-height: 1.2em;
 }
-
-#status {
-    margin-top: 16px;
-    font-weight: bold;
-}
-
-#controls {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-}

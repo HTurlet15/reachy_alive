@@ -3,8 +3,6 @@ import queue
 import threading
 
 from fastapi import HTTPException
-from pydantic import BaseModel
-from typing import Callable
 from reachy_mini import ReachyMini, ReachyMiniApp
 from reachy_mini.motion.recorded_move import RecordedMoves
 
@@ -22,8 +20,6 @@ class ReachyAlive(ReachyMiniApp):
     request_media_backend: str | None = None
 
     def run(self, reachy_mini: ReachyMini, stop_event: threading.Event):
-        get_antennas_enabled = self._register_settings_routes()
-
         behaviors = self._build_idle_behaviors()
         moves = {move.name: move for move in behaviors}
         if len(moves) != len(behaviors):
@@ -36,31 +32,7 @@ class ReachyAlive(ReachyMiniApp):
         action_selector = ActionSelector(idle_manager, move_requests)
         robot_manager = RobotManager(action_selector)
 
-        robot_manager.run(
-            reachy_mini,
-            shared_state,
-            stop_event,
-            get_antennas_enabled=get_antennas_enabled,
-        )
-
-    def _register_settings_routes(self) -> Callable[[], bool]:
-        """Register the settings API routes.
-
-        Returns:
-            A getter for the current antennas-enabled state.
-        """
-        antennas_enabled = True
-
-        class AntennaState(BaseModel):
-            enabled: bool
-
-        @self.settings_app.post("/antennas")
-        def update_antennas_state(state: AntennaState):
-            nonlocal antennas_enabled
-            antennas_enabled = state.enabled
-            return {"antennas_enabled": antennas_enabled}
-
-        return lambda: antennas_enabled
+        robot_manager.run(reachy_mini, shared_state, stop_event)
 
     def _register_move_routes(
         self, moves: dict[str, Move], move_requests: queue.Queue

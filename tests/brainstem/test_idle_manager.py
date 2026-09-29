@@ -70,6 +70,7 @@ def test_logs_which_gesture_plays(fake_reachy_mini, caplog):
 
     assert "Playing sneezing" in caplog.text
 
+
 def test_breathing_restarts_from_neutral_after_an_interrupt(fake_reachy_mini):
     state = SharedState()
     state.mark_activity()

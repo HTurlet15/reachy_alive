@@ -2042,7 +2042,6 @@ dependencies = [
     { name = "fastapi" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "pydantic" },
     { name = "reachy-mini" },
     { name = "soundfile" },
 ]
@@ -2057,7 +2056,6 @@ dev = [
 requires-dist = [
     { name = "fastapi" },
     { name = "numpy" },
-    { name = "pydantic", specifier = ">=2" },
     { name = "reachy-mini", specifier = ">=1.11.0,<2" },
     { name = "soundfile" },
 ]

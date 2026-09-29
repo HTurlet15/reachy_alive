@@ -30,11 +30,7 @@ class ActionSelector:
         self._move_requests = move_requests
 
     def decide(
-        self,
-        t: float,
-        shared_state: SharedState,
-        reachy_mini: ReachyMini,
-        antennas_enabled: bool = True,
+        self, t: float, shared_state: SharedState, reachy_mini: ReachyMini
     ) -> Command:
         """Return this tick's command.
 
@@ -42,7 +38,6 @@ class ActionSelector:
             t: Elapsed time in seconds since the control loop started.
             shared_state: Shared blackboard, passed through to IdleManager.
             reachy_mini: Robot instance, passed through to IdleManager.
-            antennas_enabled: Whether antennas move during breathing.
 
         Returns:
             PlayMove for the latest requested move, otherwise IdleManager's
@@ -53,9 +48,7 @@ class ActionSelector:
             logger.info("Playing %s (requested)", requested_move.name)
             self._idle_manager.interrupt()
             return PlayMove(requested_move)
-        return self._idle_manager.decide(
-            t, shared_state, reachy_mini, antennas_enabled=antennas_enabled
-        )
+        return self._idle_manager.decide(t, shared_state, reachy_mini)
 
     def _latest_requested_move(self) -> Move | None:
         """Empty the request queue and return its latest move, if any."""

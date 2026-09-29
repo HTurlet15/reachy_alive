@@ -9,7 +9,6 @@ from reachy_alive.moves.base import NEUTRAL_ANTENNAS_RAD
 
 def get_breathing_pose(
     t: float,
-    antennas_enabled: bool = True,
     amplitude_mm: float = 4.0,
     frequency_hz: float = 0.25,
     antenna_amplitude_deg: float = 15.0,
@@ -22,8 +21,6 @@ def get_breathing_pose(
 
     Args:
         t: Seconds since breathing started.
-        antennas_enabled: If False, the antennas stay at neutral while the
-            head keeps breathing.
         amplitude_mm: Vertical head motion, in millimeters.
         frequency_hz: Breathing rate.
         antenna_amplitude_deg: Antenna sway around neutral, in degrees.
@@ -35,9 +32,7 @@ def get_breathing_pose(
     z = amplitude_mm * np.sin(2 * np.pi * frequency_hz * t)
     head_pose = create_head_pose(z=z, mm=True)
 
-    antennas_rad = np.array(NEUTRAL_ANTENNAS_RAD)
-    if antennas_enabled:
-        sway_rad = np.deg2rad(antenna_amplitude_deg) * np.sin(2 * np.pi * antenna_frequency_hz * t)
-        antennas_rad = antennas_rad + np.array([sway_rad, -sway_rad])
+    sway_rad = np.deg2rad(antenna_amplitude_deg) * np.sin(2 * np.pi * antenna_frequency_hz * t)
+    antennas_rad = np.array(NEUTRAL_ANTENNAS_RAD) + np.array([sway_rad, -sway_rad])
 
     return head_pose, antennas_rad

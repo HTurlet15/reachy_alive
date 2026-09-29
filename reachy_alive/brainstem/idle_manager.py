@@ -22,7 +22,7 @@ class IdleManager:
     It never drives the robot: it returns a command that RobotManager
     executes. Gestures fire at random intervals; breathing runs the rest
     of the time. The next gesture is chosen in advance, so its sounds
-    upload in the background while the robot is still breathing. It only 
+    upload in the background while the robot is still breathing. It only
     reads the idle timer: RobotManager restarts it whenever a gesture ends.
     """
 
@@ -47,11 +47,7 @@ class IdleManager:
         self._breathing_started_at_s: Optional[float] = None
 
     def decide(
-        self,
-        t: float,
-        shared_state: SharedState,
-        reachy_mini: ReachyMini,
-        antennas_enabled: bool = True,
+        self, t: float, shared_state: SharedState, reachy_mini: ReachyMini
     ) -> Command:
         """Return this tick's command: a breathing pose, or a gesture to play.
 
@@ -60,12 +56,10 @@ class IdleManager:
             shared_state: Read the idle timer.
             reachy_mini: Robot instance, used only to upload the next
                 gesture's sounds ahead of time.
-            antennas_enabled: Whether antennas move during breathing.
 
         Returns:
             HoldPose while breathing, PlayMove when a gesture is due.
         """
-
         if self._next_behavior is None:
             self._schedule_next_gesture(reachy_mini)
 
@@ -75,8 +69,12 @@ class IdleManager:
         if self._breathing_started_at_s is None:
             self._breathing_started_at_s = t
         breathing_t = t - self._breathing_started_at_s
-        head, antennas = get_breathing_pose(breathing_t, antennas_enabled=antennas_enabled)
+        head, antennas = get_breathing_pose(breathing_t)
         return HoldPose(head=head, antennas=antennas)
+
+    def interrupt(self) -> None:
+        """Note that another action took over: breathing restarts from neutral."""
+        self._breathing_started_at_s = None
 
     def _schedule_next_gesture(self, reachy_mini: ReachyMini) -> None:
         """Pick the next gesture and its delay, and start uploading its sounds."""
@@ -96,7 +94,3 @@ class IdleManager:
         # play() leaves the robot at neutral, and breathing starts there.
         self._breathing_started_at_s = None
         return command
-
-    def interrupt(self) -> None:
-        """Note that another action took over: breathing restarts from neutral."""
-        self._breathing_started_at_s = None
