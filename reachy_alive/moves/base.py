@@ -69,8 +69,17 @@ class Move(ABC):
 
     @property
     def name(self) -> str:
-        """Name of the move, as shown in logs: its class name by default."""
-        return type(self).__name__
+        """Identifier of the move, used in logs and by the settings page.
+
+        Lowercase words joined by hyphens, like recorded moves. Derived from
+        the class name by default: DeepBreath becomes deep-breath.
+        """
+        name = ""
+        for char in type(self).__name__:
+            if char.isupper() and name:
+                name += "-"
+            name += char.lower()
+        return name
 
     def play(self, reachy_mini: ReachyMini) -> None:
         """Play this move, then return the robot to neutral.
