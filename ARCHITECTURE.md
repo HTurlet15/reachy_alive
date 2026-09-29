@@ -31,7 +31,7 @@ flowchart LR
     manager --> robot(["Reachy Mini"])
 ```
 
-This is the target. Today, `brainstem` and the settings page propose, and
+This is the target. For the moment, only `brainstem` and the settings page propose, and
 the `ActionSelector` chooses between them.
 
 ## The core constraint
