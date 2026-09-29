@@ -96,3 +96,7 @@ class IdleManager:
         # play() leaves the robot at neutral, and breathing starts there.
         self._breathing_started_at_s = None
         return command
+
+    def interrupt(self) -> None:
+        """Note that another action took over: breathing restarts from neutral."""
+        self._breathing_started_at_s = None

@@ -69,3 +69,15 @@ def test_logs_which_gesture_plays(fake_reachy_mini, caplog):
         manager.decide(t=1.0, shared_state=SharedState(), reachy_mini=fake_reachy_mini)
 
     assert "Playing sneezing" in caplog.text
+
+def test_breathing_restarts_from_neutral_after_an_interrupt(fake_reachy_mini):
+    state = SharedState()
+    state.mark_activity()
+    manager = IdleManager([MagicMock()], gesture_interval_range_s=(100.0, 100.0))
+    manager.decide(t=5.0, shared_state=state, reachy_mini=fake_reachy_mini)  # breathing starts
+
+    manager.interrupt()
+    command = manager.decide(t=12.3, shared_state=state, reachy_mini=fake_reachy_mini)
+
+    np.testing.assert_allclose(command.head, np.eye(4), atol=1e-9)
+    np.testing.assert_allclose(command.antennas, NEUTRAL_ANTENNAS_RAD)

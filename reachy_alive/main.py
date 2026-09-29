@@ -8,6 +8,7 @@ from typing import Callable
 from reachy_mini import ReachyMini, ReachyMiniApp
 from reachy_mini.motion.recorded_move import RecordedMoves
 
+from reachy_alive.action_selector import ActionSelector
 from reachy_alive.brainstem.idle_manager import IdleManager
 from reachy_alive.moves.base import LibraryMove, Move
 from reachy_alive.moves.sneezing import Sneezing
@@ -32,7 +33,8 @@ class ReachyAlive(ReachyMiniApp):
 
         shared_state = SharedState()
         idle_manager = IdleManager(behaviors)
-        robot_manager = RobotManager(idle_manager)
+        action_selector = ActionSelector(idle_manager, gesture_requests)
+        robot_manager = RobotManager(action_selector)
 
         robot_manager.run(
             reachy_mini,
