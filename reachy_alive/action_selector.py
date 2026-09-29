@@ -48,16 +48,16 @@ class ActionSelector:
             PlayMove for the latest requested gesture, otherwise IdleManager's
             command.
         """
-        requested = self._latest_request()
-        if requested is not None:
-            logger.info("Playing %s (requested)", requested.name)
+        requested_gesture = self._latest_requested_gesture()
+        if requested_gesture is not None:
+            logger.info("Playing %s (requested)", requested_gesture.name)
             self._idle_manager.interrupt()
-            return PlayMove(requested)
+            return PlayMove(requested_gesture)
         return self._idle_manager.decide(
             t, shared_state, reachy_mini, antennas_enabled=antennas_enabled
         )
 
-    def _latest_request(self) -> Move | None:
+    def _latest_requested_gesture(self) -> Move | None:
         """Empty the request queue and return its latest gesture, if any."""
         latest = None
         while True:
