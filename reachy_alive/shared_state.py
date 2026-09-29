@@ -15,7 +15,7 @@ class SharedState:
     Attributes:
         lock: Guards all reads/writes to prevent race conditions.
         last_activity_at: Monotonic clock reading (time.monotonic()) of when
-            the last gesture ended, written by RobotManager whoever asked for
+            the last gesture ended, written by RobotController whoever asked for
             the gesture. None means nothing notable has happened since startup.
     """
 

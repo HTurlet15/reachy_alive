@@ -12,7 +12,7 @@ from reachy_alive.moves.base import LibraryMove, Move
 from reachy_alive.moves.sneezing import Sneezing
 from reachy_alive.moves.stretching import Stretching
 from reachy_alive.moves.yawning import Yawning
-from reachy_alive.robot_manager import RobotManager
+from reachy_alive.robot_controller import RobotController
 from reachy_alive.shared_state import SharedState
 
 class ReachyAlive(ReachyMiniApp):
@@ -30,9 +30,9 @@ class ReachyAlive(ReachyMiniApp):
         shared_state = SharedState()
         idle_manager = IdleManager(behaviors)
         action_selector = ActionSelector(idle_manager, move_requests)
-        robot_manager = RobotManager(action_selector)
+        robot_controller = RobotController(action_selector)
 
-        robot_manager.run(reachy_mini, shared_state, stop_event)
+        robot_controller.run(reachy_mini, shared_state, stop_event)
 
     def _register_move_routes(
         self, moves: dict[str, Move], move_requests: queue.Queue
