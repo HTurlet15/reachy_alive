@@ -33,6 +33,8 @@ next, layered on a control loop that never blocks.
   - plus a selection of Pollen's own emotions.
 - Returns to neutral after every gesture, so the next one starts from a
   known pose.
+- **Plays any move on demand** from its settings page (⚙️ in Reachy Mini
+  Control) — handy for a demo, or to try a move without waiting for it.
 
 Not yet: perception, reflexes, deliberation, memory.
 
@@ -75,19 +77,23 @@ Mini Control):
 uv run python reachy_alive/main.py
 ```
 
+While the app runs, its settings page is at `http://localhost:8042`.
+
 ## Project structure
 
 ```
 reachy_alive/
 ├── main.py              # Builds and wires everything; lists the idle gestures
-├── robot_manager.py     # Control loop; the only module that calls ReachyMini
-├── shared_state.py      # Thread-safe blackboard; one writer per field
+├── shared_state.py      # Thread-safe blackboard: facts, one writer per field
+├── commands.py          # Orders handed to the control loop
+├── action_selector.py   # Chooses what the robot does, each tick
+├── robot_manager.py     # Control loop; executes one command per tick
 ├── brainstem/
 │   ├── breathing.py     # Continuous idle motion
 │   └── idle_manager.py  # Breathing by default, a gesture now and then
 ├── moves/               # Discrete gestures, and the guides to write one
 ├── assets/sounds/       # Gesture sounds, with the presets that made them
 ├── scripts/             # try-move, sound composition
-└── static/              # Web page served by the app
+└── static/              # Settings page: plays any move on demand
 tests/                   # Hardware-independent tests, run by CI on every PR
 ```

@@ -5,12 +5,18 @@ Everything around it is already handled: when it gets triggered, how its
 sounds reach the robot, how it hands the robot back. All you make is the
 gesture itself.
 
+Every move has a **name**, its identifier in logs and on the settings
+page: lowercase words joined by hyphens. A move written in code gets it
+from its class name (`DeepBreath` becomes `deep-breath`); a recorded move
+from its recording (`hiccup-full`).
+
 This page is the path every move follows. Step 2 sends you to the page
 for the way you build yours.
 
 ## What the robot does with your move
 
-The robot calls the move's `play()`, which:
+The robot calls the move's `play()` — when idle picks it, or when someone
+clicks it on the settings page — which:
 
 1. uploads its sounds to the robot, while it's still at rest
 2. runs the gesture
@@ -87,6 +93,10 @@ uv run try-move pollen boredom1          # one of Pollen's emotions
 `try-move` eases the robot into neutral before your move and puts it back
 to sleep after, so every run starts from the same state.
 
+Once your move is registered in `main.py`, you can also run the whole app
+and click it on the settings page (`http://localhost:8042`), to see it
+between breaths, the way it will really play.
+
 Expect several rounds of adjusting and watching. That's normal — the
 values in `stretching.py` took a lot of passes.
 
@@ -98,9 +108,9 @@ there.
 
 **Your gesture starts from neutral — keep it that way.** `set_target`
 doesn't interpolate. Streaming it from a pose far away — the sleep pose
-after a fresh boot, say — asks for a huge instant jump and can take the
-robot's daemon down. `play()` and `try-move` make sure you start from
-neutral; don't bypass them.
+after a fresh boot, say — asks for a huge instant jump, which strains the
+motors. `play()` and `try-move` make sure you start from neutral; don't
+bypass them.
 
 **Never send the head below z = -170 mm.** Below that, the robot's
 inverse kinematics solver wedges permanently — it keeps accepting
