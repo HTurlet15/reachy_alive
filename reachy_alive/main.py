@@ -25,15 +25,15 @@ class ReachyAlive(ReachyMiniApp):
         get_antennas_enabled = self._register_settings_routes()
 
         behaviors = self._build_idle_behaviors()
-        gestures = {move.name: move for move in behaviors}
-        if len(gestures) != len(behaviors):
-            raise ValueError("Two gestures share the same name")
-        gesture_requests: queue.Queue[Move] = queue.Queue()
-        self._register_gesture_routes(gestures, gesture_requests)
+        moves = {move.name: move for move in behaviors}
+        if len(moves) != len(behaviors):
+            raise ValueError("Two moves share the same name")
+        move_requests: queue.Queue[Move] = queue.Queue()
+        self._register_move_routes(moves, move_requests)
 
         shared_state = SharedState()
         idle_manager = IdleManager(behaviors)
-        action_selector = ActionSelector(idle_manager, gesture_requests)
+        action_selector = ActionSelector(idle_manager, move_requests)
         robot_manager = RobotManager(action_selector)
 
         robot_manager.run(
@@ -62,25 +62,25 @@ class ReachyAlive(ReachyMiniApp):
 
         return lambda: antennas_enabled
 
-    def _register_gesture_routes(
-        self, gestures: dict[str, Move], gesture_requests: queue.Queue
+    def _register_move_routes(
+        self, moves: dict[str, Move], move_requests: queue.Queue
     ) -> None:
-        """Register the routes that list gestures and request one.
+        """Register the routes that list moves and request one.
 
         Args:
-            gestures: Every gesture the robot can play, by name.
-            gesture_requests: Where requested gestures wait to be played.
+            moves: Every move the robot can play, by name.
+            move_requests: Where requested moves wait to be played.
         """
 
-        @self.settings_app.get("/gestures")
-        def list_gestures() -> list[str]:
-            return sorted(gestures)
+        @self.settings_app.get("/moves")
+        def list_moves() -> list[str]:
+            return sorted(moves)
 
-        @self.settings_app.post("/gestures/{name}/play", status_code=202)
-        def request_gesture(name: str) -> dict[str, str]:
-            if name not in gestures:
-                raise HTTPException(status_code=404, detail=f"Unknown gesture: {name}")
-            gesture_requests.put(gestures[name])
+        @self.settings_app.post("/moves/{name}/play", status_code=202)
+        def request_move(name: str) -> dict[str, str]:
+            if name not in moves:
+                raise HTTPException(status_code=404, detail=f"Unknown move: {name}")
+            move_requests.put(moves[name])
             return {"requested": name}
 
     def _build_idle_behaviors(self) -> list[Move]:

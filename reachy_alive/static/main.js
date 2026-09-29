@@ -34,12 +34,12 @@ function labelFor(name) {
     return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-async function loadGestures() {
-    const container = document.getElementById("gestures");
+async function loadMoves() {
+    const container = document.getElementById("moves");
     try {
-        const resp = await fetch("/gestures");
+        const resp = await fetch("/moves");
         if (!resp.ok) {
-            container.textContent = `Could not load gestures (${resp.status})`;
+            container.textContent = `Could not load moves (${resp.status})`;
             return;
         }
         const names = await resp.json();
@@ -58,4 +58,4 @@ document.getElementById("antenna-checkbox").addEventListener("change", (e) => {
 });
 
 updateUI();
-loadGestures();
+loadMoves();

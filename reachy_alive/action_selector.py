@@ -16,18 +16,18 @@ logger = logging.getLogger(__name__)
 class ActionSelector:
     """Chooses, each tick, which proposal the robot acts on.
 
-    A gesture requested from the settings page wins over idle behavior.
-    If several requests arrive during one gesture, only the latest plays.
+    A move requested from the settings page wins over idle behavior.
+    If several requests arrive during one move, only the latest plays.
     """
 
-    def __init__(self, idle_manager: IdleManager, gesture_requests: queue.Queue) -> None:
+    def __init__(self, idle_manager: IdleManager, move_requests: queue.Queue) -> None:
         """
         Args:
-            idle_manager: Proposes breathing and idle gestures.
-            gesture_requests: Gestures requested from the settings page.
+            idle_manager: Proposes breathing and idle moves.
+            move_requests: Moves requested from the settings page.
         """
         self._idle_manager = idle_manager
-        self._gesture_requests = gesture_requests
+        self._move_requests = move_requests
 
     def decide(
         self,
@@ -45,23 +45,23 @@ class ActionSelector:
             antennas_enabled: Whether antennas move during breathing.
 
         Returns:
-            PlayMove for the latest requested gesture, otherwise IdleManager's
+            PlayMove for the latest requested move, otherwise IdleManager's
             command.
         """
-        requested_gesture = self._latest_requested_gesture()
-        if requested_gesture is not None:
-            logger.info("Playing %s (requested)", requested_gesture.name)
+        requested_move = self._latest_requested_move()
+        if requested_move is not None:
+            logger.info("Playing %s (requested)", requested_move.name)
             self._idle_manager.interrupt()
-            return PlayMove(requested_gesture)
+            return PlayMove(requested_move)
         return self._idle_manager.decide(
             t, shared_state, reachy_mini, antennas_enabled=antennas_enabled
         )
 
-    def _latest_requested_gesture(self) -> Move | None:
-        """Empty the request queue and return its latest gesture, if any."""
+    def _latest_requested_move(self) -> Move | None:
+        """Empty the request queue and return its latest move, if any."""
         latest = None
         while True:
             try:
-                latest = self._gesture_requests.get_nowait()
+                latest = self._move_requests.get_nowait()
             except queue.Empty:
                 return latest

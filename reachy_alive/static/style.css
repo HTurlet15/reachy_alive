@@ -1,10 +1,15 @@
-#gestures {
+body {
+    font-family: sans-serif;
+    margin: 24px;
+}
+
+#moves {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
 }
 
-#gestures button {
+#moves button {
     padding: 10px 20px;
     border: none;
     color: white;
@@ -12,4 +17,15 @@
     font-size: 16px;
     border-radius: 6px;
     background-color: #3498db;
+}
+
+#status {
+    margin-top: 16px;
+    font-weight: bold;
+}
+
+#controls {
+    display: flex;
+    align-items: center;
+    gap: 20px;
 }
