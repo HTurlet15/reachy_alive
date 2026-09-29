@@ -2,7 +2,7 @@
 
 There are two supported ways to write a move:
 
-- ``PhasedMove``: a gesture written in code, or mixed with a recording.
+- ``PhasedMove``: a move written in code, or mixed with a recording.
 - ``LibraryMove``: a move recorded in a Hugging Face dataset.
 
 Every move is a ``Move``, whose ``play``, ``prepare`` and ``name`` are
@@ -43,7 +43,7 @@ def alternating_sign(elapsed_s: float, half_period_s: float) -> int:
     faster alternations don't reach the robot.
 
     Args:
-        elapsed_s: Seconds since the gesture started.
+        elapsed_s: Seconds since the move started.
         half_period_s: Seconds spent on each side.
 
     Returns:
@@ -53,10 +53,10 @@ def alternating_sign(elapsed_s: float, half_period_s: float) -> int:
 
 
 class Move(ABC):
-    """A discrete, one-off gesture the robot can play.
+    """A discrete, one-off move the robot can play.
 
     Callers only ever use ``play``, which handles everything around the
-    gesture: uploading its sounds before it, and returning to neutral
+    move: uploading its sounds before it, and returning to neutral
     after it. ``play``, ``prepare`` and ``name`` are stable.
 
     To write a move, subclass ``PhasedMove`` or use ``LibraryMove``,
@@ -108,7 +108,7 @@ class Move(ABC):
 
         - Wireless: the audio backend is a WebRTC client, which has an
           ``upload_sound`` method. Playing a local file would upload it over
-          HTTP mid-gesture and freeze the motion, so each file is uploaded
+          HTTP mid-move and freeze the motion, so each file is uploaded
           now, and the table points to its copy on the robot.
         - Local backend (simulation, Lite): files are read directly from
           disk, so there's nothing to upload. Each file points to itself.
@@ -131,7 +131,7 @@ class Move(ABC):
 
     @abstractmethod
     def _perform(self, reachy_mini: ReachyMini) -> None:
-        """Play the gesture itself. Free to end on any pose.
+        """Play the move itself. Free to end on any pose.
 
         Args:
             reachy_mini: Connected robot instance.
@@ -141,7 +141,7 @@ class Move(ABC):
     def sound_paths(self) -> list[Path]:
         """List the local sound files this move plays.
 
-        They get uploaded before the gesture starts. Return an empty list
+        They get uploaded before the move starts. Return an empty list
         if the move plays no sound.
 
         Returns:
@@ -168,7 +168,7 @@ class Move(ABC):
         """Move the robot to the neutral head, antenna and body pose.
 
         Interpolated, so it's safe from any starting pose. Call it yourself
-        mid-gesture if returning to neutral is part of the choreography.
+        mid-move if returning to neutral is part of the choreography.
 
         Args:
             reachy_mini: Connected robot instance.
@@ -260,7 +260,7 @@ class PhasedMove(Move):
         Args:
             phase: Name of the running phase.
             p: Progress within that phase, 0 to 1.
-            elapsed_s: Seconds since the gesture started. Unlike ``p``, it
+            elapsed_s: Seconds since the move started. Unlike ``p``, it
                 doesn't reset between phases -- for moves that read a
                 recording, which runs on a single timeline, and for motion
                 that alternates, through ``alternating_sign``.
@@ -280,7 +280,7 @@ class PhasedMove(Move):
         """
 
     def _perform(self, reachy_mini: ReachyMini) -> None:
-        """Run the gesture, firing each phase's sound as the phase begins."""
+        """Run the move, firing each phase's sound as the phase begins."""
         # Before the clock starts, so the preparation never eats into the
         # first phase.
         self._on_start()
@@ -327,7 +327,7 @@ class PhasedMove(Move):
         """Return the running phase and the progress within it.
 
         Args:
-            elapsed_s: Seconds since the gesture started.
+            elapsed_s: Seconds since the move started.
 
         Returns:
             (phase name, local progress from 0 to 1).

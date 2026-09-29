@@ -20,43 +20,43 @@ class ReachyAlive(ReachyMiniApp):
     request_media_backend: str | None = None
 
     def run(self, reachy_mini: ReachyMini, stop_event: threading.Event):
-        behaviors = self._build_idle_behaviors()
-        moves = {move.name: move for move in behaviors}
-        if len(moves) != len(behaviors):
+        idle_moves = self._build_idle_moves()
+        idle_moves_by_name = {move.name: move for move in idle_moves}
+        if len(idle_moves_by_name) != len(idle_moves):
             raise ValueError("Two moves share the same name")
         move_requests: queue.Queue[Move] = queue.Queue()
-        self._register_move_routes(moves, move_requests)
+        self._register_move_routes(idle_moves_by_name, move_requests)
 
         shared_state = SharedState()
-        idle_manager = IdleManager(behaviors)
+        idle_manager = IdleManager(idle_moves)
         action_selector = ActionSelector(idle_manager, move_requests)
         robot_controller = RobotController(action_selector)
 
         robot_controller.run(reachy_mini, shared_state, stop_event)
 
     def _register_move_routes(
-        self, moves: dict[str, Move], move_requests: queue.Queue
+        self, moves_by_name: dict[str, Move], move_requests: queue.Queue
     ) -> None:
         """Register the routes that list moves and request one.
 
         Args:
-            moves: Every move the robot can play, by name.
+            moves_by_name: Every move the robot can play, by name.
             move_requests: Where requested moves wait to be played.
         """
 
         @self.settings_app.get("/moves")
         def list_moves() -> list[str]:
-            return sorted(moves)
+            return sorted(moves_by_name)
 
         @self.settings_app.post("/moves/{name}/play", status_code=202)
         def request_move(name: str) -> dict[str, str]:
-            if name not in moves:
+            if name not in moves_by_name:
                 raise HTTPException(status_code=404, detail=f"Unknown move: {name}")
-            move_requests.put(moves[name])
+            move_requests.put(moves_by_name[name])
             return {"requested": name}
 
-    def _build_idle_behaviors(self) -> list[Move]:
-        """Build the discrete gestures the idle manager picks from.
+    def _build_idle_moves(self) -> list[Move]:
+        """Build the moves the idle manager picks from.
 
         Raises:
             ValueError: If a configured library move doesn't exist.

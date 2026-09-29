@@ -170,9 +170,9 @@ fast reaction becomes right because it was slow once.
   motion docs. Not decided yet; revisit when a decision-maker actually wants it.
 - **Volume and microphone stay in Reachy Mini Control.** They are robot-wide
   settings the daemon persists across apps; the app never changes them.
-- **One word: "move".** Code, routes and docs say "move", like the SDK.
-  "Gesture" is being phased out (idle code still uses it until its rename
-  to "idle move").
+- **One word: "move".** Code, routes and docs say "move", like the SDK;
+  idle code says "idle move". "Gesture" only survives in older docs prose,
+  until the docs are rewritten.
 
 ## Environment
 

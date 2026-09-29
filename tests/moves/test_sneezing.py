@@ -2,7 +2,7 @@
 
 The head comes from a fake recording (see conftest.py). The play test runs
 the real motion loop without mocking time.sleep, so it lasts as long as
-the gesture itself.
+the move itself.
 """
 
 import pytest

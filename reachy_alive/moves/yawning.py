@@ -1,4 +1,4 @@
-"""Hand-made yawn gesture: rise, hold, exhale back to neutral, shake off sleep.
+"""Hand-made yawn move: rise, hold, exhale back to neutral, shake off sleep.
 
 This is the reference procedural move. See moves/README.md for how to
 write one.

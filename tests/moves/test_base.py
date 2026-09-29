@@ -187,7 +187,7 @@ def test_perform_fires_each_sound_once_and_streams_the_full_pose(fake_reachy_min
         assert call.kwargs["body_yaw"] == 0.25
 
 
-def test_elapsed_s_runs_through_the_gesture_while_p_restarts_each_phase(
+def test_elapsed_s_runs_through_the_move_while_p_restarts_each_phase(
     fake_reachy_mini, sounds_dir
 ):
     move = _phased_move_class(sounds_dir)()
