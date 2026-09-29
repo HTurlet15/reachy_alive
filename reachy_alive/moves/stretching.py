@@ -1,4 +1,4 @@
-"""Hand-made stretch gesture: crouch, rise, tremble at full extension, release.
+"""Hand-made stretch move: crouch, rise, tremble at full extension, release.
 
 See moves/README.md for how to write a move.
 """

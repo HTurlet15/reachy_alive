@@ -27,14 +27,14 @@ class HoldPose:
 
 @dataclass(frozen=True)
 class PlayMove:
-    """Play a discrete gesture to completion.
+    """Play a discrete move to completion.
 
     Transitional: this command exists because Move.play() blocks the
-    control loop. Once gestures run tick by tick, they will return a pose
+    control loop. Once moves run tick by tick, they will return a pose
     each tick like breathing does, and this command will go away.
 
     Attributes:
-        move: The gesture to play.
+        move: The move to play.
     """
 
     move: Move

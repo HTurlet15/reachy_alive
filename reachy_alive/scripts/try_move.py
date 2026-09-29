@@ -1,7 +1,7 @@
 # reachy_alive/scripts/try_move.py
 """Manually trigger a single move on the robot, or in simulation, for visual testing.
 
-Unit tests can verify that a gesture calls the SDK correctly, but not
+Unit tests can verify that a move calls the SDK correctly, but not
 that it looks right (correct tilt direction, amplitude, timing). This
 script triggers one move directly, without going through IdleManager or
 the full control loop.

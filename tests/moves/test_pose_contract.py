@@ -29,7 +29,7 @@ LOWEST_HEAD_Z_M = -0.170
 
 
 def _sampled_poses(move, samples_per_phase=25):
-    """Yield (phase, pose) across the whole gesture, phase by phase."""
+    """Yield (phase, pose) across the whole move, phase by phase."""
     phase_start_s = 0.0
     for phase, phase_end_s in move.phase_ends_s.items():
         for p in np.linspace(0.0, 1.0, samples_per_phase):

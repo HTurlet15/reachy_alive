@@ -29,7 +29,7 @@ def run_one_tick(command, reachy_mini, shared_state=None) -> None:
     )
 
 
-def test_restarts_idle_timer_once_the_gesture_has_ended(fake_reachy_mini):
+def test_restarts_idle_timer_once_the_move_has_ended(fake_reachy_mini):
     state = SharedState()
     state.last_activity_at = time.monotonic() - 50.0
     timer_during_play = []
@@ -40,7 +40,7 @@ def test_restarts_idle_timer_once_the_gesture_has_ended(fake_reachy_mini):
 
     run_one_tick(PlayMove(move), fake_reachy_mini, state)
 
-    assert timer_during_play[0] >= 50.0  # not reset while the gesture runs
+    assert timer_during_play[0] >= 50.0  # not reset while the move runs
     assert state.seconds_since_last_activity() < 0.1  # reset once it has ended
 
 
@@ -64,7 +64,7 @@ def test_hold_pose_sends_the_pose_to_the_robot(fake_reachy_mini):
     assert sent["antennas"] is antennas
 
 
-def test_play_move_plays_the_gesture(fake_reachy_mini):
+def test_play_move_command_plays_the_move(fake_reachy_mini):
     move = MagicMock()
 
     run_one_tick(PlayMove(move), fake_reachy_mini)

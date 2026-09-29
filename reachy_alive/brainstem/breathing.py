@@ -1,5 +1,5 @@
 # reachy_alive/brainstem/breathing.py
-"""Continuous breathing: the pose the robot holds between gestures."""
+"""Continuous breathing: the pose the robot holds between moves."""
 
 import numpy as np
 from reachy_mini.utils import create_head_pose
@@ -16,8 +16,8 @@ def get_breathing_pose(
 ) -> tuple[np.ndarray, np.ndarray]:
     """Return the head and antenna pose for continuous breathing.
 
-    At t = 0 this is the neutral pose, where every gesture ends, so
-    breathing can restart from 0 after a gesture without a jump.
+    At t = 0 this is the neutral pose, where every move ends, so
+    breathing can restart from 0 after a move without a jump.
 
     Args:
         t: Seconds since breathing started.

@@ -1,4 +1,4 @@
-"""Mixed sneeze gesture: the head comes from a Marionette recording, the
+"""Mixed sneeze move: the head comes from a Marionette recording, the
 antennas are coded on top -- they climb with each inhale, then drop on the
 sneeze.
 

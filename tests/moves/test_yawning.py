@@ -2,7 +2,7 @@
 """Unit tests for Yawning.
 
 Runs the real motion loop without mocking time.sleep, so the test lasts as
-long as the gesture itself.
+long as the move itself.
 """
 
 from reachy_alive.moves.yawning import Yawning
