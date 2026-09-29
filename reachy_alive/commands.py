@@ -1,8 +1,8 @@
-"""Commands the decision layer hands to RobotManager for execution.
+"""Commands the decision layer hands to RobotController for execution.
 
 Decision-makers (IdleManager today, an arbiter or a behavior tree later)
 return one of these each tick instead of driving the robot themselves.
-RobotManager reads the command and executes it.
+RobotController reads the command and executes it.
 """
 
 from dataclasses import dataclass

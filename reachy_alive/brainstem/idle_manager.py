@@ -19,11 +19,11 @@ logger = logging.getLogger(__name__)
 class IdleManager:
     """Decides, each tick, between breathing and an occasional gesture.
 
-    It never drives the robot: it returns a command that RobotManager
+    It never drives the robot: it returns a command that RobotController
     executes. Gestures fire at random intervals; breathing runs the rest
     of the time. The next gesture is chosen in advance, so its sounds
     upload in the background while the robot is still breathing. It only
-    reads the idle timer: RobotManager restarts it whenever a gesture ends.
+    reads the idle timer: RobotController restarts it whenever a gesture ends.
     """
 
     def __init__(

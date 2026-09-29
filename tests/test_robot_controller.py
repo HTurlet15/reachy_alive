@@ -1,5 +1,5 @@
-# tests/test_robot_manager.py
-"""Unit tests for RobotManager."""
+# tests/test_robot_controller.py
+"""Unit tests for RobotController."""
 
 import threading
 from unittest.mock import MagicMock
@@ -9,12 +9,12 @@ import pytest
 import time
 
 from reachy_alive.commands import HoldPose, PlayMove
-from reachy_alive.robot_manager import RobotManager
+from reachy_alive.robot_controller import RobotController
 from reachy_alive.shared_state import SharedState
 
 
 def run_one_tick(command, reachy_mini, shared_state=None) -> None:
-    """Run RobotManager's loop for exactly one tick, executing ``command``."""
+    """Run RobotController's loop for exactly one tick, executing ``command``."""
     stop_event = threading.Event()
 
     def decide(*args, **kwargs):
@@ -24,7 +24,7 @@ def run_one_tick(command, reachy_mini, shared_state=None) -> None:
     action_selector = MagicMock()
     action_selector.decide.side_effect = decide
 
-    RobotManager(action_selector).run(
+    RobotController(action_selector).run(
         reachy_mini, shared_state or SharedState(), stop_event
     )
 

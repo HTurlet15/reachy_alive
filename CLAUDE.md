@@ -28,9 +28,9 @@ opposite of the point. Every architectural decision follows from this.
     reachy_alive/
     ├── main.py             # composition root: builds and wires everything
     ├── shared_state.py     # thread-safe blackboard: facts, not orders
-    ├── commands.py         # commands decision-makers hand to RobotManager
+    ├── commands.py         # commands decision-makers hand to RobotController
     ├── action_selector.py  # chooses one proposal per tick (future behavior tree)
-    ├── robot_manager.py    # control loop; executes commands
+    ├── robot_controller.py # control loop; executes commands
     ├── interpolate.py      # interpolate(start, end, p)
     ├── moves/
     │   ├── base.py         # Move, PhasedMove, LibraryMove
@@ -51,15 +51,15 @@ good first issue for contributors).
 
 ## Execution model
 
-`RobotManager` owns the control loop. It makes no decisions: each tick, it
+`RobotController` owns the control loop. It makes no decisions: each tick, it
 asks for a command (`commands.py`) and executes it. Decision-makers never
-drive the robot. Moves do talk to the robot, but only while `RobotManager`
+drive the robot. Moves do talk to the robot, but only while `RobotController`
 executes a `PlayMove`, from the loop's thread. It also records in
 `SharedState` when a move ends, whoever asked for it: it is the only module
 that knows for sure.
 
 State and orders travel separately. `SharedState` holds facts any module can
-read at any time. A command is an order: handed to `RobotManager`, executed
+read at any time. A command is an order: handed to `RobotController`, executed
 once.
 
 Decision-makers propose; `ActionSelector` chooses one proposal per tick.
@@ -127,14 +127,12 @@ Wireless.
 can't be interrupted, `PlayMove` exists, and moves still talk to the robot
 during `play()`.
 
-Target: gestures return a pose each tick, `PlayMove` goes away, and
-`RobotManager` may be renamed `RobotController`.
-
+Target: gestures return a pose each tick, and `PlayMove` goes away.
 **Scheduled for sprint C**, with reflexes, which need interruption anyway.
 If you notice this and want to fix it, don't — say so and move on.
 
 The decision/execution split itself is done: decision-makers return commands
-(`commands.py`), `RobotManager` executes them. It came earlier than planned
+(`commands.py`), `RobotController` executes them. It came earlier than planned
 because moves requested from the settings page are a second decision-maker.
 
 ## Sprints
@@ -215,7 +213,7 @@ Key points already learned from them:
   anything mid-interpolation.
 - `set_target()` only inside a single control loop at 50-100 Hz. Multiple
   scattered `set_target()` calls is a documented anti-pattern — `set_target()`
-  now lives in `RobotManager`, plus `PhasedMove._perform` until gestures run
+  now lives in `RobotController`, plus `PhasedMove._perform` until gestures run
   tick by tick.
 - `enable_motors()` pins targets to the present pose, so call it before any
   `set_target`.

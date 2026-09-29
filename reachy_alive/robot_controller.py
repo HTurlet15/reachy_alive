@@ -7,13 +7,13 @@ from reachy_alive.commands import Command, HoldPose, PlayMove
 from reachy_alive.shared_state import SharedState
 
 
-class RobotManager:
+class RobotController:
     """Runs the control loop and executes the commands it receives.
 
     It makes no decisions of its own: each tick, it asks the ActionSelector
     for a command and carries it out. It also records in SharedState when a
     gesture ends, whoever asked for it. Decision-makers never drive the
-    robot. Moves do talk to the robot, but only while RobotManager executes
+    robot. Moves do talk to the robot, but only while RobotController executes
     a PlayMove, from this loop's thread.
 
     Attributes:

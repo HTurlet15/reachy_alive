@@ -27,7 +27,7 @@ flowchart LR
     brainstem -->|proposes| selector["ActionSelector<br/>(chooses)"]
     amygdala -->|proposes| selector
     cortex -->|proposes| selector
-    selector -->|what to do| manager["RobotManager<br/>(control loop)"]
+    selector -->|what to do| manager["RobotController<br/>(control loop)"]
     manager --> robot(["Reachy Mini"])
 ```
 
@@ -69,16 +69,16 @@ tests. Anything with a side effect at construction time is built in
 `main.py` is the composition root: it builds every object and wires them
 together, once, at startup.
 
-`RobotManager` owns the control loop. It makes no decisions: each tick, it
+`RobotController` owns the control loop. It makes no decisions: each tick, it
 asks for a command (`commands.py`) and executes it. Decision-makers never
-drive the robot. Moves do talk to the robot, but only while `RobotManager`
+drive the robot. Moves do talk to the robot, but only while `RobotController`
 executes a `PlayMove`, from the loop's thread. It also records in
 `SharedState` when a move ends, whoever asked for it: it is the only module
 that knows for sure.
 
 Decision-makers (`IdleManager` today; reflexes and deliberation later)
 propose; the `ActionSelector` chooses one proposal per tick and hands it to
-`RobotManager`. Today, a move requested from the settings page wins over
+`RobotController`. Today, a move requested from the settings page wins over
 idle behavior, and if several requests arrive during one move, only the
 latest plays. The idle manager isn't consulted while it loses, only told
 (`interrupt()`), so breathing restarts from neutral. The `ActionSelector` is
@@ -86,7 +86,7 @@ where a behavior tree will go. All of them are plain objects, testable
 without a robot.
 
 State and orders travel separately. `SharedState` holds facts any module can
-read at any time. A command is an order: handed to `RobotManager`, executed
+read at any time. A command is an order: handed to `RobotController`, executed
 once. The split came earlier than planned: moves requested from the
 settings page are a second decision-maker, which is what the design was
 waiting for.
@@ -199,9 +199,9 @@ anyway.
 
 ## Roadmap
 
-**Done** — structure refactor: `moves/` at root, `RobotManager` lifted out of
+**Done** — structure refactor: `moves/` at root, `RobotController` lifted out of
 `brainstem/`, dependencies injected. Decision/execution split: decision-makers
-return commands, `RobotManager` executes them.
+return commands, `RobotController` executes them.
 
 **Current — v1 release.** Idle gestures of all three kinds (coded,
 Marionette, mixed), a stable Move contract, contributor guides, README,

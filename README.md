@@ -87,7 +87,7 @@ reachy_alive/
 ├── shared_state.py      # Thread-safe blackboard: facts, one writer per field
 ├── commands.py          # Orders handed to the control loop
 ├── action_selector.py   # Chooses what the robot does, each tick
-├── robot_manager.py     # Control loop; executes one command per tick
+├── robot_controller.py     # Control loop; executes one command per tick
 ├── brainstem/
 │   ├── breathing.py     # Continuous idle motion
 │   └── idle_manager.py  # Breathing by default, a gesture now and then
