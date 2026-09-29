@@ -21,8 +21,14 @@ class ReachyAlive(ReachyMiniApp):
     def run(self, reachy_mini: ReachyMini, stop_event: threading.Event):
         get_antennas_enabled = self._register_settings_routes()
 
+        behaviors = self._build_idle_behaviors()
+        gestures = {move.name: move for move in behaviors}
+        if len(gestures) != len(behaviors):
+            raise ValueError("Two gestures share the same name")
+        self._register_gesture_routes(gestures)
+
         shared_state = SharedState()
-        idle_manager = IdleManager(self._build_idle_behaviors())
+        idle_manager = IdleManager(behaviors)
         robot_manager = RobotManager(idle_manager)
 
         robot_manager.run(
@@ -51,7 +57,17 @@ class ReachyAlive(ReachyMiniApp):
 
         return lambda: antennas_enabled
 
-        
+    def _register_gesture_routes(self, gestures: dict[str, Move]) -> None:
+        """Register the route that lists the gestures.
+
+        Args:
+            gestures: Every gesture the robot can play, by name.
+        """
+
+        @self.settings_app.get("/gestures")
+        def list_gestures() -> list[str]:
+            return sorted(gestures)
+
     def _build_idle_behaviors(self) -> list[Move]:
         """Build the discrete gestures the idle manager picks from.
 
