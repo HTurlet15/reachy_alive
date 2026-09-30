@@ -8,7 +8,7 @@ up, and how to propose your work.
 
 A companion starts with a body that feels alive, so that's where we
 begin. An **idle move** is something you do without noticing: a yawn, a stretch,
-a sneeze, a hiccup. Nobody decides to hiccup. These gestures come on their
+a sneeze, a hiccup. Nobody decides to hiccup. These moves come on their
 own, at random, and that's exactly what makes a creature look alive
 rather than programmed. In the code, they live in the robot's
 `brainstem`, the part that runs without thinking.
@@ -69,7 +69,7 @@ You don't need a physical robot: everything runs in simulation.
 ## Make your move
 
 Everything is in [`reachy_alive/moves/README.md`](reachy_alive/moves/README.md):
-planning the gesture, choosing between code, Marionette or both, making
+planning the move, choosing between code, Marionette or both, making
 its sound, and trying it. Each method has an example to copy.
 
 **Keep the robot's voice.** Pollen's own sounds were made with a slide
@@ -97,7 +97,7 @@ they pass.
 
 - **One move per pull request.**
 - **Attach a short video** of the move, in simulation or on the robot.
-  Code review can't tell whether a gesture looks alive; a video can.
+  Code review can't tell whether a move looks alive; a video can.
 - **Commits** follow [Conventional Commits](https://www.conventionalcommits.org):
   `feat(moves): add sneezing`, `fix(moves): ...`, `docs: ...`.
 - **Docstrings** say *what* the code does, in Google style. The *why*

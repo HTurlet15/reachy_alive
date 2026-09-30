@@ -1,10 +1,10 @@
 ## What this changes
 
-<!-- One or two sentences. For a new move: what the gesture is, and how it's built (code, Marionette or mixed). -->
+<!-- One or two sentences. For a new move: what the move is, and how it's built (code, Marionette or mixed). -->
 
 ## Video
 
-<!-- New or changed move: drag a short video here, in simulation or on the robot. Code review can't tell whether a gesture looks alive. -->
+<!-- New or changed move: drag a short video here, in simulation or on the robot. Code review can't tell whether a move looks alive. -->
 
 ## Checklist for a move
 

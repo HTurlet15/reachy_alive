@@ -77,13 +77,13 @@ to `end`. Make each phase start where the previous one ended, or the robot
 will jump between them.
 
 The antennas are returned as a pair, so they don't have to move together —
-`[antenna, -antenna]` mirrors them, but a gesture is free to drive each
+`[antenna, -antenna]` mirrors them, but a move is free to drive each
 one separately.
 
 The body yaw is the last value. Return `NEUTRAL_BODY_YAW_RAD` unless your
-gesture turns the body.
+move turns the body.
 
-The last argument, `elapsed_s`, is the time since the gesture started.
+The last argument, `elapsed_s`, is the time since the move started.
 Unlike `p`, it doesn't reset between phases. Most phases ignore it; it
 serves two cases:
 
@@ -103,7 +103,7 @@ serves two cases:
 
 ## 3. Vary between plays
 
-Optional. A gesture that plays exactly the same every time looks
+Optional. A move that plays exactly the same every time looks
 mechanical. To vary something from one play to the next — an angle, an
 amplitude — draw it in `_on_start()`, store it on `self`, and read it in
 `_pose_at`:
