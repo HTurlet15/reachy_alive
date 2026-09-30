@@ -2,6 +2,8 @@
 import threading
 import time
 
+DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S = (20.0, 30.0)
+
 
 class SharedState:
     """Central, thread-safe blackboard of state shared across modules.
@@ -21,6 +23,8 @@ class SharedState:
     def __init__(self) -> None:
         self.lock = threading.Lock()
         self.last_activity_at: float = time.monotonic()
+        # Written by the app's page only; read by IdleManager.
+        self._idle_move_interval_range_s = DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S
 
     def mark_activity(self) -> None:
         """Record that something notable just happened, resetting the idle timer."""
@@ -35,3 +39,23 @@ class SharedState:
         """
         with self.lock:
             return time.monotonic() - self.last_activity_at
+
+    def idle_move_interval_range_s(self) -> tuple[float, float]:
+        """Return the (min, max) seconds to wait between two idle moves."""
+        with self.lock:
+            return self._idle_move_interval_range_s
+
+    def set_idle_move_interval_range_s(self, min_s: float, max_s: float) -> None:
+        """Replace the (min, max) seconds to wait between two idle moves.
+
+        Args:
+            min_s: Shortest wait, in seconds.
+            max_s: Longest wait, in seconds.
+
+        Raises:
+            ValueError: If min_s is negative or greater than max_s.
+        """
+        if not 0.0 <= min_s <= max_s:
+            raise ValueError(f"Invalid idle move interval: ({min_s}, {max_s})")
+        with self.lock:
+            self._idle_move_interval_range_s = (min_s, max_s)

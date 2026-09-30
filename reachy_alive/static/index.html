@@ -15,6 +15,19 @@
     <div id="moves"></div>
     <p id="move-status"></p>
 
+    <h2>Idle moves</h2>
+    <form id="interval-form">
+        <label>Wait between
+            <input type="number" id="interval-min" min="5" max="600" step="1" required>
+        </label>
+        <label>and
+            <input type="number" id="interval-max" min="5" max="600" step="1" required>
+            seconds
+        </label>
+        <button type="submit">Save</button>
+    </form>
+    <p id="interval-status"></p>
+
     <script src="/static/main.js"></script>
 </body>
 
