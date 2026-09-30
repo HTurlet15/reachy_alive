@@ -6,13 +6,13 @@ See moves/README.md for how to write a move.
 import numpy as np
 from reachy_mini.utils import create_head_pose
 
-from reachy_alive.interpolate import interpolate
 from reachy_alive.moves.base import (
     NEUTRAL_ANTENNAS_RAD,
     NEUTRAL_BODY_YAW_RAD,
     Move,
     PhasedMove,
     alternating_sign,
+    interpolate,
 )
 
 

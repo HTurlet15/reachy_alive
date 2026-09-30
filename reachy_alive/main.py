@@ -5,13 +5,13 @@ import threading
 from reachy_mini import ReachyMini, ReachyMiniApp
 from reachy_mini.motion.recorded_move import RecordedMoves
 
-from reachy_alive.action_selector import ActionSelector
+from reachy_alive.control.action_selector import ActionSelector
 from reachy_alive.brainstem.idle_manager import IdleManager
 from reachy_alive.moves.base import LibraryMove, Move
 from reachy_alive.moves.sneezing import Sneezing
 from reachy_alive.moves.stretching import Stretching
 from reachy_alive.moves.yawning import Yawning
-from reachy_alive.robot_controller import RobotController
+from reachy_alive.control.robot_controller import RobotController
 from reachy_alive.routes import create_router
 from reachy_alive.shared_state import SharedState
 

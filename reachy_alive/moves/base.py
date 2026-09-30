@@ -9,8 +9,9 @@ Every move is a ``Move``, whose ``play``, ``prepare`` and ``name`` are
 stable. Don't subclass ``Move`` directly: its execution loop is internal
 and will change.
 
-``alternating_sign`` times shakes and trembles. Keep alternations at
-0.02 s per side or slower.
+Two helpers shape motion: ``interpolate`` eases a value from one pose to
+another, ``alternating_sign`` times shakes and trembles. Keep alternations
+at 0.02 s per side or slower.
 
 See ``moves/README.md`` for how to make a move.
 """
@@ -50,6 +51,23 @@ def alternating_sign(elapsed_s: float, half_period_s: float) -> int:
         +1 during even half periods, -1 during odd ones.
     """
     return 1 if int(elapsed_s / half_period_s) % 2 == 0 else -1
+
+
+def interpolate(start: float, end: float, p: float) -> float:
+    """Return the value p of the way from start to end.
+
+    For motion that eases from one pose to another within a phase: p = 0
+    gives start, p = 1 gives end.
+
+    Args:
+        start: Value at the start of the motion.
+        end: Value at the end of the motion.
+        p: Progress, 0 to 1.
+
+    Returns:
+        The value between start and end.
+    """
+    return start + (end - start) * p
 
 
 class Move(ABC):

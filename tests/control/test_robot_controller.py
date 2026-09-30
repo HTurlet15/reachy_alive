@@ -8,8 +8,8 @@ import numpy as np
 import pytest
 import time
 
-from reachy_alive.commands import HoldPose, PlayMove
-from reachy_alive.robot_controller import RobotController
+from reachy_alive.control.commands import HoldPose, PlayMove
+from reachy_alive.control.robot_controller import RobotController
 from reachy_alive.shared_state import SharedState
 
 

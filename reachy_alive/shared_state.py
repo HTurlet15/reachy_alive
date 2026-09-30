@@ -11,7 +11,7 @@ class SharedState:
     It holds facts any module may read at any time, such as when the last
     notable activity happened. It does not carry orders: a module that
     wants something done hands over a command instead (see
-    reachy_alive.commands).
+    reachy_alive.control.commands).
 
     Attributes:
         lock: Guards all reads/writes to prevent race conditions.

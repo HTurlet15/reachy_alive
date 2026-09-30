@@ -10,12 +10,12 @@ import random
 import numpy as np
 from reachy_mini.motion.recorded_move import RecordedMoves
 
-from reachy_alive.interpolate import interpolate
 from reachy_alive.moves.base import (
     NEUTRAL_ANTENNAS_RAD,
     Move,
     PhasedMove,
     alternating_sign,
+    interpolate,
 )
 
 

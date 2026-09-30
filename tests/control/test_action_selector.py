@@ -4,8 +4,8 @@
 import queue
 from unittest.mock import MagicMock
 
-from reachy_alive.action_selector import ActionSelector
-from reachy_alive.commands import PlayMove
+from reachy_alive.control.action_selector import ActionSelector
+from reachy_alive.control.commands import PlayMove
 from reachy_alive.shared_state import SharedState
 
 

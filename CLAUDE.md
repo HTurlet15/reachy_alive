@@ -14,8 +14,10 @@ opposite of the point. Every architectural decision follows from this.
 
 ## Four rules
 
-1. **A module's folder is decided by its execution regime, not by anatomy.**
-   Fast/local/synchronous → `amygdala/`. Slow/remote/async → `prefrontal_cortex/`.
+1. **Brain-region folders are for what has a biological sense, sorted by
+   execution regime, not by anatomy.** Fast/local/synchronous → `amygdala/`.
+   Slow/remote/async → `prefrontal_cortex/`. The plumbing they share
+   (`control/`, `shared_state.py`, `routes.py`) takes plain names.
 2. **The cortex never blocks the loop.** LLM calls are async.
 3. **One writer per field in `SharedState`.** Every field has an owning module;
    others only read.
@@ -26,24 +28,25 @@ opposite of the point. Every architectural decision follows from this.
 ## Layout
 
     reachy_alive/
-    ├── main.py             # composition root: builds and wires everything
-    ├── shared_state.py     # thread-safe blackboard: facts, not orders
-    ├── commands.py         # commands decision-makers hand to RobotController
-    ├── action_selector.py  # chooses one proposal per tick (future behavior tree)
-    ├── robot_controller.py # control loop; executes commands
-    ├── interpolate.py      # interpolate(start, end, p)
+    ├── main.py                 # composition root: builds and wires everything
+    ├── shared_state.py         # thread-safe blackboard: facts, not orders
+    ├── routes.py               # HTTP routes behind the app's page
+    ├── control/                # from a proposal to the robot
+    │   ├── commands.py         # orders decision-makers hand to RobotController
+    │   ├── action_selector.py  # chooses one proposal per tick (future behavior tree)
+    │   └── robot_controller.py # control loop; executes commands
     ├── moves/
-    │   ├── base.py         # Move, PhasedMove, LibraryMove
-    │   ├── yawning.py      # reference procedural move
+    │   ├── base.py             # Move, PhasedMove, LibraryMove, interpolate, alternating_sign
+    │   ├── yawning.py          # reference procedural move
     │   ├── stretching.py
-    │   └── sneezing.py     # reference mixed move
+    │   └── sneezing.py         # reference mixed move
     ├── brainstem/
     │   ├── idle_manager.py
-    │   └── breathing.py    # continuous pose function, not a Move
-    ├── static/             # settings page: plays any move on demand
-    ├── assets/sounds/      # grouped per move, .wav next to its jsfxr preset
+    │   └── breathing.py        # continuous pose function, not a Move
+    ├── static/                 # settings page: plays any move on demand
+    ├── assets/sounds/          # grouped per move, .wav next to its jsfxr preset
     ├── scripts/try_move.py
-    └── tests/              # mirrors the package layout
+    └── tests/                  # mirrors the package layout
 
 Planned: `sensory_cortex/` (perception), `amygdala/` (reflexes),
 `prefrontal_cortex/` (deliberation), `hippocampus/` (memory — left as a
@@ -52,7 +55,7 @@ good first issue for contributors).
 ## Execution model
 
 `RobotController` owns the control loop. It makes no decisions: each tick, it
-asks for a command (`commands.py`) and executes it. Decision-makers never
+asks for a command (`control/commands.py`) and executes it. Decision-makers never
 drive the robot. Moves do talk to the robot, but only while `RobotController`
 executes a `PlayMove`, from the loop's thread. It also records in
 `SharedState` when a move ends, whoever asked for it: it is the only module
@@ -132,8 +135,9 @@ Target: gestures return a pose each tick, and `PlayMove` goes away.
 If you notice this and want to fix it, don't — say so and move on.
 
 The decision/execution split itself is done: decision-makers return commands
-(`commands.py`), `RobotController` executes them. It came earlier than planned
-because moves requested from the settings page are a second decision-maker.
+(`control/commands.py`), `RobotController` executes them. It came earlier than
+planned because moves requested from the settings page are a second
+decision-maker.
 
 ## Sprints
 

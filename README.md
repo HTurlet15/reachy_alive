@@ -45,7 +45,9 @@ regions, and code goes wherever its speed fits, as in the brain: a reflex
 that must fire in milliseconds goes to `amygdala/`, a considered response
 that can take seconds goes to `prefrontal_cortex/`. A face appearing can
 trigger both — a startle, then a greeting — and they live in different
-folders.
+folders. The plumbing they share (`control/`, `shared_state.py`,
+`routes.py`) takes plain names: the metaphor is kept for what has a
+biological sense.
 
 | Module | Biological analogy | Role in the code |
 |---|---|---|
@@ -83,17 +85,19 @@ While the app runs, its settings page is at `http://localhost:8042`.
 
 ```
 reachy_alive/
-├── main.py              # Builds and wires everything; lists the idle gestures
-├── shared_state.py      # Thread-safe blackboard: facts, one writer per field
-├── commands.py          # Orders handed to the control loop
-├── action_selector.py   # Chooses what the robot does, each tick
-├── robot_controller.py     # Control loop; executes one command per tick
+├── main.py                 # Builds and wires everything; lists the idle moves
+├── shared_state.py         # Thread-safe blackboard: facts, one writer per field
+├── routes.py               # HTTP routes behind the app's page
+├── control/                # From a proposal to the robot
+│   ├── commands.py         # Orders handed to the control loop
+│   ├── action_selector.py  # Chooses what the robot does, each tick
+│   └── robot_controller.py # Control loop; executes one command per tick
 ├── brainstem/
-│   ├── breathing.py     # Continuous idle motion
-│   └── idle_manager.py  # Breathing by default, a gesture now and then
-├── moves/               # Discrete gestures, and the guides to write one
-├── assets/sounds/       # Gesture sounds, with the presets that made them
-├── scripts/             # try-move, sound composition
-└── static/              # Settings page: plays any move on demand
-tests/                   # Hardware-independent tests, run by CI on every PR
+│   ├── breathing.py        # Continuous idle motion
+│   └── idle_manager.py     # Breathing by default, a gesture now and then
+├── moves/                  # Discrete gestures, and the guides to write one
+├── assets/sounds/          # Gesture sounds, with the presets that made them
+├── scripts/                # try-move, sound composition
+└── static/                 # Settings page: plays any move on demand
+tests/                      # Hardware-independent tests, run by CI on every PR
 ```
