@@ -105,7 +105,9 @@ class ReachyAlive(ReachyMiniApp):
 
 
 if __name__ == "__main__":
-    # The SDK's logging setup shows its own info logs; show this app's too.
+    # Run directly, this script is the program, and nothing else sets up
+    # logging: show this app's info logs, and warnings from everything else.
+    logging.basicConfig(format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     logging.getLogger("reachy_alive").setLevel(logging.INFO)
 
     app = ReachyAlive()
