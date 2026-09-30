@@ -12,6 +12,7 @@ requires-python = ">=3.11"
 dependencies = [
     "fastapi",
     "numpy",
+    "pydantic>=2",
     # Installed into the robot's shared apps environment, next to the
     # daemon's SDK: accept any compatible version rather than force one.
     # uv.lock pins the exact version used for development.
