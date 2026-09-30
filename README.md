@@ -21,20 +21,34 @@ and then yawns, stretches, sneezes or hiccups — on its own, like a
 creature, not on command. Perception, reactions and deliberation come
 next, layered on a control loop that never blocks.
 
-**Want to add a gesture?** See [CONTRIBUTING.md](./CONTRIBUTING.md).
+**Want to add a move?** See [CONTRIBUTING.md](./CONTRIBUTING.md).
+
+## Use it
+
+In Reachy Mini Control, install Reachy Alive from the app store, then run
+it. The robot starts breathing, and plays an idle move every 20 to 30
+seconds.
+
+While it runs, the app's page shows up next to Reachy Mini Control. From
+there you can:
+
+- **play any move on demand** — handy for a demo, or to try one without
+  waiting for it;
+- **set how long the robot waits between idle moves.** A new setting
+  applies from the next idle move.
+
+Volume and microphone are set in Reachy Mini Control itself.
 
 ## What the robot does today
 
 - **Breathes** continuously while idle.
-- **Plays a gesture** at random intervals, from three kinds of moves:
+- **Plays an idle move** at random intervals, from three kinds of moves:
   - written in code: `yawning`, `stretching`;
   - recorded by hand in Marionette: `hiccup`;
   - mixed — recorded head, coded antennas: `sneezing`;
   - plus a selection of Pollen's own emotions.
-- Returns to neutral after every gesture, so the next one starts from a
+- Returns to neutral after every move, so the next one starts from a
   known pose.
-- **Plays any move on demand** from its settings page (⚙️ in Reachy Mini
-  Control) — handy for a demo, or to try a move without waiting for it.
 
 Not yet: perception, reflexes, deliberation, memory.
 
@@ -51,13 +65,13 @@ biological sense.
 
 | Module | Biological analogy | Role in the code |
 |---|---|---|
-| `brainstem/` | Automatic regulation — breathing, posture | Idle behavior: continuous breathing, occasional gestures. **Implemented.** |
+| `brainstem/` | Automatic regulation — breathing, posture | Idle behavior: continuous breathing, occasional idle moves. **Implemented.** |
 | `sensory_cortex/` | Turns raw signal into percepts | Camera, motion and face detection, written to `SharedState`. *Planned.* |
 | `amygdala/` | Reacts before the cortex has understood | Fast, local, synchronous reflexes. *Planned.* |
 | `prefrontal_cortex/` | Deliberation, personality | Async cloud LLM call, with timeout and fallback. *Planned.* |
 | `hippocampus/` | Episodic memory | What happened, how often, how long ago. *Planned.* |
 
-Why it's built this way, and what comes next:
+How it all fits together, the code map and what comes next:
 [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 ## Develop
@@ -68,7 +82,7 @@ detailed in [CONTRIBUTING.md](./CONTRIBUTING.md#set-up); in short:
 ```bash
 uv sync                               # project environment, SDK, simulation
 uv run reachy-mini-daemon --sim       # the simulated robot
-uv run try-move sneezing              # play one gesture (2nd terminal)
+uv run try-move sneezing              # play one move (2nd terminal)
 uv run pytest                         # the test suite, no robot needed
 ```
 
@@ -79,25 +93,4 @@ Mini Control):
 uv run python reachy_alive/main.py
 ```
 
-While the app runs, its settings page is at `http://localhost:8042`.
-
-## Project structure
-
-```
-reachy_alive/
-├── main.py                 # Builds and wires everything; lists the idle moves
-├── shared_state.py         # Thread-safe blackboard: facts, one writer per field
-├── routes.py               # HTTP routes behind the app's page
-├── control/                # From a proposal to the robot
-│   ├── commands.py         # Orders handed to the control loop
-│   ├── action_selector.py  # Chooses what the robot does, each tick
-│   └── robot_controller.py # Control loop; executes one command per tick
-├── brainstem/
-│   ├── breathing.py        # Continuous idle motion
-│   └── idle_manager.py     # Breathing by default, a gesture now and then
-├── moves/                  # Discrete gestures, and the guides to write one
-├── assets/sounds/          # Gesture sounds, with the presets that made them
-├── scripts/                # try-move, sound composition
-└── static/                 # Settings page: plays any move on demand
-tests/                      # Hardware-independent tests, run by CI on every PR
-```
+While the app runs, its page is at `http://localhost:8042`.
