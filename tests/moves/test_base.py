@@ -15,6 +15,7 @@ from reachy_alive.moves.base import (
     Move,
     PhasedMove,
     alternating_sign,
+    interpolate,
 )
 
 # --- Move ---------------------------------------------------------------
@@ -78,6 +79,7 @@ def test_play_returns_head_antennas_and_body_to_neutral(fake_reachy_mini):
     assert kwargs["antennas"] == NEUTRAL_ANTENNAS_RAD
     assert kwargs["body_yaw"] == NEUTRAL_BODY_YAW_RAD
 
+
 def test_name_joins_class_name_words_with_hyphens():
     class DeepBreath(Move):
         def _perform(self, reachy_mini):
@@ -87,7 +89,14 @@ def test_name_joins_class_name_words_with_hyphens():
             return []
 
     assert DeepBreath().name == "deep-breath"
-    
+
+
+def test_interpolate_goes_from_start_to_end():
+    assert interpolate(2.0, 6.0, 0.0) == 2.0
+    assert interpolate(2.0, 6.0, 0.5) == 4.0
+    assert interpolate(2.0, 6.0, 1.0) == 6.0
+
+
 # --- alternating_sign ---------------------------------------------------
 
 
