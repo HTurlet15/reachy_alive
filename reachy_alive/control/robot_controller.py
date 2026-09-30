@@ -2,8 +2,8 @@ import time
 
 from reachy_mini import ReachyMini
 
-from reachy_alive.action_selector import ActionSelector
-from reachy_alive.commands import Command, HoldPose, PlayMove
+from reachy_alive.control.action_selector import ActionSelector
+from reachy_alive.control.commands import Command, HoldPose, PlayMove
 from reachy_alive.shared_state import SharedState
 
 

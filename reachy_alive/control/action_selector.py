@@ -6,7 +6,7 @@ import queue
 from reachy_mini import ReachyMini
 
 from reachy_alive.brainstem.idle_manager import IdleManager
-from reachy_alive.commands import Command, PlayMove
+from reachy_alive.control.commands import Command, PlayMove
 from reachy_alive.moves.base import Move
 from reachy_alive.shared_state import SharedState
 
