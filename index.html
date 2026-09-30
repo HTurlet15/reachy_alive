@@ -1,40 +1,149 @@
 <!doctype html>
-<html>
+<html lang="en">
 
 <head>
 	<meta charset="utf-8" />
-	<meta name="viewport" content="width=device-width" />
-	<title> Reachy Alive </title>
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Reachy Alive</title>
+	<meta name="description" content="A Reachy Mini that feels alive, even when idle. Open source: teach it a new move." />
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+	<link rel="stylesheet"
+		href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;600&display=swap" />
 	<link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
-	<div class="hero">
-		<div class="hero-content">
-			<div class="app-icon">🤖⚡</div>
-			<h1> Reachy Alive </h1>
-			<p class="tagline">Enter your tagline here</p>
-		</div>
-	</div>
-
-	<div class="container">
-		<div class="main-card">
-			<div class="app-preview">
-				<div class="preview-image">
-					<div class="camera-feed">🛠️</div>
+	<main>
+		<section class="hero">
+			<div class="hero-text">
+				<h1>Reachy Alive</h1>
+				<p class="lead">A Reachy Mini that feels alive, even when idle.</p>
+				<p>
+					It breathes, and every now and then it yawns, stretches, sneezes or
+					hiccups, on its own, like a creature rather than a machine waiting for
+					orders.
+				</p>
+				<div class="actions">
+					<a class="button" href="#try-it">Try it on your robot</a>
+					<a class="button button-quiet" href="#contribute">Add a move</a>
 				</div>
 			</div>
-		</div>
-	</div>
 
-	<div class="footer">
+			<figure class="hero-clip">
+				<div class="breath" aria-hidden="true"></div>
+				<div class="clip">
+					<video autoplay muted loop playsinline preload="metadata"
+						aria-label="Reachy Mini breathing on a desk">
+						<source src="media/breathing.mp4" type="video/mp4" />
+					</video>
+				</div>
+			</figure>
+		</section>
+
+		<section class="moves" aria-labelledby="moves-title">
+			<h2 id="moves-title">A few of its moves</h2>
+			<div class="clips">
+				<figure>
+					<div class="clip">
+						<video autoplay muted loop playsinline preload="metadata" aria-label="Reachy Mini stretching">
+							<source src="media/stretching.mp4" type="video/mp4" />
+						</video>
+					</div>
+					<figcaption>Stretching, written in code</figcaption>
+				</figure>
+				<figure>
+					<div class="clip">
+						<video autoplay muted loop playsinline preload="metadata" aria-label="Reachy Mini sneezing">
+							<source src="media/sneezing.mp4" type="video/mp4" />
+						</video>
+					</div>
+					<figcaption>Sneezing, recorded and coded</figcaption>
+				</figure>
+				<figure>
+					<div class="clip">
+						<video autoplay muted loop playsinline preload="metadata" aria-label="Reachy Mini hiccuping">
+							<source src="media/hiccup.mp4" type="video/mp4" />
+						</video>
+					</div>
+					<figcaption>Hiccup, recorded by hand</figcaption>
+				</figure>
+			</div>
+			<p class="note">Sound on your robot: every move has its own little voice.</p>
+		</section>
+
+		<section id="try-it" class="try" aria-labelledby="try-title">
+			<h2 id="try-title">Try it on your robot</h2>
+			<ol class="steps">
+				<li>
+					<h3>Install it</h3>
+					<p>In Reachy Mini Control, find Reachy Alive in the app store and install it.</p>
+				</li>
+				<li>
+					<h3>Run it</h3>
+					<p>The robot starts breathing, and plays an idle move every 20 to 30 seconds.</p>
+				</li>
+				<li>
+					<h3>Play with it</h3>
+					<p>
+						Its page opens next to Reachy Mini Control. Play any move on demand, or
+						set how long the robot waits between idle moves.
+					</p>
+				</li>
+			</ol>
+		</section>
+
+		<section id="contribute" class="contribute" aria-labelledby="contribute-title">
+			<h2 id="contribute-title">Teach it a new move</h2>
+			<p class="lead">
+				Reachy Alive is open source, and built to grow one move at a time. Pick the
+				way that suits your move, not the one you already know.
+			</p>
+			<div class="ways">
+				<a class="way"
+					href="https://github.com/HTurlet15/reachy_alive/blob/main/reachy_alive/moves/CODED_MOVES.md">
+					<h3>Write it in code</h3>
+					<p>For motion that's simple to describe: rise, hold, come back. No robot needed.</p>
+				</a>
+				<a class="way"
+					href="https://github.com/HTurlet15/reachy_alive/blob/main/reachy_alive/moves/MARIONETTE_MOVES.md">
+					<h3>Record it by hand</h3>
+					<p>For organic motion: move the head yourself in Marionette, and it captures everything.</p>
+				</a>
+				<a class="way"
+					href="https://github.com/HTurlet15/reachy_alive/blob/main/reachy_alive/moves/MIXED_MOVES.md">
+					<h3>Both</h3>
+					<p>Record the head, code the antennas, for when you run out of hands.</p>
+				</a>
+			</div>
+			<p>
+				Everything runs in simulation, so you can start without a robot.
+				<a href="https://github.com/HTurlet15/reachy_alive/blob/main/reachy_alive/moves/README.md">Read the
+					guide to making a move</a>, then open a pull request with a short video of your move.
+			</p>
+		</section>
+
+		<section class="inside" aria-labelledby="inside-title">
+			<h2 id="inside-title">How it works</h2>
+			<p>
+				The code is organized like a nervous system. Breathing and idle moves live in
+				the brainstem; reflexes and deliberation come next, each in the region that
+				fits its speed. One control loop drives the robot, and nothing is allowed to
+				block it: the robot keeps moving while it thinks.
+			</p>
+			<p>
+				<a href="https://github.com/HTurlet15/reachy_alive/blob/main/ARCHITECTURE.md">Read how it's built</a>
+			</p>
+		</section>
+	</main>
+
+	<footer class="footer">
 		<p>
-			🤖 Reachy Alive •
-			<a href="https://github.com/pollen-robotics" target="_blank">Pollen Robotics</a> •
-			<a href="https://huggingface.co/spaces/pollen-robotics/reachy-mini-landing-page#apps" target="_blank">Browse More
-				Apps</a>
+			<a href="https://github.com/HTurlet15/reachy_alive">Source on GitHub</a>
+			<a href="https://huggingface.co/spaces/pollen-robotics/reachy-mini-landing-page#apps">More Reachy Mini apps</a>
+			<a href="https://github.com/pollen-robotics">Pollen Robotics</a>
 		</p>
-	</div>
+	</footer>
 </body>
 
 </html>

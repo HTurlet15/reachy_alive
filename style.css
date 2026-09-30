@@ -1,411 +1,338 @@
-* {
-	margin: 0;
-	padding: 0;
+/* Reachy Alive: Space landing page */
+
+:root {
+	--ink: #1e1b33;
+	--muted: #5f5b73;
+	--line: #ebe8f1;
+	--paper: #ffffff;
+	--accent: #e97b12;
+	--accent-ink: #b85a00;
+	--accent-soft: #fff4e6;
+
+	--font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+	--font-body: "Figtree", "Segoe UI", system-ui, sans-serif;
+
+	/* The robot breathes at 0.25 Hz: one breath every 4 s. */
+	--breath: 4s;
+
+	--width: 68rem;
+	--radius: 1.25rem;
+}
+
+*,
+*::before,
+*::after {
 	box-sizing: border-box;
 }
 
 body {
-	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+	margin: 0;
+	background: var(--paper);
+	color: var(--ink);
+	font-family: var(--font-body);
+	font-size: 1.0625rem;
 	line-height: 1.6;
-	color: #333;
-	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-	min-height: 100vh;
 }
+
+main {
+	max-width: var(--width);
+	margin: 0 auto;
+	padding: 0 1.5rem;
+}
+
+h1,
+h2,
+h3 {
+	font-family: var(--font-display);
+	font-weight: 700;
+	line-height: 1.15;
+	margin: 0 0 0.75rem;
+}
+
+h1 {
+	font-size: clamp(2.75rem, 7vw, 4.5rem);
+	letter-spacing: -0.02em;
+}
+
+h2 {
+	font-size: clamp(1.75rem, 4vw, 2.25rem);
+	letter-spacing: -0.01em;
+}
+
+h3 {
+	font-size: 1.2rem;
+	font-weight: 500;
+}
+
+p {
+	margin: 0 0 1rem;
+	max-width: 38rem;
+}
+
+a {
+	color: var(--accent-ink);
+	text-underline-offset: 0.2em;
+}
+
+a:focus-visible {
+	outline: 3px solid var(--accent);
+	outline-offset: 3px;
+	border-radius: 0.25rem;
+}
+
+.lead {
+	font-size: 1.3rem;
+	color: var(--ink);
+}
+
+section {
+	padding: 4.5rem 0;
+}
+
+section + section {
+	border-top: 1px solid var(--line);
+}
+
+/* Hero */
 
 .hero {
-	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-	color: white;
-	padding: 4rem 2rem;
-	text-align: center;
-}
-
-.hero-content {
-	max-width: 800px;
-	margin: 0 auto;
-}
-
-.app-icon {
-	font-size: 4rem;
-	margin-bottom: 1rem;
-	display: inline-block;
-}
-
-.hero h1 {
-	font-size: 3rem;
-	font-weight: 700;
-	margin-bottom: 1rem;
-	background: linear-gradient(45deg, #fff, #f0f9ff);
-	background-clip: text;
-	-webkit-background-clip: text;
-	-webkit-text-fill-color: transparent;
-}
-
-.tagline {
-	font-size: 1.25rem;
-	opacity: 0.9;
-	max-width: 600px;
-	margin: 0 auto;
-}
-
-.container {
-	max-width: 1200px;
-	margin: 0 auto;
-	padding: 0 2rem;
-	position: relative;
-	z-index: 2;
-}
-
-.main-card {
-	background: white;
-	border-radius: 20px;
-	box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-	margin-top: -2rem;
-	overflow: hidden;
-	margin-bottom: 3rem;
-}
-
-.app-preview {
-	background: linear-gradient(135deg, #1e3a8a, #3b82f6);
-	padding: 3rem;
-	color: white;
-	text-align: center;
-	position: relative;
-}
-
-.preview-image {
-	background: #000;
-	border-radius: 15px;
-	padding: 2rem;
-	max-width: 500px;
-	margin: 0 auto;
-	position: relative;
-	overflow: hidden;
-}
-
-.camera-feed {
-	font-size: 4rem;
-	margin-bottom: 1rem;
-	opacity: 0.7;
-}
-
-.detection-overlay {
-	position: absolute;
-	top: 50%;
-	left: 50%;
-	transform: translate(-50%, -50%);
-	width: 100%;
-}
-
-.bbox {
-	background: rgba(34, 197, 94, 0.9);
-	color: white;
-	padding: 0.5rem 1rem;
-	border-radius: 8px;
-	font-size: 0.9rem;
-	font-weight: 600;
-	margin: 0.5rem;
-	display: inline-block;
-	border: 2px solid #22c55e;
-}
-
-.app-details {
-	padding: 3rem;
-}
-
-.app-details h2 {
-	font-size: 2rem;
-	color: #1e293b;
-	margin-bottom: 2rem;
-	text-align: center;
-}
-
-.template-info {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-	gap: 2rem;
-	margin-bottom: 3rem;
+	grid-template-columns: 1fr 1fr;
+	align-items: center;
+	gap: 3rem;
+	padding-top: 5rem;
 }
 
-.info-box {
-	background: #f0f9ff;
-	border: 2px solid #e0f2fe;
-	border-radius: 12px;
-	padding: 2rem;
+.hero-text p:not(.lead) {
+	color: var(--muted);
 }
 
-.info-box h3 {
-	color: #0c4a6e;
-	margin-bottom: 1rem;
-	font-size: 1.2rem;
+.actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.75rem;
+	margin-top: 1.75rem;
 }
 
-.info-box p {
-	color: #0369a1;
-	line-height: 1.6;
+.button {
+	display: inline-block;
+	padding: 0.8rem 1.4rem;
+	border-radius: 999px;
+	background: var(--accent);
+	color: #fff;
+	font-weight: 600;
+	text-decoration: none;
 }
 
-.how-to-use {
-	background: #fefce8;
-	border: 2px solid #fde047;
-	border-radius: 12px;
-	padding: 2rem;
-	margin-top: 3rem;
+.button:hover {
+	background: var(--accent-ink);
 }
 
-.how-to-use h3 {
-	color: #a16207;
-	margin-bottom: 1.5rem;
-	font-size: 1.3rem;
-	text-align: center;
+.button-quiet {
+	background: transparent;
+	color: var(--accent-ink);
+	box-shadow: inset 0 0 0 2px var(--accent);
 }
+
+.button-quiet:hover {
+	background: var(--accent-soft);
+}
+
+.hero-clip {
+	position: relative;
+	margin: 0;
+	padding: 2.5rem;
+}
+
+/* The one animated element: a halo breathing in time with the robot. */
+.breath {
+	position: absolute;
+	inset: 0;
+	border-radius: 50%;
+	background: radial-gradient(circle, #ffe2bf 40%, transparent 70%);
+	animation: breathe var(--breath) ease-in-out infinite;
+}
+
+@keyframes breathe {
+	0%,
+	100% {
+		transform: scale(0.92);
+	}
+
+	50% {
+		transform: scale(1.04);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.breath {
+		animation: none;
+	}
+}
+
+/* Video frames. The dashed placeholder shows until the clip is added. */
+
+.clip {
+	position: relative;
+	aspect-ratio: 4 / 5;
+	border-radius: var(--radius);
+	overflow: hidden;
+	background: #fffaf3;
+	border: 2px dashed #f3c99a;
+}
+
+.clip video {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+/* Moves */
+
+.clips {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 1.5rem;
+	margin-top: 1.5rem;
+}
+
+.clips figure {
+	margin: 0;
+}
+
+.clips figcaption {
+	margin-top: 0.6rem;
+	color: var(--muted);
+}
+
+.note {
+	margin-top: 1.5rem;
+	color: var(--muted);
+}
+
+/* Try it: a real sequence, so the steps are numbered. */
 
 .steps {
-	display: flex;
-	flex-direction: column;
-	gap: 1.5rem;
+	list-style: none;
+	counter-reset: step;
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 2rem;
+	padding: 0;
+	margin: 1.5rem 0 0;
 }
 
-.step {
-	display: flex;
-	align-items: flex-start;
-	gap: 1rem;
+.steps li {
+	counter-increment: step;
 }
 
-.step-number {
-	background: #eab308;
-	color: white;
-	width: 2rem;
-	height: 2rem;
+.steps li::before {
+	content: counter(step);
+	display: grid;
+	place-items: center;
+	width: 2.25rem;
+	height: 2.25rem;
+	margin-bottom: 0.9rem;
 	border-radius: 50%;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	font-weight: bold;
-	flex-shrink: 0;
-}
-
-.step h4 {
-	color: #a16207;
-	margin-bottom: 0.5rem;
-	font-size: 1.1rem;
-}
-
-.step p {
-	color: #ca8a04;
-}
-
-.download-card {
-	background: white;
-	border-radius: 20px;
-	box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-	padding: 3rem;
-	text-align: center;
-}
-
-.download-card h2 {
-	font-size: 2rem;
-	color: #1e293b;
-	margin-bottom: 1rem;
-}
-
-.download-card>p {
-	color: #64748b;
-	font-size: 1.1rem;
-	margin-bottom: 2rem;
-}
-
-.dashboard-config {
-	margin-bottom: 2rem;
-	text-align: left;
-	max-width: 400px;
-	margin-left: auto;
-	margin-right: auto;
-}
-
-.dashboard-config label {
-	display: block;
-	color: #374151;
-	font-weight: 600;
-	margin-bottom: 0.5rem;
-}
-
-.dashboard-config input {
-	width: 100%;
-	padding: 0.75rem 1rem;
-	border: 2px solid #e5e7eb;
-	border-radius: 8px;
-	font-size: 0.95rem;
-	transition: border-color 0.2s;
-}
-
-.dashboard-config input:focus {
-	outline: none;
-	border-color: #667eea;
-}
-
-.install-btn {
-	background: linear-gradient(135deg, #667eea, #764ba2);
-	color: white;
-	border: none;
-	padding: 1.25rem 3rem;
-	border-radius: 16px;
-	font-size: 1.2rem;
+	background: var(--ink);
+	color: #fff;
+	font-family: var(--font-display);
 	font-weight: 700;
-	cursor: pointer;
-	transition: all 0.3s ease;
-	display: inline-flex;
-	align-items: center;
-	gap: 0.75rem;
-	margin-bottom: 2rem;
-	box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
 }
 
-.install-btn:hover:not(:disabled) {
-	transform: translateY(-3px);
-	box-shadow: 0 15px 35px rgba(102, 126, 234, 0.4);
+.steps p {
+	color: var(--muted);
 }
 
-.install-btn:disabled {
-	opacity: 0.7;
-	cursor: not-allowed;
-	transform: none;
+/* Contribute: the page's main call to action. */
+
+.contribute {
+	margin: 0 -1.5rem;
+	padding-left: 1.5rem;
+	padding-right: 1.5rem;
+	background: var(--accent-soft);
+	border-radius: var(--radius);
 }
 
-.manual-option {
-	background: #f8fafc;
-	border-radius: 12px;
-	padding: 2rem;
-	margin-top: 2rem;
+section.contribute,
+section.contribute + section {
+	border-top: none;
 }
 
-.manual-option h3 {
-	color: #1e293b;
-	margin-bottom: 1rem;
-	font-size: 1.2rem;
-}
-
-.manual-option>p {
-	color: #64748b;
-	margin-bottom: 1rem;
-}
-
-.btn-icon {
-	font-size: 1.1rem;
-}
-
-.install-status {
-	padding: 1rem;
-	border-radius: 8px;
-	font-size: 0.9rem;
-	text-align: center;
-	display: none;
-	margin-top: 1rem;
-}
-
-.install-status.success {
-	background: #dcfce7;
-	color: #166534;
-	border: 1px solid #bbf7d0;
-}
-
-.install-status.error {
-	background: #fef2f2;
-	color: #dc2626;
-	border: 1px solid #fecaca;
-}
-
-.install-status.loading {
-	background: #dbeafe;
-	color: #1d4ed8;
-	border: 1px solid #bfdbfe;
-}
-
-.install-status.info {
-	background: #e0f2fe;
-	color: #0369a1;
-	border: 1px solid #7dd3fc;
-}
-
-.manual-install {
-	background: #1f2937;
-	border-radius: 8px;
-	padding: 1rem;
-	margin-bottom: 1rem;
-	display: flex;
-	align-items: center;
+.ways {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
 	gap: 1rem;
+	margin: 2rem 0;
 }
 
-.manual-install code {
-	color: #10b981;
-	font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
-	font-size: 0.85rem;
-	flex: 1;
-	overflow-x: auto;
+.way {
+	display: block;
+	padding: 1.5rem;
+	border-radius: var(--radius);
+	background: var(--paper);
+	color: var(--ink);
+	text-decoration: none;
+	border: 2px solid transparent;
 }
 
-.copy-btn {
-	background: #374151;
-	color: white;
-	border: none;
-	padding: 0.5rem 1rem;
-	border-radius: 6px;
-	font-size: 0.8rem;
-	cursor: pointer;
-	transition: background-color 0.2s;
+.way:hover {
+	border-color: var(--accent);
 }
 
-.copy-btn:hover {
-	background: #4b5563;
+.way h3 {
+	color: var(--accent-ink);
 }
 
-.manual-steps {
-	color: #6b7280;
-	font-size: 0.9rem;
-	line-height: 1.8;
+.way p {
+	margin: 0;
+	color: var(--muted);
 }
+
+/* How it works */
+
+.inside p {
+	color: var(--muted);
+}
+
+/* Footer */
 
 .footer {
-	text-align: center;
-	padding: 2rem;
-	color: white;
-	opacity: 0.8;
+	max-width: var(--width);
+	margin: 0 auto;
+	padding: 2rem 1.5rem 3rem;
+	border-top: 1px solid var(--line);
 }
 
-.footer a {
-	color: white;
-	text-decoration: none;
-	font-weight: 600;
+.footer p {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 1.5rem;
+	margin: 0;
+	max-width: none;
 }
 
-.footer a:hover {
-	text-decoration: underline;
-}
+/* Phones */
 
-/* Responsive Design */
-@media (max-width: 768px) {
+@media (max-width: 720px) {
+	section {
+		padding: 3rem 0;
+	}
+
 	.hero {
-		padding: 2rem 1rem;
+		grid-template-columns: 1fr;
+		padding-top: 3rem;
 	}
 
-	.hero h1 {
-		font-size: 2rem;
-	}
-
-	.container {
-		padding: 0 1rem;
-	}
-
-	.app-details,
-	.download-card {
-		padding: 2rem;
-	}
-
-	.features-grid {
+	.clips,
+	.steps,
+	.ways {
 		grid-template-columns: 1fr;
 	}
 
-	.download-options {
-		grid-template-columns: 1fr;
+	.clips {
+		gap: 2rem;
 	}
 }
