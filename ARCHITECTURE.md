@@ -1,21 +1,162 @@
 # Architecture
 
-Why the code is organized this way. For what the project does and how to
-run it, see the [README](./README.md).
+Why the code is organized the way it is. To install or run the app, see the
+[README](./README.md); to write a move, see [moves/README.md](./reachy_alive/moves/README.md).
 
-## The goal
+## The idea
 
 A creature doesn't run one program. It breathes without thinking, flinches
 before it understands, and sometimes stops to consider. Reachy Alive is
 built the same way, as layers that share one body:
 
-- **automatic**: breathing and idle gestures, always running;
+- **automatic**: breathing and idle moves, always running;
 - **reflexes**: fast, local reactions that fire in milliseconds;
 - **deliberation**: slow, considered responses that can take seconds.
 
-The architecture exists to let these layers drive the same robot without
-the slow ones freezing the fast ones, and to let someone add to one layer
-without touching the others.
+One constraint shapes everything: **the robot must keep moving while it
+thinks.** A cloud LLM call takes 1 to 3 seconds; written naively, the robot
+would freeze and look dead, the exact opposite of the point. So the layers
+never wait on each other, and none of them can stall the loop that moves the
+robot.
+
+## One tick, step by step
+
+The robot runs one loop, 50 times a second, in its own thread. Each pass is
+a *tick*, and every tick goes through the same three steps:
+
+1. **Something proposes.** Today there are two sources: `IdleManager`
+   (breathe, or play an idle move now and then) and the app's page (play the
+   move someone clicked).
+2. **The `ActionSelector` picks one.** A requested move wins over idle.
+3. **The `RobotController` executes it**, and it is the only part that
+   drives the robot.
+
+```mermaid
+flowchart LR
+    page["the app's page"] -->|"POST /moves/{name}/play"| routes["routes.py<br/>(web server thread)"]
+    routes -->|queues the move| queue[["move requests"]]
+    routes -->|changes the idle move interval| state[("SharedState")]
+    queue --> selector["ActionSelector"]
+    idle["IdleManager<br/>(brainstem)"] -->|proposes| selector
+    state -->|interval, idle timer| idle
+    selector -->|one command| controller["RobotController<br/>(control loop)"]
+    controller -->|a move just ended| state
+    controller --> robot(["Reachy Mini"])
+```
+
+### Breathing, then an idle move
+
+On most ticks, `IdleManager` proposes a breathing pose, and the
+`RobotController` sends it to the robot. On the next tick, the next pose.
+
+Meanwhile, `IdleManager` has already picked its next idle move, say a yawn,
+and a delay drawn from the interval kept in `SharedState` (20 to 30 s by
+default, adjustable from the app's page). It uploads the yawn's sounds in
+the background while the robot keeps breathing. Once the delay has passed
+since the last move ended, it proposes the yawn instead of a pose.
+
+The `RobotController` plays it. The loop waits for the whole move to finish
+(see [Known debt](#known-debt)), then records in `SharedState` that a move
+just ended, which restarts the idle timer. On the next tick, breathing
+resumes from neutral.
+
+### Someone clicks "Sneezing"
+
+- The page sends `POST /moves/sneezing/play`. The web server runs in its own
+  thread: the route checks the name, drops the move in a queue, and answers
+  at once. It never touches the robot.
+- On the next tick, the `ActionSelector` finds the request. It tells
+  `IdleManager` it was interrupted, so breathing will restart from neutral,
+  and hands the sneeze to the `RobotController`.
+- If several clicks arrive during one move, only the latest plays.
+- From there, it goes like an idle move: played, its end recorded, then
+  breathing again.
+
+### What never happens
+
+Nothing calls a move directly, and no thread but the loop's drives the
+robot. Sources only propose; one component chooses; one executes. That is
+what lets reflexes and deliberation join later without touching the rest.
+
+## Vocabulary
+
+- **Tick**: one pass of the control loop, 50 per second.
+- **Move**: one discrete thing the robot does, from start to finish: a yawn,
+  a sneeze, a hiccup. In code, a `Move`, written as a `PhasedMove` or wrapped
+  from a recording as a `LibraryMove`.
+- **Idle move**: a move `IdleManager` picks on its own, between breaths.
+- **Breathing**: the continuous motion between moves. It is not a move: it
+  never ends.
+- **Decision-maker**: a module that proposes what the robot should do.
+  Today, `IdleManager`; later, reflexes and deliberation. The app's page
+  proposes too, through its routes.
+- **Command**: an order for one tick, handed to the `RobotController` and
+  executed once: hold this pose, or play this move.
+- **`SharedState`**: the facts any module may read at any time, such as
+  when the last move ended. Orders never go there.
+- **The app's page**: the web page the app serves. It shows up next to
+  Reachy Mini Control while the app runs, or at `http://localhost:8042`.
+
+## Code map
+
+```
+reachy_alive/
+├── main.py            Builds every part and wires them together; lists the idle moves.
+├── shared_state.py    Facts shared across threads: the idle timer, the idle move interval.
+├── routes.py          HTTP routes behind the app's page: list and play moves, read and change settings.
+├── control/           From a proposal to the robot: commands, the ActionSelector, the RobotController.
+├── brainstem/         Automatic behavior: breathing, and IdleManager.
+├── moves/             The Move contract (base.py), the coded moves, and the guides to write one.
+├── static/            The app's page: HTML, JavaScript, CSS.
+├── assets/sounds/     Move sounds, next to the presets that made them.
+└── scripts/           Developer tools, such as try-move.
+tests/                 Mirrors the package. Runs without a robot, on every pull request.
+```
+
+Each package's `__init__.py` says, in a few lines, what the package is for.
+
+## Rules
+
+**1. The control loop never blocks.** Anything slow runs outside it: the web
+server has its own thread, and deliberation will be asynchronous. The loop
+keeps moving the robot while the rest thinks.
+
+**2. One component executes.** Only the `RobotController` drives the robot,
+from the loop's thread. Moves do talk to the robot, but only while the
+`RobotController` plays them.
+
+**3. One component chooses.** Decision-makers only propose; the
+`ActionSelector` alone decides what runs each tick. When one proposal wins
+over another, the loser isn't consulted, only told.
+
+**4. Facts go in `SharedState`, orders travel as commands.** A fact stays
+readable by anyone, at any time; an order is executed once. Every field of
+`SharedState` has one owning module that writes it; the others only read.
+
+**5. Moves describe; they don't drive.** A move written in code computes its
+pose from the time elapsed, and the loop sends it. Rhythms are in seconds,
+never in ticks, so a move doesn't depend on how fast the loop runs.
+
+**6. Moves are registered by hand, in `main.py`.** Nothing is loaded
+automatically from a folder: each line is a move someone reviewed. What
+review can't catch by eye, tests do: `test_pose_contract.py` samples every
+coded move and fails on a pose that breaks the contract or sends the head
+out of reach.
+
+**7. Dependencies are explicit, never global.** Anything with a side effect
+when built, such as downloading a move library, is built in `main.py` and
+passed down. A plain import never downloads anything, not even during tests.
+
+**8. Folders named after brain regions hold the cognitive modules, sorted by
+speed.** Fast, local and synchronous goes to `amygdala/`; slow, remote and
+asynchronous goes to `prefrontal_cortex/`. Reacting to a face can mean
+both: a startle belongs in the first, a greeting in the second. Sorting by
+speed rather than by topic keeps anything that can block out of the fast
+path, as the brain does. The plumbing they share (`control/`,
+`shared_state.py`, `routes.py`) takes plain names: the metaphor is kept for
+what has a biological sense.
+
+## Where it's going
 
 ```mermaid
 flowchart LR
@@ -23,211 +164,60 @@ flowchart LR
     state --> brainstem["brainstem<br/>(automatic)"]
     state --> amygdala["amygdala<br/>(reflexes)"]
     state --> cortex["prefrontal_cortex<br/>(deliberation)"]
-    page["settings page<br/>(on demand)"] -->|proposes| selector
+    page["the app's page<br/>(on demand)"] -->|proposes| selector
     brainstem -->|proposes| selector["ActionSelector<br/>(chooses)"]
     amygdala -->|proposes| selector
     cortex -->|proposes| selector
-    selector -->|what to do| manager["RobotController<br/>(control loop)"]
-    manager --> robot(["Reachy Mini"])
+    selector -->|one command| controller["RobotController<br/>(control loop)"]
+    controller --> robot(["Reachy Mini"])
 ```
 
-This is the target. For the moment, only `brainstem` and the settings page propose, and
-the `ActionSelector` chooses between them.
+**Done.** The decision/execution split: decision-makers propose, the
+`ActionSelector` chooses, the `RobotController` executes. The app's page
+plays any move on demand and sets the idle move interval.
 
-## The core constraint
+**Current: v1 release.** Idle moves of all three kinds (coded, recorded in
+Marionette, mixed), a stable Move contract, contributor guides, CI, the
+Hugging Face Space. It ends once the app is published and the promo video is
+out, so people can contribute moves while perception is built.
 
-The robot must keep moving while it thinks. A cloud LLM call takes 1-3
-seconds; written naively, the robot freezes and looks dead — the exact
-opposite of the point. Every decision below follows from this.
+**Next: perception.** `sensory_cortex/`: camera, motion and face detection,
+writing to `SharedState`, plus the mechanism to aim the head at a point.
+Nothing calls it yet: the robot still just breathes. With a second brain
+region, the regions will move into a `brain/` folder.
 
-## Four rules
+**Then: reflexes.** `amygdala/`, with moves that run tick by tick, so a
+reflex can interrupt one. Innate triggers only: a sudden noise, a face
+appearing, movement where there was none. The milestone the project is
+built for: the robot perceives and reacts, without waiting on anything
+slow.
 
-**1. Cognitive modules live in folders named after brain regions, and go
-where their speed fits.**
-Fast, local, synchronous goes to `amygdala/`. Slow, remote, asynchronous
-goes to `prefrontal_cortex/`. Reacting to a face can mean both: a startle
-belongs in the first, a greeting in the second. Sorting by speed rather
-than by topic keeps anything that can block out of the fast path — and the
-brain itself works this way. The plumbing they share — `control/`,
-`shared_state.py`, `routes.py` — takes plain names: the metaphor is kept for
-what has a biological sense.
+**Then: deliberation.** `prefrontal_cortex/`: an asynchronous cloud LLM
+call, with a timeout and a fallback. This is what decides to *look at*
+someone, rather than reflexively startle.
 
-**2. The cortex never blocks the loop.**
-LLM calls are async. The control loop keeps running while a request is in
-flight.
+**Then: arbitration.** Three decision-makers competing for one body: the
+`ActionSelector` becomes a behavior tree.
 
-**3. One writer per field in `SharedState`.**
-A blackboard is the right fit for a single process with a few threads, but
-it degenerates when anyone can write anywhere. Every field has an owning
-module; the others only read.
-
-**4. Dependencies are explicit, never global.**
-`RecordedMoves` is injected into `LibraryMove` rather than built at module
-level — otherwise a plain import downloads the library, including during
-tests. Anything with a side effect at construction time is built in
-`main.py` and passed down.
-
-## Execution model
-
-`main.py` is the composition root: it builds every object and wires them
-together, once, at startup.
-
-`RobotController` owns the control loop. It makes no decisions: each tick, it
-asks for a command (`control/commands.py`) and executes it. Decision-makers
-never drive the robot. Moves do talk to the robot, but only while
-`RobotController` executes a `PlayMove`, from the loop's thread. It also
-records in `SharedState` when a move ends, whoever asked for it: it is the
-only module that knows for sure.
-
-Decision-makers (`IdleManager` today; reflexes and deliberation later)
-propose; the `ActionSelector` chooses one proposal per tick and hands it to
-`RobotController`. Today, a move requested from the settings page wins over
-idle behavior, and if several requests arrive during one move, only the
-latest plays. The idle manager isn't consulted while it loses, only told
-(`interrupt()`), so breathing restarts from neutral. The `ActionSelector` is
-where a behavior tree will go. All of them are plain objects, testable
-without a robot.
-
-State and orders travel separately. `SharedState` holds facts any module can
-read at any time. A command is an order: handed to `RobotController`, executed
-once. The split came earlier than planned: moves requested from the
-settings page are a second decision-maker, which is what the design was
-waiting for.
-
-## Moves
-
-A move is one discrete gesture. `Move` defines the contract; `play()`
-handles everything around the gesture so a move only describes motion.
-Contributors write a `PhasedMove` or a `LibraryMove`; `Move` itself is never
-subclassed directly, because its `_perform` is the internal loop and will
-change when gestures run tick by tick.
-
-Most gestures share one shape: a sequence of phases, each timed by its own
-sound. That shape lives in `PhasedMove`, extracted once `yawning` and
-`stretching` had duplicated the same ~60 lines of timing machinery. A move
-written on top of it declares its phases and writes one pose per phase:
-head, antennas and body yaw. The body was left out at first, because the
-two moves it was extracted from never turned it; `sneezing` did.
-
-`LibraryMove` wraps a recorded move from a Hugging Face dataset — Pollen's
-emotion library, or one recorded with Marionette. No code at all.
-
-A **mixed** move is a regular `PhasedMove` whose head is read from a
-Marionette recording instead of computed. The head is recorded against a
-file composed from the phase sounds themselves, so the recording and the
-phases share one timeline: a phase boundary is a moment in the recording,
-with nothing to measure by hand. That's why `_pose_at` receives
-`elapsed_s` as well as `p` — a recording runs on one continuous clock,
-while `p` restarts at every phase. `sneezing` is the only mixed move so
-far, so there is no `MixedMove` base class: extracting one from a single
-example would freeze the wrong shape.
-
-**Moves are registered by hand, in `main.py`.** Nothing is loaded
-automatically from a folder: each line in the list is a move someone
-reviewed. What the review can't catch by eye, the tests do —
-`test_pose_contract.py` samples every `PhasedMove` and fails if a pose
-breaks the contract or sends the head below the reachable workspace, and
-fails if a `PhasedMove` isn't in its list.
-
-## Settings page
-
-The app serves a page (the ⚙️ in Reachy Mini Control) that plays any move on
-demand. `GET /moves` lists the move names; `POST /moves/{name}/play` checks
-the name (404 if unknown) and queues the move (202: accepted, played as soon
-as possible). The route only validates and queues: the control loop picks
-the request up on its next tick, through the `ActionSelector`.
-
-A move's name is its identifier in these routes: lowercase words joined by
-hyphens, like recorded moves (`hiccup-full`). Coded moves derive it from
-their class name (`DeepBreath` → `deep-breath`). The page builds its labels
-from the names.
-
-Volume and microphone stay in Reachy Mini Control: they are robot-wide
-settings, not this app's.
-
-## Sound upload
-
-On Wireless, playing a local file uploads it over HTTP first, which freezes
-the gesture mid-motion. Sounds are therefore uploaded ahead of the gesture,
-and `play_sound()` plays the copy already on the robot.
-
-`IdleManager` picks the next gesture in advance and prepares it in a
-background thread while the robot is still breathing, so the upload happens
-during motion that doesn't care. Uploads are keyed by file name on the
-robot, so each move re-uploads just before playing: two moves may ship a
-sound with the same name.
-
-What remains: the play command itself is an HTTP round trip, so a sound
-starts slightly after its phase. Running the app on the robot rather than a
-laptop would remove it.
-
-A move requested from the settings page isn't prepared ahead: `play()`
-uploads its sounds just before it starts, which can add a short pause on
-Wireless.
+**Later: memory.** `hippocampus/`: the cortex writes what it judged, the
+amygdala reads it back in milliseconds. The robot's fast reaction becomes
+right because it was slow once.
 
 ## Known debt
 
-`Move.play()` blocks the control loop for the whole gesture. Everything
-below follows from it:
+**Playing a move blocks the loop for the whole move.** Everything below
+follows from it:
 
-- a gesture can't be interrupted;
-- `PlayMove` exists only because of it;
-- moves still talk to the robot themselves during `play()`.
+- a move can't be interrupted, not even by a future reflex;
+- moves still talk to the robot themselves while they play (rule 2's
+  exception);
+- the command to play a move exists only because of it.
 
-Target: gestures return a pose each tick, like breathing does, and
-`PlayMove` goes away. Scheduled with reflexes, which need interruption
+Target: moves return a pose each tick, like breathing does, and the loop
+sends every pose itself. Scheduled with reflexes, which need interruption
 anyway.
 
-## Accepted hardware limits
-
-- **Robot inert while the daemon reports healthy.** The motor controller
-  retries reads but not writes, and silently drops write errors: a transient
-  serial error can lose the torque-enable order. The daemon then reports
-  `enabled` and `nb_error: 0`, accepts every command, and nothing moves. Only
-  restarting the daemon service recovers
-  ([motor-controller#47](https://github.com/pollen-robotics/reachy-mini-motor-controller/issues/47)).
-- **Ease into neutral before streaming.** `set_target` doesn't interpolate,
-  so from the sleep pose it asks for a huge instant jump. Entry points ease
-  into neutral with `goto_target` first. It reduces motor strain but doesn't
-  prevent the issue above.
-- **Head below z = -170 mm wedges the IK solver permanently** — commands
-  and sounds keep being accepted, nothing moves, until the daemon restarts
-  ([#1417](https://github.com/pollen-robotics/reachy_mini/issues/1417)).
-- **Antennas jitter at exactly vertical**, so neutral is ~10° off.
-- Jitter on `set_target()` — upstream bug, not fixable from here.
-- `push_audio_sample()` is broken on Wireless
-  ([#601](https://github.com/pollen-robotics/reachy_mini/issues/601)),
-  so gesture audio uses pre-generated `.wav` files played through
-  `play_sound()` instead of streamed samples.
-
-## Roadmap
-
-**Done** — structure refactor: `moves/` at root, `RobotController` lifted out of
-`brainstem/`, dependencies injected. Decision/execution split: decision-makers
-return commands, `RobotController` executes them.
-
-**Current — v1 release.** Idle gestures of all three kinds (coded,
-Marionette, mixed), a stable Move contract, contributor guides, README,
-CONTRIBUTING, CI, Hugging Face Space, settings page that plays any move on
-demand. Ends once the app is published and the promo video is out, so
-gestures can be contributed while perception is built.
-
-**Next — perception.** `sensory_cortex/`: camera, motion and face detection,
-writing to `SharedState`, plus the mechanism to aim the head at a point.
-Nothing calls it yet — the robot still just breathes.
-
-**Then — reflexes.** `amygdala/`, plus gestures that run tick by tick, so a
-reflex can interrupt one. Innate triggers only: a sudden noise, a face
-appearing, movement where there was none. The milestone the project is built
-for: the robot perceives and reacts, without waiting on anything slow.
-
-**Then — deliberation.** `prefrontal_cortex/`: an async cloud LLM call, with
-timeout and fallback. This is what decides to *look at* someone or comment on
-what it sees, as opposed to reflexively startling.
-
-**Then — arbitration.** Three decision-makers competing for one body; migrate
-the `ActionSelector` to a behavior tree.
-
-**Then — memory.** `hippocampus/` conditioning: the cortex writes what it
-judged, the amygdala reads it back in milliseconds. The robot's fast reaction
-becomes right because it was slow once.
+**A move requested from the app's page isn't prepared ahead.** Its sounds
+upload just before it plays, which can add a short pause on a Wireless
+robot. Idle moves don't have it: `IdleManager` prepares them while the robot
+breathes.

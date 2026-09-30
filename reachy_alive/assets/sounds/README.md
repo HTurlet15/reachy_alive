@@ -75,7 +75,7 @@ Export **both** files into your move's folder: the `.wav`, and — via
 Needed for moves recorded in Marionette, and for mixed moves.
 
 Marionette plays a single sound while you move the robot by hand — that
-sound is your metronome during the take. So a gesture with several beats
+sound is your metronome during the take. So a move with several beats
 needs its parts, and the silences between them, joined into one file.
 
 Build each part separately in jsfxr, then keep a `compose.py` next to
@@ -96,7 +96,7 @@ concatenate(
 ```
 
 Each number is the silence *after* that part, in seconds. Those silences
-are the gesture's rhythm: compose the file, listen to it a few times, and
+are the move's rhythm: compose the file, listen to it a few times, and
 rehearse the motion against it before recording.
 
 All parts must share the same sample rate (jsfxr exports at 44k, 22k, 11k
