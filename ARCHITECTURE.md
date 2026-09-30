@@ -42,12 +42,15 @@ opposite of the point. Every decision below follows from this.
 
 ## Four rules
 
-**1. Folders are named after brain regions; code goes where its speed fits.**
+**1. Cognitive modules live in folders named after brain regions, and go
+where their speed fits.**
 Fast, local, synchronous goes to `amygdala/`. Slow, remote, asynchronous
 goes to `prefrontal_cortex/`. Reacting to a face can mean both: a startle
 belongs in the first, a greeting in the second. Sorting by speed rather
 than by topic keeps anything that can block out of the fast path — and the
-brain itself works this way.
+brain itself works this way. The plumbing they share — `control/`,
+`shared_state.py`, `routes.py` — takes plain names: the metaphor is kept for
+what has a biological sense.
 
 **2. The cortex never blocks the loop.**
 LLM calls are async. The control loop keeps running while a request is in
@@ -70,11 +73,11 @@ tests. Anything with a side effect at construction time is built in
 together, once, at startup.
 
 `RobotController` owns the control loop. It makes no decisions: each tick, it
-asks for a command (`commands.py`) and executes it. Decision-makers never
-drive the robot. Moves do talk to the robot, but only while `RobotController`
-executes a `PlayMove`, from the loop's thread. It also records in
-`SharedState` when a move ends, whoever asked for it: it is the only module
-that knows for sure.
+asks for a command (`control/commands.py`) and executes it. Decision-makers
+never drive the robot. Moves do talk to the robot, but only while
+`RobotController` executes a `PlayMove`, from the loop's thread. It also
+records in `SharedState` when a move ends, whoever asked for it: it is the
+only module that knows for sure.
 
 Decision-makers (`IdleManager` today; reflexes and deliberation later)
 propose; the `ActionSelector` chooses one proposal per tick and hands it to
