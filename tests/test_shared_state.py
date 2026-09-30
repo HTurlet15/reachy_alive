@@ -1,4 +1,4 @@
-# reachy_alive/tests/test_shared_state.py
+# tests/test_shared_state.py
 """Unit tests for SharedState."""
 
 import time
@@ -13,7 +13,10 @@ def test_seconds_since_last_activity_starts_near_zero():
 
 def test_mark_activity_resets_the_timer():
     state = SharedState()
+    state.last_activity_at = time.monotonic() - 50.0
+
     state.mark_activity()
+
     assert state.seconds_since_last_activity() < 0.1
 
 
