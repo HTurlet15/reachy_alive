@@ -4,7 +4,7 @@
 import logging
 import random
 import threading
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 from reachy_mini import ReachyMini
 
@@ -20,24 +20,20 @@ class IdleManager:
     """Decides, each tick, between breathing and an occasional idle move.
 
     It never drives the robot: it returns a command that RobotController
-    executes. Idle moves fire at random intervals; breathing runs the rest
-    of the time. The next idle move is chosen in advance, so its sounds
-    upload in the background while the robot is still breathing. It only
-    reads the idle timer: RobotController restarts it whenever a move ends.
+    executes. Idle moves fire at random intervals, within the range set in
+    SharedState; breathing runs the rest of the time. The next idle move is
+    chosen in advance, with its delay, so its sounds upload in the background
+    while the robot is still breathing: a new range applies from the next
+    idle move on. It only reads the idle timer: RobotController restarts it
+    whenever a move ends.
     """
 
-    def __init__(
-        self,
-        idle_moves: List[Move],
-        idle_move_interval_range_s: Tuple[float, float] = (20.0, 30.0),
-    ) -> None:
+    def __init__(self, idle_moves: List[Move]) -> None:
         """Set up the idle move pool.
 
         Args:
             idle_moves: Moves to pick from when the idle timer fires.
-            idle_move_interval_range_s: (min, max) seconds between idle moves.
         """
-        self.idle_move_interval_range_s = idle_move_interval_range_s
         self._idle_moves = idle_moves
         # Chosen on the first tick, once a robot connection is available.
         self._next_idle_move: Optional[Move] = None
@@ -53,7 +49,7 @@ class IdleManager:
 
         Args:
             t: Elapsed time in seconds since the control loop started.
-            shared_state: Read the idle timer.
+            shared_state: Read the idle timer and the idle move interval.
             reachy_mini: Robot instance, used only to upload the next idle
                 move's sounds ahead of time.
 
@@ -61,7 +57,7 @@ class IdleManager:
             HoldPose while breathing, PlayMove when an idle move is due.
         """
         if self._next_idle_move is None:
-            self._schedule_next_idle_move(reachy_mini)
+            self._schedule_next_idle_move(shared_state, reachy_mini)
 
         if shared_state.seconds_since_last_activity() >= self._next_interval_s:
             return self._hand_off_next_idle_move()
@@ -76,10 +72,12 @@ class IdleManager:
         """Note that another action took over: breathing restarts from neutral."""
         self._breathing_started_at_s = None
 
-    def _schedule_next_idle_move(self, reachy_mini: ReachyMini) -> None:
+    def _schedule_next_idle_move(
+        self, shared_state: SharedState, reachy_mini: ReachyMini
+    ) -> None:
         """Pick the next idle move and its delay, and start uploading its sounds."""
         self._next_idle_move = random.choice(self._idle_moves)
-        self._next_interval_s = random.uniform(*self.idle_move_interval_range_s)
+        self._next_interval_s = random.uniform(*shared_state.idle_move_interval_range_s())
         self._preparing = threading.Thread(
             target=self._next_idle_move.prepare, args=(reachy_mini,), daemon=True
         )
