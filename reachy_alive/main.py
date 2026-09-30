@@ -2,8 +2,6 @@ import logging
 import queue
 import threading
 
-from fastapi import HTTPException
-from pydantic import BaseModel, Field
 from reachy_mini import ReachyMini, ReachyMiniApp
 from reachy_mini.motion.recorded_move import RecordedMoves
 
@@ -14,82 +12,49 @@ from reachy_alive.moves.sneezing import Sneezing
 from reachy_alive.moves.stretching import Stretching
 from reachy_alive.moves.yawning import Yawning
 from reachy_alive.robot_controller import RobotController
+from reachy_alive.routes import create_router
 from reachy_alive.shared_state import SharedState
-
-# Below this, the robot barely breathes between idle moves; above, the page
-# would look broken.
-MIN_IDLE_MOVE_INTERVAL_S = 5.0
-MAX_IDLE_MOVE_INTERVAL_S = 600.0
-
-
-class IdleMoveInterval(BaseModel):
-    """Seconds to wait between two idle moves, as the app's page sends them."""
-
-    min_s: float = Field(ge=MIN_IDLE_MOVE_INTERVAL_S, le=MAX_IDLE_MOVE_INTERVAL_S)
-    max_s: float = Field(ge=MIN_IDLE_MOVE_INTERVAL_S, le=MAX_IDLE_MOVE_INTERVAL_S)
-
 
 class ReachyAlive(ReachyMiniApp):
     custom_app_url: str | None = "http://0.0.0.0:8042"
     request_media_backend: str | None = None
 
     def run(self, reachy_mini: ReachyMini, stop_event: threading.Event):
+        """Build every part of the app, wire them together, and run the loop.
+
+        Called by the SDK once the robot is connected. Blocks until
+        stop_event is set.
+
+        Args:
+            reachy_mini: Connected robot instance.
+            stop_event: Set by the SDK to stop the app.
+        """
+        # Facts shared across threads: the idle timer, the page's settings.
         shared_state = SharedState()
 
+        # The moves idle picks from. The page can play the same moves, looked
+        # up by name, so two moves must never share one.
         idle_moves = self._build_idle_moves()
         idle_moves_by_name = {move.name: move for move in idle_moves}
         if len(idle_moves_by_name) != len(idle_moves):
             raise ValueError("Two moves share the same name")
-        move_requests: queue.Queue[Move] = queue.Queue()
-        self._register_move_routes(idle_moves_by_name, move_requests)
-        self._register_settings_routes(shared_state)
 
+        # The page's routes run in the web server's thread: they only drop
+        # requested moves in this queue and read or change shared_state,
+        # never touching the robot.
+        move_requests: queue.Queue[Move] = queue.Queue()
+        self.settings_app.include_router(
+            create_router(idle_moves_by_name, move_requests, shared_state)
+        )
+
+        # Decide, choose, execute: IdleManager proposes, ActionSelector picks
+        # a requested move over idle, RobotController drives the robot.
         idle_manager = IdleManager(idle_moves)
         action_selector = ActionSelector(idle_manager, move_requests)
         robot_controller = RobotController(action_selector)
 
+        # The control loop, in this thread, until the app stops.
         robot_controller.run(reachy_mini, shared_state, stop_event)
-
-    def _register_move_routes(
-        self, moves_by_name: dict[str, Move], move_requests: queue.Queue
-    ) -> None:
-        """Register the routes that list moves and request one.
-
-        Args:
-            moves_by_name: Every move the robot can play, by name.
-            move_requests: Where requested moves wait to be played.
-        """
-
-        @self.settings_app.get("/moves")
-        def list_moves() -> list[str]:
-            return sorted(moves_by_name)
-
-        @self.settings_app.post("/moves/{name}/play", status_code=202)
-        def request_move(name: str) -> dict[str, str]:
-            if name not in moves_by_name:
-                raise HTTPException(status_code=404, detail=f"Unknown move: {name}")
-            move_requests.put(moves_by_name[name])
-            return {"requested": name}
-
-    def _register_settings_routes(self, shared_state: SharedState) -> None:
-        """Register the routes that read and change the app's settings.
-
-        Args:
-            shared_state: Where the settings live.
-        """
-
-        @self.settings_app.get("/settings/idle-move-interval")
-        def get_idle_move_interval() -> IdleMoveInterval:
-            min_s, max_s = shared_state.idle_move_interval_range_s()
-            return IdleMoveInterval(min_s=min_s, max_s=max_s)
-
-        @self.settings_app.put("/settings/idle-move-interval")
-        def set_idle_move_interval(interval: IdleMoveInterval) -> IdleMoveInterval:
-            if interval.min_s > interval.max_s:
-                raise HTTPException(status_code=422, detail="min_s must not exceed max_s")
-            shared_state.set_idle_move_interval_range_s(interval.min_s, interval.max_s)
-            return interval
-
     def _build_idle_moves(self) -> list[Move]:
         """Build the moves the idle manager picks from.
 
