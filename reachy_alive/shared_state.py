@@ -1,7 +1,6 @@
 # reachy_alive/shared_state.py
 import threading
 import time
-from typing import Optional
 
 
 class SharedState:
@@ -16,12 +15,12 @@ class SharedState:
         lock: Guards all reads/writes to prevent race conditions.
         last_activity_at: Monotonic clock reading (time.monotonic()) of when
             the last move ended, written by RobotController whoever asked for
-            the move. None means nothing notable has happened since startup.
+            the move. Starts at the app's launch.
     """
 
     def __init__(self) -> None:
         self.lock = threading.Lock()
-        self.last_activity_at: Optional[float] = time.monotonic() # start counting from app launch
+        self.last_activity_at: float = time.monotonic()
 
     def mark_activity(self) -> None:
         """Record that something notable just happened, resetting the idle timer."""
@@ -29,13 +28,10 @@ class SharedState:
             self.last_activity_at = time.monotonic()
 
     def seconds_since_last_activity(self) -> float:
-        """Time elapsed since the last notable activity.
+        """Time elapsed since the last notable activity, or since the app's launch.
 
         Returns:
-            Seconds since the last activity, or 0.0 if nothing notable
-            has happened yet (e.g. right after startup).
+            Seconds since the last activity.
         """
         with self.lock:
-            if self.last_activity_at is None:
-                return 0.0
             return time.monotonic() - self.last_activity_at
