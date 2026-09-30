@@ -3,6 +3,9 @@
 A mixed move is a regular `PhasedMove` whose head is read from a
 Marionette recording instead of computed. `sneezing.py` is the reference.
 
+There is no `MixedMove` base class: `sneezing` is the only mixed move so far,
+and one example isn't enough to know which parts every mixed move shares.
+
 Read [`CODED_MOVES.md`](CODED_MOVES.md) first — phases, poses and `p` work exactly
 the same here. For the steps before and after this one, see
 [`README.md`](README.md).

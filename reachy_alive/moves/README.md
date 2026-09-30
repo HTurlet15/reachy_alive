@@ -1,34 +1,29 @@
 # Making a move
 
-A **move** is one gesture the robot plays — a yawn, a stretch, a hiccup.
-Everything around it is already handled: when it gets triggered, how its
-sounds reach the robot, how it hands the robot back. All you make is the
-gesture itself.
-
-Every move has a **name**, its identifier in logs and on the settings
-page: lowercase words joined by hyphens. A move written in code gets it
-from its class name (`DeepBreath` becomes `deep-breath`); a recorded move
-from its recording (`hiccup-full`).
+A **move** is one thing the robot does, from start to finish: a yawn, a
+stretch, a hiccup. Everything around it is already handled: when it gets
+triggered, how its sounds reach the robot, how it hands the robot back. All
+you make is the motion itself.
 
 This page is the path every move follows. Step 2 sends you to the page
 for the way you build yours.
 
 ## What the robot does with your move
 
-The robot calls the move's `play()` — when idle picks it, or when someone
-clicks it on the settings page — which:
+The robot calls the move's `play()`, when idle picks it or when someone
+clicks it on the app's page, which:
 
 1. uploads its sounds to the robot, while it's still at rest
-2. runs the gesture
+2. runs the move
 3. returns the robot to neutral
 
 So you never clean up after yourself, and the next behavior always starts
 from a known pose.
 
-## Step 1 — Plan the gesture
+## Step 1 — Plan the move
 
-Before touching anything, write down the phases. A gesture is a sequence
-of distinct moments, each with its own motion and usually its own sound.
+Before touching anything, write down the phases. A move is a sequence of
+distinct moments, each with its own motion and usually its own sound.
 
 As an example, `yawning.py` has four phases:
 
@@ -43,7 +38,7 @@ Knowing this list is most of the work. The rest is filling it in.
 
 ## Step 2 — Choose how to build the move
 
-Three ways. Pick based on the gesture, not on what you already know.
+Three ways. Pick based on the move, not on what you already know.
 
 - **Write it in code** → [`CODED_MOVES.md`](CODED_MOVES.md). Best when the motion is
   simple to describe: the head rises, holds, comes back. You control it
@@ -65,9 +60,9 @@ Each way has a move you can copy:
 
 ## Step 3 — Make the sound first
 
-Start here, not with the motion. Timing a gesture to a finished sound is
-far easier than the other way round: a sound has a fixed length you can't
-stretch, while a gesture bends to fit.
+Start here, not with the motion. Timing a move to a finished sound is far
+easier than the other way round: a sound has a fixed length you can't
+stretch, while a motion bends to fit.
 
 [`../assets/sounds/README.md`](../assets/sounds/README.md) shows how to
 make one — about ten minutes in the browser. Your path's page says how to
@@ -94,8 +89,13 @@ uv run try-move pollen boredom1          # one of Pollen's emotions
 to sleep after, so every run starts from the same state.
 
 Once your move is registered in `main.py`, you can also run the whole app
-and click it on the settings page (`http://localhost:8042`), to see it
+and click it on the app's page (`http://localhost:8042`), to see it
 between breaths, the way it will really play.
+
+The button shows your move's **name**, its identifier in the logs and on
+the page: lowercase words joined by hyphens. A move written in code gets it
+from its class name (`DeepBreath` becomes `deep-breath`); a recorded move
+from its recording (`hiccup-full`).
 
 Expect several rounds of adjusting and watching. That's normal — the
 values in `stretching.py` took a lot of passes.
@@ -106,7 +106,7 @@ values in `stretching.py` took a lot of passes.
 it's `NEUTRAL_ANTENNAS_RAD` (~10° off). Start and end your antenna motion
 there.
 
-**Your gesture starts from neutral — keep it that way.** `set_target`
+**Your move starts from neutral — keep it that way.** `set_target`
 doesn't interpolate. Streaming it from a pose far away — the sleep pose
 after a fresh boot, say — asks for a huge instant jump, which strains the
 motors. `play()` and `try-move` make sure you start from neutral; don't
@@ -120,4 +120,4 @@ restarted. The recorded moves `waiting`, `mini-deep-sleep` and
 ([pollen-robotics/reachy_mini#1417](https://github.com/pollen-robotics/reachy_mini/issues/1417)).
 
 **Use `time.monotonic()`, never `time.time()`.** Wall-clock time can jump
-backwards on a clock sync, mid-gesture.
+backwards on a clock sync, mid-move.
