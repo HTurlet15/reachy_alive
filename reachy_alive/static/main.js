@@ -94,6 +94,14 @@ async function loadIdleMoveInterval() {
     }
 }
 
+// The browser checks each field on its own; this adds the rule between them.
+function checkIntervalOrder() {
+    const minInput = document.getElementById("interval-min");
+    const maxInput = document.getElementById("interval-max");
+    const maxBelowMin = Number(maxInput.value) < Number(minInput.value);
+    maxInput.setCustomValidity(maxBelowMin ? "Must be at least the first value." : "");
+}
+
 async function saveIdleMoveInterval(event) {
     event.preventDefault(); // stay on the page instead of reloading it
     const status = document.getElementById("interval-status");
@@ -119,6 +127,8 @@ async function saveIdleMoveInterval(event) {
 
 async function start() {
     document.getElementById("interval-form").addEventListener("submit", saveIdleMoveInterval);
+    document.getElementById("interval-min").addEventListener("input", checkIntervalOrder);
+    document.getElementById("interval-max").addEventListener("input", checkIntervalOrder);
     if (await loadMoves()) {
         await loadIdleMoveInterval();
     }
