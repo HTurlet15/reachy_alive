@@ -178,7 +178,6 @@ section + section {
 	border-radius: var(--radius);
 	overflow: hidden;
 	background: #fffaf3;
-	border: 2px dashed #f3c99a;
 }
 
 .clip video {
