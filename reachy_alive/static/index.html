@@ -3,30 +3,43 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Reachy Alive</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Reachy Alive</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700&family=Figtree:wght@400;600&display=swap">
     <link rel="stylesheet" href="/static/style.css">
 </head>
 
 <body>
-    <h1>Reachy Alive</h1>
+    <main>
+        <header>
+            <h1>Reachy Alive</h1>
+            <p>Play a move now, or set how often the robot plays one on its own.</p>
+        </header>
 
-    <h2>Moves</h2>
-    <div id="moves"></div>
-    <p id="move-status"></p>
+        <section aria-labelledby="idle-title">
+            <h2 id="idle-title">Idle moves</h2>
+            <p class="hint">The robot plays one of these on its own, now and then. Click one to play it right away.</p>
+            <div id="moves" class="moves"></div>
+            <p id="move-status" class="status" role="status"></p>
 
-    <h2>Idle moves</h2>
-    <form id="interval-form">
-        <label>Wait between
-            <input type="number" id="interval-min" min="5" max="600" step="1" required>
-        </label>
-        <label>and
-            <input type="number" id="interval-max" min="5" max="600" step="1" required>
-            seconds
-        </label>
-        <button type="submit">Save</button>
-    </form>
-    <p id="interval-status"></p>
+            <h3>Time between idle moves</h3>
+            <p class="hint">After each move, the robot waits a random time in this range before playing the next one.</p>
+            <form id="interval-form" class="interval">
+                <label>Between
+                    <input type="number" id="interval-min" min="5" max="600" step="1" required>
+                </label>
+                <label>and
+                    <input type="number" id="interval-max" min="5" max="600" step="1" required>
+                    seconds
+                </label>
+                <button type="submit">Save</button>
+            </form>
+            <p id="interval-status" class="status" role="status"></p>
+        </section>
+    </main>
 
     <script src="/static/main.js"></script>
 </body>
