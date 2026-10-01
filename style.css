@@ -103,7 +103,7 @@ section + section {
 	padding-top: 5rem;
 }
 
-.hero-text p:not(.lead) {
+.hero-text p:not(.lead):not(.badge) {
 	color: var(--muted);
 }
 
@@ -297,6 +297,51 @@ section.contribute + section {
 	color: var(--muted);
 }
 
+/* Status badge, under the lead */
+
+.badge {
+	display: inline-block;
+	padding: 0.3rem 0.8rem;
+	border-radius: 999px;
+	background: var(--accent-soft);
+	color: var(--accent-ink);
+	font-size: 0.95rem;
+	font-weight: 600;
+}
+
+/* Where it's going: the current stage is the one in color. */
+
+.stages {
+	list-style: none;
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 1.5rem;
+	padding: 0;
+	margin: 1.5rem 0;
+}
+
+.stages li {
+	padding-top: 1rem;
+	border-top: 3px solid var(--line);
+}
+
+.stages li.current {
+	border-top-color: var(--accent);
+}
+
+.stages li.current h3 {
+	color: var(--accent-ink);
+}
+
+.stages p {
+	margin: 0;
+	color: var(--muted);
+}
+
+.stages strong {
+	color: var(--ink);
+}
+
 /* Footer */
 
 .footer {
@@ -328,7 +373,8 @@ section.contribute + section {
 
 	.clips,
 	.steps,
-	.ways {
+	.ways,
+	.stages {
 		grid-template-columns: 1fr;
 	}
 
