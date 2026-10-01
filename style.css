@@ -27,7 +27,10 @@
 
 body {
 	margin: 0;
-	background: var(--paper);
+	/* A soft warm light behind the hero, fading into white. */
+	background:
+		radial-gradient(56rem 32rem at 85% -6rem, var(--accent-soft), transparent 70%),
+		var(--paper);
 	color: var(--ink);
 	font-family: var(--font-body);
 	font-size: 1.0625rem;
@@ -147,9 +150,9 @@ section + section {
 /* The one animated element: a halo breathing in time with the robot. */
 .breath {
 	position: absolute;
-	inset: 0;
+	inset: -4% -14%;
 	border-radius: 50%;
-	background: radial-gradient(circle, #ffe2bf 40%, transparent 70%);
+	background: radial-gradient(closest-side, #ffd3a1, #ffe6c7 55%, transparent);
 	animation: breathe var(--breath) ease-in-out infinite;
 }
 
@@ -170,7 +173,7 @@ section + section {
 	}
 }
 
-/* Video frames. The dashed placeholder shows until the clip is added. */
+/* Video frames. A pale background shows until the clip loads. */
 
 .clip {
 	position: relative;
@@ -199,11 +202,15 @@ section + section {
 
 .clips figure {
 	margin: 0;
+	padding: 0.6rem;
+	border-radius: calc(var(--radius) + 0.6rem);
+	background: var(--accent-soft);
 }
 
 .clips figcaption {
-	margin-top: 0.6rem;
-	color: var(--muted);
+	padding: 0.6rem 0.3rem 0.2rem;
+	color: var(--accent-ink);
+	font-weight: 600;
 }
 
 .note {
@@ -235,7 +242,7 @@ section + section {
 	height: 2.25rem;
 	margin-bottom: 0.9rem;
 	border-radius: 50%;
-	background: var(--ink);
+	background: var(--accent);
 	color: #fff;
 	font-family: var(--font-display);
 	font-weight: 700;
