@@ -66,7 +66,7 @@ biological sense.
 | Module | Biological analogy | Role in the code |
 |---|---|---|
 | `brainstem/` | Automatic regulation — breathing, posture | Idle behavior: continuous breathing, occasional idle moves. **Implemented.** |
-| `sensory_cortex/` | Turns raw signal into percepts | Camera, motion and face detection, written to `SharedState`. *Planned.* |
+| `sensory_cortex/` | Turns raw signal into percepts | The senses — inertial unit, touch, hearing, vision — writing facts to `SharedState`. *Planned.* |
 | `amygdala/` | Reacts before the cortex has understood | Fast, local, synchronous reflexes. *Planned.* |
 | `prefrontal_cortex/` | Deliberation, personality | Async cloud LLM call, with timeout and fallback. *Planned.* |
 | `hippocampus/` | Episodic memory | What happened, how often, how long ago. *Planned.* |

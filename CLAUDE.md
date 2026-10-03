@@ -11,9 +11,11 @@ what not to touch, the internals, the environment, and how to work with me.
 
 ## Current sprint
 
-**A — v1 release.** It ends once the app is published and the promo video is
-out. Sprint letters follow the order of the roadmap in ARCHITECTURE.md:
-A (v1), B (perception), C (reflexes), D (deliberation), E (arbitration).
+**B — senses.** It ends once the four senses (inertial unit, touch, hearing,
+vision) write their facts to `SharedState` and show on the app's page; the
+robot still only breathes. Sprint letters follow the order of the roadmap in
+ARCHITECTURE.md: A (v1), B (senses), C (interruptible body), D (reflexes),
+E (deliberation), F (arbitration).
 
 ## Known debt — do NOT fix yet
 
