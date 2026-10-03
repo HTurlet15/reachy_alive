@@ -102,3 +102,18 @@ they pass.
   `feat(moves): add sneezing`, `fix(moves): ...`, `docs: ...`.
 - **Docstrings** say *what* the code does, in Google style. The *why*
   of a design choice goes in the commit message.
+
+  ## Releases
+
+Merging a pull request doesn't publish it. Reachy Mini Control installs the
+app from its Hugging Face Space, and the Space only receives tagged
+versions: a merged move reaches robots with the next release.
+
+For maintainers, publishing a version (here 1.1.0) is:
+
+    git switch main && git pull
+    git tag -a v1.1.0 -m "Reachy Alive 1.1.0"
+    git push origin v1.1.0
+
+To roll back, run the "sync to Hugging Face" workflow from the Actions tab
+on the previous tag.
