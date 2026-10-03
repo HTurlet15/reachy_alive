@@ -172,29 +172,35 @@ flowchart LR
     controller --> robot(["Reachy Mini"])
 ```
 
-**Done.** The decision/execution split: decision-makers propose, the
-`ActionSelector` chooses, the `RobotController` executes. The app's page
-plays any move on demand and sets the idle move interval.
+**Done: v1.** The decision/execution split: decision-makers propose, the
+`ActionSelector` chooses, the `RobotController` executes. Idle moves of all
+three kinds (coded, recorded in Marionette, mixed), a stable Move contract,
+contributor guides, CI. The app's page plays any move on demand and sets the
+idle move interval. The app is published on its Hugging Face Space and in
+Reachy Mini Control's app store.
 
-**Current: v1 release.** Idle moves of all three kinds (coded, recorded in
-Marionette, mixed), a stable Move contract, contributor guides, CI, the
-Hugging Face Space. It ends once the app is published and the promo video is
-out, so people can contribute moves while perception is built.
+**Current: senses.** `sensory_cortex/` gives the robot four senses (inertial
+unit, touch, hearing, vision), each writing timestamped facts to
+`SharedState`. Nothing reacts yet: the robot still just breathes, and the
+app's page shows what it perceives. Each fact is there for a reaction
+planned below; raw signal (images, sound) stays inside its sense. With a
+second brain region, the regions move into a `brain/` folder.
 
-**Next: perception.** `sensory_cortex/`: camera, motion and face detection,
-writing to `SharedState`, plus the mechanism to aim the head at a point.
-Nothing calls it yet: the robot still just breathes. With a second brain
-region, the regions will move into a `brain/` folder.
+**Next: an interruptible body.** Moves run tick by tick: they return a pose
+each tick, like breathing does, and the command to play a move goes away
+(see [Known debt](#known-debt)). Gaze joins as a continuous motion layered
+over breathing, with the mechanism to aim the head at a point. Nothing new
+shows: the robot must behave exactly as before.
 
-**Then: reflexes.** `amygdala/`, with moves that run tick by tick, so a
-reflex can interrupt one. Innate triggers only: a sudden noise, a face
-appearing, movement where there was none. The milestone the project is
-built for: the robot perceives and reacts, without waiting on anything
-slow.
+**Then: reflexes.** `amygdala/`: fast, local reactions to the senses' facts,
+which interrupt whatever the robot is doing. The `ActionSelector` puts
+reflexes first. Innate triggers only, two of them to start. The milestone
+the project is built for: the robot perceives and reacts, without waiting
+on anything slow.
 
 **Then: deliberation.** `prefrontal_cortex/`: an asynchronous cloud LLM
 call, with a timeout and a fallback. This is what decides to *look at*
-someone, rather than reflexively startle.
+someone, rather than reflexively glance.
 
 **Then: arbitration.** Three decision-makers competing for one body: the
 `ActionSelector` becomes a behavior tree.
@@ -214,8 +220,8 @@ follows from it:
 - the command to play a move exists only because of it.
 
 Target: moves return a pose each tick, like breathing does, and the loop
-sends every pose itself. Scheduled with reflexes, which need interruption
-anyway.
+sends every pose itself. Scheduled as its own step, the interruptible body,
+right before reflexes, which need interruption.
 
 **A move requested from the app's page isn't prepared ahead.** Its sounds
 upload just before it plays, which can add a short pause on a Wireless
