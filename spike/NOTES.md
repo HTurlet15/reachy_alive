@@ -28,3 +28,6 @@
 - Users' robots will differ too: a fixed threshold tuned on one antenna may
   misfire elsewhere. Option for later: learn each antenna's normal error
   while breathing, and flag what stands out from it.
+  - Delayed target checked on sway_check: left antenna error drops from
+  2.65 to 1.14 deg comparing to the target from 80 ms earlier. Right
+  antenna needs 100-160 ms and stays around 3-4 deg (its jerks).
