@@ -63,6 +63,23 @@ Throwaway branch, never merged: these answers go into the PR of each sense.
 - A second client (try-move) cut the recording's audio stream after
   11.7 s. Over WebRTC only? The hearing sense must be tried on the robot.
 
+## Vision (2026-10-05)
+
+- 1280x720 frames, analysed at 320x180 (one pixel in four each way).
+- Cost, laptop vs robot: face detection 1.6 vs 32 ms per frame; the script
+  used 44% vs 63% of one core. On the robot, at 10 frames analysed per
+  second (partly the script's own full-frame duplicate check). Faces at
+  5 Hz would cost ~16% of one core of the CM4.
+- Faces: no false positive in an empty room, found at ~1 m, still found
+  while the head breathes. Face width not measured (script bug: bbox is
+  x, y, w, h): max distance still open.
+- Motion (pixels changed by more than 15 gray levels): 0% with the head
+  still in an empty room, 5-25% when someone walks by, but up to 12% from
+  breathing alone (sub-pixel shifts along contrasted edges). Naive frame
+  differencing is unusable while the robot breathes.
+- The camera adjusts its exposure on its own: a global brightness change
+  also reads as motion.
+
 ## Across senses
 
 - All three senses so far feel the robot's own activity (moves, antenna
