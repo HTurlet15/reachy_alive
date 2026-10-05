@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "reachy_alive"
-version = "1.0.0"
+version = "1.0.1"
 description = "Turns a Reachy Mini into a desk companion that feels alive."
 readme = "README.md"
 requires-python = ">=3.11"
