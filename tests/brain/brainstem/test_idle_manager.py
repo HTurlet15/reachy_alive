@@ -1,4 +1,3 @@
-# tests/brainstem/test_idle_manager.py
 """Unit tests for IdleManager."""
 
 import logging
@@ -7,7 +6,7 @@ from unittest.mock import MagicMock
 
 import numpy as np
 
-from reachy_alive.brainstem.idle_manager import IdleManager
+from reachy_alive.brain.brainstem.idle_manager import IdleManager
 from reachy_alive.control.commands import HoldPose, PlayMove
 from reachy_alive.moves.base import NEUTRAL_ANTENNAS_RAD
 from reachy_alive.shared_state import SharedState

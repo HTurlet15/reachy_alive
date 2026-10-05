@@ -6,7 +6,7 @@ from reachy_mini import ReachyMini, ReachyMiniApp
 from reachy_mini.motion.recorded_move import RecordedMoves
 
 from reachy_alive.control.action_selector import ActionSelector
-from reachy_alive.brainstem.idle_manager import IdleManager
+from reachy_alive.brain.brainstem.idle_manager import IdleManager
 from reachy_alive.moves.base import LibraryMove, Move
 from reachy_alive.moves.sneezing import Sneezing
 from reachy_alive.moves.stretching import Stretching

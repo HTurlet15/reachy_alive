@@ -1,4 +1,3 @@
-# reachy_alive/brainstem/idle_manager.py
 """Idle behavior for the Brainstem: breathing, with an idle move now and then."""
 
 import logging
@@ -8,7 +7,7 @@ from typing import List, Optional
 
 from reachy_mini import ReachyMini
 
-from reachy_alive.brainstem.breathing import get_breathing_pose
+from reachy_alive.brain.brainstem.breathing import get_breathing_pose
 from reachy_alive.control.commands import Command, HoldPose, PlayMove
 from reachy_alive.moves.base import Move
 from reachy_alive.shared_state import SharedState
