@@ -85,3 +85,34 @@ Throwaway branch, never merged: these answers go into the PR of each sense.
 - All three senses so far feel the robot's own activity (moves, antenna
   motion, its own sounds). They all need to know what the robot is doing:
   a fact written by the RobotController (efference copy)?
+
+## Conclusions
+
+| Sense | First fact | Main difficulty |
+|---|---|---|
+| Inertial unit (in the head) | Bump | Its own moves shake it as much as a tap |
+| Antennas | Push | Permanent sway (solved by the delayed target); units differ |
+| Hearing | Sudden noise, no direction | Moving background (relative threshold); hears itself; try on the robot |
+| Vision | Faces (motion later) | Permanent breathing makes the whole image "move" |
+
+Decided from the spike:
+- Order of the senses: inertial unit, antennas, hearing, vision.
+- Every sense needs to know what the robot is doing (efference copy). First
+  version: a fact "a move is playing", written by the RobotController.
+  Suppression is enough for the inertial unit and hearing at first; the
+  antennas and vision need prediction, since breathing never stops.
+- The same fact will give reactions their context (e.g. sneezing + antenna
+  held = it holds back the sneeze).
+- During a move, the antennas are the reliable channel to interrupt the
+  robot: a tap on the head can't be told apart from its own sneeze yet.
+- Senses run in their own threads: the control loop blocks during moves.
+- Laptop numbers say nothing about the robot: measure the cost on the CM4.
+
+Still open:
+- How far away a face is still found (the spike's face width was wrong).
+- How vision tells breathing apart from real motion (prediction, global
+  shift, or local change).
+- Hearing on the robot itself, without WebRTC.
+- Predicting the head's acceleration from its commanded trajectory, to feel
+  a tap during a move.
+- The right antenna: gearbox or a screw too tight (Pollen's checks).
