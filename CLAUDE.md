@@ -37,8 +37,8 @@ If you notice this and want to fix it, don't — say so and move on.
   settings the daemon persists across apps; the app never changes them.
 - **One word: "move".** Code, routes and docs say "move", like the SDK; idle
   code says "idle move".
-- **No `brain/` folder until a second brain region exists** (sprint B,
-  `sensory_cortex/`). No `MixedMove` base class until a second mixed move.
+- **Brain regions live in `brain/`; plumbing stays at the package root.**
+  No `MixedMove` base class until a second mixed move.
 - **A new idle move interval applies from the next idle move**, not
   immediately: the delay already drawn still runs.
 

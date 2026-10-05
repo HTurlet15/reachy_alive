@@ -105,7 +105,8 @@ reachy_alive/
 ├── shared_state.py    Facts shared across threads: the idle timer, the idle move interval.
 ├── routes.py          HTTP routes behind the app's page: list and play moves, read and change settings.
 ├── control/           From a proposal to the robot: commands, the ActionSelector, the RobotController.
-├── brainstem/         Automatic behavior: breathing, and IdleManager.
+├── brain/             The brain regions, sorted by speed (see rule 8).
+│   └── brainstem/     Automatic behavior: breathing, and IdleManager..
 ├── moves/             The Move contract (base.py), the coded moves, and the guides to write one.
 ├── static/            The app's page: HTML, JavaScript, CSS.
 ├── assets/sounds/     Move sounds, next to the presets that made them.
@@ -147,14 +148,14 @@ out of reach.
 when built, such as downloading a move library, is built in `main.py` and
 passed down. A plain import never downloads anything, not even during tests.
 
-**8. Folders named after brain regions hold the cognitive modules, sorted by
-speed.** Fast, local and synchronous goes to `amygdala/`; slow, remote and
+**8. Folders named after brain regions, under `brain/`, hold the cognitive
+modules, sorted by speed.** Fast, local and synchronous goes to `amygdala/`; slow, remote and
 asynchronous goes to `prefrontal_cortex/`. Reacting to a face can mean
 both: a startle belongs in the first, a greeting in the second. Sorting by
 speed rather than by topic keeps anything that can block out of the fast
-path, as the brain does. The plumbing they share (`control/`,
-`shared_state.py`, `routes.py`) takes plain names: the metaphor is kept for
-what has a biological sense.
+path, as the brain does. The plumbing they share (`control/`, `shared_state.py`, `routes.py`) 
+takes plain names and stays at the package root: the metaphor is kept 
+for what has a biological sense.
 
 ## Where it's going
 
@@ -183,8 +184,7 @@ Reachy Mini Control's app store.
 unit, touch, hearing, vision), each writing timestamped facts to
 `SharedState`. Nothing reacts yet: the robot still just breathes, and the
 app's page shows what it perceives. Each fact is there for a reaction
-planned below; raw signal (images, sound) stays inside its sense. With a
-second brain region, the regions move into a `brain/` folder.
+planned below; raw signal (images, sound) stays inside its sense.
 
 **Next: an interruptible body.** Moves run tick by tick: they return a pose
 each tick, like breathing does, and the command to play a move goes away

@@ -1,4 +1,3 @@
-# reachy_alive/brainstem/breathing.py
 """Continuous breathing: the pose the robot holds between moves."""
 
 import numpy as np

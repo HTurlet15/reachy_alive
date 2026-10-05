@@ -1,9 +1,8 @@
-# tests/brainstem/test_breathing.py
 """Unit tests for the breathing pose."""
 
 import numpy as np
 
-from reachy_alive.brainstem.breathing import get_breathing_pose
+from reachy_alive.brain.brainstem.breathing import get_breathing_pose
 from reachy_alive.moves.base import NEUTRAL_ANTENNAS_RAD
 
 
