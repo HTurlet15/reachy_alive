@@ -31,3 +31,28 @@
   - Delayed target checked on sway_check: left antenna error drops from
   2.65 to 1.14 deg comparing to the target from 80 ms earlier. Right
   antenna needs 100-160 ms and stays around 3-4 deg (its jerks).
+
+  ## Hearing (2026-10-05, from the laptop over WebRTC)
+
+- Stereo float32, 16 kHz, already processed by the mic chip: no spatial
+  cue in the audio; raw mics need another firmware.
+- Background moves between -30 and -60 dBFS (automatic gain or ambient):
+  a fixed dB threshold won't work. Detect a jump above the recent
+  background instead (claps: +50 dB within one 20 ms window).
+- Speech rises more gradually and lasts; claps are one window wide.
+- The robot hears itself: sneezing reaches -20 dBFS and is even flagged
+  as speech. Echo cancellation doesn't remove it from what we get.
+- DoA: updates mostly on speech, holds the last value otherwise, ~1 s late
+  after a clap. Reliable for voices (front 85-100 deg), not for brief
+  sounds. Behind reads as front (~90 deg). Angles are in the robot's frame:
+  the robot's left, not the person's.
+- From the laptop, get_DoA() is None (it reads the chip over USB); use the
+  daemon's /api/state/doa there. On the robot, get_DoA() works directly.
+- A second client (try-move) cut the recording's audio stream after
+  11.7 s. Over WebRTC only? The hearing sense must be tried on the robot.
+
+## Across senses
+
+- All three senses so far feel the robot's own activity (moves, antenna
+  motion, its own sounds). They all need to know what the robot is doing:
+  a fact written by the RobotController (efference copy)?
