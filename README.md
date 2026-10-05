@@ -54,8 +54,8 @@ Not yet: perception, reflexes, deliberation, memory.
 
 ## The brain map
 
-The code is organized like a nervous system. Folders are named after brain
-regions, and code goes wherever its speed fits, as in the brain: a reflex
+The code is organized like a nervous system. The folders in `brain/` are named after brain regions,
+ and code goes wherever its speed fits, as in the brain: a reflex
 that must fire in milliseconds goes to `amygdala/`, a considered response
 that can take seconds goes to `prefrontal_cortex/`. A face appearing can
 trigger both — a startle, then a greeting — and they live in different
