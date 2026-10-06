@@ -42,6 +42,8 @@ Volume and microphone are set in Reachy Mini Control itself.
 ## What the robot does today
 
 - **Breathes** continuously while idle.
+- **Feels bumps** through its inertial unit: a knock on it or on its table.
+  Nothing reacts to them yet.
 - **Plays an idle move** at random intervals, from three kinds of moves:
   - written in code: `yawning`, `stretching`;
   - recorded by hand in Marionette: `hiccup`;
@@ -50,7 +52,7 @@ Volume and microphone are set in Reachy Mini Control itself.
 - Returns to neutral after every move, so the next one starts from a
   known pose.
 
-Not yet: perception, reflexes, deliberation, memory.
+Not yet: reactions to what it senses, the other senses, deliberation, memory.
 
 ## The brain map
 
@@ -66,7 +68,7 @@ biological sense.
 | Module | Biological analogy | Role in the code |
 |---|---|---|
 | `brainstem/` | Automatic regulation — breathing, posture | Idle behavior: continuous breathing, occasional idle moves. **Implemented.** |
-| `sensory_cortex/` | Turns raw signal into percepts | The senses — inertial unit, touch, hearing, vision — writing facts to `SharedState`. *Planned.* |
+| `sensory_cortex/` | Turns raw signal into percepts | The senses — inertial unit, touch, hearing, vision — writing facts to `SharedState`. **Started**: bumps. |
 | `amygdala/` | Reacts before the cortex has understood | Fast, local, synchronous reflexes. *Planned.* |
 | `prefrontal_cortex/` | Deliberation, personality | Async cloud LLM call, with timeout and fallback. *Planned.* |
 | `hippocampus/` | Episodic memory | What happened, how often, how long ago. *Planned.* |

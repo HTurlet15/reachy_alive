@@ -14,6 +14,7 @@ from reachy_alive.moves.yawning import Yawning
 from reachy_alive.control.robot_controller import RobotController
 from reachy_alive.routes import create_router
 from reachy_alive.shared_state import SharedState
+from reachy_alive.brain.sensory_cortex.inertial_unit import InertialUnitSense
 
 class ReachyAlive(ReachyMiniApp):
     custom_app_url: str | None = "http://0.0.0.0:8042"
@@ -52,6 +53,13 @@ class ReachyAlive(ReachyMiniApp):
         idle_manager = IdleManager(idle_moves)
         action_selector = ActionSelector(idle_manager, move_requests)
         robot_controller = RobotController(action_selector)
+
+        # The senses, each in its own thread: they read the robot and write
+        # facts to shared_state, never driving it.
+        inertial_unit = InertialUnitSense(reachy_mini, shared_state)
+        threading.Thread(
+            target=inertial_unit.run, args=(stop_event,), name="inertial_unit", daemon=True
+        ).start()
 
         # The control loop, in this thread, until the app stops.
         robot_controller.run(reachy_mini, shared_state, stop_event)

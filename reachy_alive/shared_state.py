@@ -26,6 +26,8 @@ class SharedState:
         self._idle_move_interval_range_s = DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S
         # Written by RobotController only, around each move it plays.
         self._move_playing = False
+        # Written by InertialUnitSense only.
+        self._last_bump_at: float | None = None
 
     def mark_activity(self) -> None:
         """Record that something notable just happened, resetting the idle timer."""
@@ -42,7 +44,8 @@ class SharedState:
             return time.monotonic() - self.last_activity_at
 
     def set_move_playing(self, playing: bool) -> None:
-        """Record whether RobotController is playing a move right now.
+        """Record whether RobotController is playing a move right now, waking
+        the robot up included.
 
         Args:
             playing: True when a move starts, False once it has ended.
@@ -54,6 +57,16 @@ class SharedState:
         """Return whether RobotController is playing a move right now."""
         with self.lock:
             return self._move_playing
+
+    def record_bump(self, at: float) -> None:
+        """Record a bump felt at `at`, a time.monotonic() reading."""
+        with self.lock:
+            self._last_bump_at = at
+
+    def last_bump_at(self) -> float | None:
+        """Return when the last bump was felt (time.monotonic()), or None if none yet."""
+        with self.lock:
+            return self._last_bump_at
 
     def idle_move_interval_range_s(self) -> tuple[float, float]:
         """Return the (min, max) seconds to wait between two idle moves."""

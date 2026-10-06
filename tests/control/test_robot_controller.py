@@ -99,3 +99,15 @@ def test_unknown_command_raises_and_still_puts_the_robot_to_sleep(fake_reachy_mi
 
     fake_reachy_mini.goto_sleep.assert_called_once()
     fake_reachy_mini.disable_motors.assert_called_once()
+
+def test_waking_up_counts_as_a_move_playing(fake_reachy_mini):
+    state = SharedState()
+    playing_during_wake_up = []
+    fake_reachy_mini.wake_up.side_effect = lambda: playing_during_wake_up.append(
+        state.is_move_playing()
+    )
+
+    run_one_tick(HoldPose(head=np.eye(4), antennas=np.zeros(2)), fake_reachy_mini, state)
+
+    assert playing_during_wake_up == [True]
+    assert state.is_move_playing() is False
