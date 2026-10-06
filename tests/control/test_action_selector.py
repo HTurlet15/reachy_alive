@@ -1,4 +1,3 @@
-# tests/test_action_selector.py
 """Unit tests for ActionSelector."""
 
 import queue

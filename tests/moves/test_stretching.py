@@ -1,4 +1,3 @@
-# reachy_alive/tests/moves/test_stretching.py
 """Unit tests for Stretching.
 
 Runs the real motion loop without mocking time.sleep, so the test lasts as

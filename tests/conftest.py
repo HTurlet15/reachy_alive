@@ -1,4 +1,3 @@
-# tests/conftest.py
 """Shared pytest fixtures."""
 
 from unittest.mock import MagicMock
