@@ -1,4 +1,3 @@
-# reachy_alive/shared_state.py
 import threading
 import time
 

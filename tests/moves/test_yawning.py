@@ -1,4 +1,3 @@
-# reachy_alive/tests/moves/test_yawning.py
 """Unit tests for Yawning.
 
 Runs the real motion loop without mocking time.sleep, so the test lasts as

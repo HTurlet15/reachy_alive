@@ -1,4 +1,3 @@
-# tests/test_routes.py
 """Unit tests for the app page's routes."""
 
 import queue

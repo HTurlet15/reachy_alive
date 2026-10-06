@@ -1,4 +1,3 @@
-# tests/test_robot_controller.py
 """Unit tests for RobotController."""
 
 import threading

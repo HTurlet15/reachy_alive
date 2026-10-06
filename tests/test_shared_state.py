@@ -1,4 +1,3 @@
-# tests/test_shared_state.py
 """Unit tests for SharedState."""
 
 import pytest

@@ -157,6 +157,8 @@ Key points already learned from them:
   the only code map and the only roadmap: update them there, never copy them.
 - Before any refactor, reread ARCHITECTURE.md and this file: they hold the
   decisions not to re-litigate and the debt not to fix yet.
+- No comment repeating the file's path at the top: the path already shows
+  everywhere, and the comment goes stale on the first move.
 
 ## How to work with me
 
