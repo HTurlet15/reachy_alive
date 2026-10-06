@@ -25,6 +25,8 @@ class SharedState:
         self.last_activity_at: float = time.monotonic()
         # Written by the app's page only; read by IdleManager.
         self._idle_move_interval_range_s = DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S
+        # Written by RobotController only, around each move it plays.
+        self._move_playing = False
 
     def mark_activity(self) -> None:
         """Record that something notable just happened, resetting the idle timer."""
@@ -39,6 +41,20 @@ class SharedState:
         """
         with self.lock:
             return time.monotonic() - self.last_activity_at
+
+    def set_move_playing(self, playing: bool) -> None:
+        """Record whether RobotController is playing a move right now.
+
+        Args:
+            playing: True when a move starts, False once it has ended.
+        """
+        with self.lock:
+            self._move_playing = playing
+
+    def is_move_playing(self) -> bool:
+        """Return whether RobotController is playing a move right now."""
+        with self.lock:
+            return self._move_playing
 
     def idle_move_interval_range_s(self) -> tuple[float, float]:
         """Return the (min, max) seconds to wait between two idle moves."""

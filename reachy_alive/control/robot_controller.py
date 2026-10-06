@@ -12,9 +12,9 @@ class RobotController:
 
     It makes no decisions of its own: each tick, it asks the ActionSelector
     for a command and carries it out. It also records in SharedState when a
-    move ends, whoever asked for it. Decision-makers never drive the
-    robot. Moves do talk to the robot, but only while RobotController executes
-    a PlayMove, from this loop's thread.
+    move plays and when it ends, whoever asked for it. Decision-makers never
+    drive the robot. Moves do talk to the robot, but only while
+    RobotController executes a PlayMove, from this loop's thread.
 
     Attributes:
         action_selector: Chooses the command for each tick.
@@ -56,7 +56,7 @@ class RobotController:
     def _execute(
         self, command: Command, reachy_mini: ReachyMini, shared_state: SharedState
     ) -> None:
-        """Carry out one command on the robot, recording when a move ends.
+        """Carry out one command on the robot, recording when a move plays and ends.
 
         Args:
             command: The command to execute.
@@ -69,7 +69,11 @@ class RobotController:
         if isinstance(command, HoldPose):
             reachy_mini.set_target(head=command.head, antennas=command.antennas)
         elif isinstance(command, PlayMove):
-            command.move.play(reachy_mini)
+            shared_state.set_move_playing(True)
+            try:
+                command.move.play(reachy_mini)
+            finally:
+                shared_state.set_move_playing(False)
             shared_state.mark_activity()
         else:
             raise TypeError(f"Unknown command: {command!r}")

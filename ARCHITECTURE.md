@@ -40,7 +40,7 @@ flowchart LR
     idle["IdleManager<br/>(brainstem)"] -->|proposes| selector
     state -->|interval, idle timer| idle
     selector -->|one command| controller["RobotController<br/>(control loop)"]
-    controller -->|a move just ended| state
+    controller -->|a move plays, then ends| state
     controller --> robot(["Reachy Mini"])
 ```
 
@@ -94,6 +94,9 @@ what lets reflexes and deliberation join later without touching the rest.
   executed once: hold this pose, or play this move.
 - **`SharedState`**: the facts any module may read at any time, such as
   when the last move ended. Orders never go there.
+- **Efference copy**: what the robot is doing itself, kept as a fact so the
+  senses can tell its own motion and sounds from the world's. Today: whether
+  a move is playing.
 - **The app's page**: the web page the app serves. It shows up next to
   Reachy Mini Control while the app runs, or at `http://localhost:8042`.
 
@@ -102,7 +105,7 @@ what lets reflexes and deliberation join later without touching the rest.
 ```
 reachy_alive/
 ├── main.py            Builds every part and wires them together; lists the idle moves.
-├── shared_state.py    Facts shared across threads: the idle timer, the idle move interval.
+├── shared_state.py    Facts shared across threads: the idle timer, the idle move interval, whether a move is playing.
 ├── routes.py          HTTP routes behind the app's page: list and play moves, read and change settings.
 ├── control/           From a proposal to the robot: commands, the ActionSelector, the RobotController.
 ├── brain/             The brain regions, sorted by speed (see rule 8).
