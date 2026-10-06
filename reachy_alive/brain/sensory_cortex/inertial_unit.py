@@ -1,6 +1,15 @@
 """Touch felt through the inertial unit: a knock on the robot, or on its table."""
 
+import logging
 import math
+import threading
+import time
+
+from reachy_mini import ReachyMini
+
+from reachy_alive.shared_state import SharedState
+
+logger = logging.getLogger(__name__)
 
 GRAVITY_M_S2 = 9.81
 
@@ -45,3 +54,76 @@ class BumpDetector:
             return False
         self._last_bump_at = t
         return True
+
+
+class InertialUnitSense:
+    """Reads the inertial unit and records bumps in SharedState.
+
+    Runs in its own thread, never drives the robot. It ignores what it feels
+    while a move plays and for a short while after it ends: the robot's own
+    motion would read as bumps.
+
+    Attributes:
+        period_s: Time between two readings, in seconds.
+        settle_s: How long bumps are still ignored after a move ends, in
+            seconds.
+    """
+
+    def __init__(
+        self,
+        reachy_mini: ReachyMini,
+        shared_state: SharedState,
+        detector: BumpDetector | None = None,
+        period_s: float = 0.01,
+        settle_s: float = 0.5,
+    ) -> None:
+        """
+        Args:
+            reachy_mini: Connected robot instance, only read from.
+            shared_state: Where bumps are recorded, and where the sense learns
+                whether the robot is moving.
+            detector: Spots bumps in the readings.
+            period_s: Time between two readings, in seconds.
+            settle_s: How long bumps are still ignored after a move ends, in
+                seconds.
+        """
+        self._reachy_mini = reachy_mini
+        self._shared_state = shared_state
+        self._detector = detector or BumpDetector()
+        self.period_s = period_s
+        self.settle_s = settle_s
+        self._missing_reported = False
+
+    def run(self, stop_event: threading.Event) -> None:
+        """Read the inertial unit until stop_event is set.
+
+        Args:
+            stop_event: Set externally to stop the sense.
+        """
+        while not stop_event.wait(self.period_s):
+            self.step(time.monotonic())
+
+    def step(self, now: float) -> None:
+        """Take one reading, and record a bump if it is one.
+
+        Args:
+            now: Time of the reading, in seconds, on time.monotonic()'s clock.
+        """
+        imu = self._reachy_mini.imu
+        if imu is None:
+            if not self._missing_reported:
+                logger.info("No inertial unit data: bumps won't be sensed")
+                self._missing_reported = True
+            return
+        if self._robot_moves_itself():
+            return
+        if self._detector.update(now, tuple(imu["accelerometer"])):
+            self._shared_state.record_bump(now)
+            logger.info("Bump")
+
+    def _robot_moves_itself(self) -> bool:
+        """Whether a move plays, or ended too recently for the head to be still."""
+        return (
+            self._shared_state.is_move_playing()
+            or self._shared_state.seconds_since_last_activity() < self.settle_s
+        )

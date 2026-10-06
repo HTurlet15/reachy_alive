@@ -1,9 +1,16 @@
-"""Unit tests for BumpDetector, on made-up readings and on recordings from the robot."""
+"""Unit tests for BumpDetector and InertialUnitSense.
+
+BumpDetector is tested on made-up readings and on recordings from the robot.
+"""
 
 import csv
+import logging
+import time
 from pathlib import Path
+from unittest.mock import MagicMock
 
-from reachy_alive.brain.sensory_cortex.inertial_unit import BumpDetector
+from reachy_alive.brain.sensory_cortex.inertial_unit import BumpDetector, InertialUnitSense
+from reachy_alive.shared_state import SharedState
 
 DATA = Path(__file__).parent / "data"
 
@@ -84,3 +91,64 @@ def test_a_sneeze_reads_as_bumps_to_the_detector_alone():
     times = bump_times(load_accelerometer("imu_self_motion.csv"))
 
     assert [t for t in times if 13.5 <= t < 19.5] != []
+
+
+# InertialUnitSense, with a fake robot whose inertial unit always reads the same.
+
+JOLT = {"accelerometer": [0.0, 0.0, 15.0]}
+STILL = {"accelerometer": [0.0, 0.0, 9.81]}
+
+
+def make_sense(imu: dict | None) -> tuple[InertialUnitSense, SharedState]:
+    """Build a sense on a fake robot, long after the last move ended."""
+    reachy_mini = MagicMock()
+    reachy_mini.imu = imu
+    state = SharedState()
+    state.last_activity_at = time.monotonic() - 50.0
+    return InertialUnitSense(reachy_mini, state), state
+
+
+def test_sense_records_a_bump():
+    sense, state = make_sense(JOLT)
+    now = time.monotonic()
+
+    sense.step(now)
+
+    assert state.last_bump_at() == now
+
+
+def test_sense_records_nothing_while_still():
+    sense, state = make_sense(STILL)
+
+    sense.step(time.monotonic())
+
+    assert state.last_bump_at() is None
+
+
+def test_sense_ignores_bumps_while_a_move_plays():
+    sense, state = make_sense(JOLT)
+    state.set_move_playing(True)
+
+    sense.step(time.monotonic())
+
+    assert state.last_bump_at() is None
+
+
+def test_sense_ignores_bumps_right_after_a_move():
+    sense, state = make_sense(JOLT)
+    state.mark_activity()  # a move just ended
+
+    sense.step(time.monotonic())
+
+    assert state.last_bump_at() is None
+
+
+def test_sense_without_an_inertial_unit_says_so_once(caplog):
+    sense, state = make_sense(None)
+
+    with caplog.at_level(logging.INFO):
+        sense.step(1.0)
+        sense.step(2.0)
+
+    assert state.last_bump_at() is None
+    assert caplog.text.count("No inertial unit") == 1
