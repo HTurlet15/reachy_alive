@@ -41,3 +41,16 @@ def test_set_idle_move_interval_rejects_min_above_max():
     with pytest.raises(ValueError):
         state.set_idle_move_interval_range_s(90.0, 60.0)
     assert state.idle_move_interval_range_s() == DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S
+
+def test_no_move_is_playing_at_first():
+    assert SharedState().is_move_playing() is False
+
+
+def test_set_move_playing_records_whether_a_move_plays():
+    state = SharedState()
+
+    state.set_move_playing(True)
+    assert state.is_move_playing() is True
+
+    state.set_move_playing(False)
+    assert state.is_move_playing() is False
