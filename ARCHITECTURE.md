@@ -104,17 +104,18 @@ what lets reflexes and deliberation join later without touching the rest.
 
 ```
 reachy_alive/
-├── main.py            Builds every part and wires them together; lists the idle moves.
-├── shared_state.py    Facts shared across threads: the idle timer, the idle move interval, whether a move is playing.
-├── routes.py          HTTP routes behind the app's page: list and play moves, read and change settings.
-├── control/           From a proposal to the robot: commands, the ActionSelector, the RobotController.
-├── brain/             The brain regions, sorted by speed (see rule 8).
-│   └── brainstem/     Automatic behavior: breathing, and IdleManager..
-├── moves/             The Move contract (base.py), the coded moves, and the guides to write one.
-├── static/            The app's page: HTML, JavaScript, CSS.
-├── assets/sounds/     Move sounds, next to the presets that made them.
-└── scripts/           Developer tools, such as try-move.
-tests/                 Mirrors the package. Runs without a robot, on every pull request.
+├── main.py               Builds every part and wires them together; lists the idle moves.
+├── shared_state.py       Facts shared across threads: the idle timer, the idle move interval, whether a move is playing.
+├── routes.py             HTTP routes behind the app's page: list and play moves, read and change settings.
+├── control/              From a proposal to the robot: commands, the ActionSelector, the RobotController.
+├── brain/                The brain regions, sorted by speed (see rule 8).
+│   ├── brainstem/        Automatic behavior: breathing, and IdleManager.
+│   └── sensory_cortex/   The senses: raw signals from the robot into facts.
+├── moves/                The Move contract (base.py), the coded moves, and the guides to write one.
+├── static/               The app's page: HTML, JavaScript, CSS.
+├── assets/sounds/        Move sounds, next to the presets that made them.
+└── scripts/              Developer tools, such as try-move.
+tests/                    Mirrors the package. Runs without a robot, on every pull request.
 ```
 
 Each package's `__init__.py` says, in a few lines, what the package is for.
