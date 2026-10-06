@@ -105,7 +105,7 @@ what lets reflexes and deliberation join later without touching the rest.
   when the last move ended. Orders never go there.
 - **Efference copy**: what the robot is doing itself, kept as a fact so the
   senses can tell its own motion and sounds from the world's. Today: whether
-  a move is playing.
+  a move is playing, waking up included.
 - **Sense**: a module that reads one of the robot's sensors in its own
   thread and writes what it perceives to `SharedState`, such as a bump.
   Senses never drive the robot.

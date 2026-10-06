@@ -58,8 +58,9 @@ If you notice this and want to fix it, don't — say so and move on.
   `untilReady` in Pollen's conversation app).
 - **Who writes `SharedState`.** `last_activity_at`: `RobotController`, when
   a move ends. `move_playing`: `RobotController`, around each move it plays.
-  `last_bump_at`: `InertialUnitSense`. The idle move interval: the routes
-  only.
+  `last_bump_at`: `InertialUnitSense`. `move_playing`: `RobotController`, 
+  around each move it plays and while the robot wakes up. The idle move 
+  interval: the routes only.
 - **Logging.** In SDK 1.11 only the daemon configures logging. `main.py`'s
   `__main__` block calls `basicConfig` (no `force`) and sets the
   `reachy_alive` logger to INFO; Reachy Mini Control never runs that block.

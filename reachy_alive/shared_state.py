@@ -44,7 +44,8 @@ class SharedState:
             return time.monotonic() - self.last_activity_at
 
     def set_move_playing(self, playing: bool) -> None:
-        """Record whether RobotController is playing a move right now.
+        """Record whether RobotController is playing a move right now, waking
+        the robot up included.
 
         Args:
             playing: True when a move starts, False once it has ended.
