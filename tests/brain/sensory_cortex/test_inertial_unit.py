@@ -112,7 +112,7 @@ def test_sense_records_a_bump():
     sense, state = make_sense(JOLT)
     now = time.monotonic()
 
-    sense.step(now)
+    sense.read_once(now)
 
     assert state.last_bump_at() == now
 
@@ -120,7 +120,7 @@ def test_sense_records_a_bump():
 def test_sense_records_nothing_while_still():
     sense, state = make_sense(STILL)
 
-    sense.step(time.monotonic())
+    sense.read_once(time.monotonic())
 
     assert state.last_bump_at() is None
 
@@ -129,7 +129,7 @@ def test_sense_ignores_bumps_while_a_move_plays():
     sense, state = make_sense(JOLT)
     state.set_move_playing(True)
 
-    sense.step(time.monotonic())
+    sense.read_once(time.monotonic())
 
     assert state.last_bump_at() is None
 
@@ -138,7 +138,7 @@ def test_sense_ignores_bumps_right_after_a_move():
     sense, state = make_sense(JOLT)
     state.mark_activity()  # a move just ended
 
-    sense.step(time.monotonic())
+    sense.read_once(time.monotonic())
 
     assert state.last_bump_at() is None
 
@@ -147,8 +147,8 @@ def test_sense_without_an_inertial_unit_says_so_once(caplog):
     sense, state = make_sense(None)
 
     with caplog.at_level(logging.INFO):
-        sense.step(1.0)
-        sense.step(2.0)
+        sense.read_once(1.0)
+        sense.read_once(2.0)
 
     assert state.last_bump_at() is None
     assert caplog.text.count("No inertial unit") == 1

@@ -35,7 +35,7 @@ class BumpDetector:
         """
         self.threshold_m_s2 = threshold_m_s2
         self.refractory_s = refractory_s
-        self._last_bump_at: float | None = None
+        self._ignore_until = -math.inf
 
     def update(self, t: float, accelerometer: tuple[float, float, float]) -> bool:
         """Read one accelerometer sample.
@@ -48,11 +48,11 @@ class BumpDetector:
         Returns:
             True if this reading starts a new bump.
         """
-        if self._last_bump_at is not None and t - self._last_bump_at < self.refractory_s:
+        if t < self._ignore_until:
             return False
         if abs(math.hypot(*accelerometer) - GRAVITY_M_S2) < self.threshold_m_s2:
             return False
-        self._last_bump_at = t
+        self._ignore_until = t + self.refractory_s
         return True
 
 
@@ -64,35 +64,35 @@ class InertialUnitSense:
     motion would read as bumps.
 
     Attributes:
-        period_s: Time between two readings, in seconds.
-        settle_s: How long bumps are still ignored after a move ends, in
-            seconds.
+        read_period_s: Time between two readings, in seconds.
+        settle_after_move_s: How long bumps are still ignored after a move
+            ends, in seconds.
     """
 
     def __init__(
         self,
         reachy_mini: ReachyMini,
         shared_state: SharedState,
-        detector: BumpDetector | None = None,
-        period_s: float = 0.01,
-        settle_s: float = 0.5,
+        bump_detector: BumpDetector | None = None,
+        read_period_s: float = 0.01,
+        settle_after_move_s: float = 0.5,
     ) -> None:
         """
         Args:
             reachy_mini: Connected robot instance, only read from.
             shared_state: Where bumps are recorded, and where the sense learns
                 whether the robot is moving.
-            detector: Spots bumps in the readings.
-            period_s: Time between two readings, in seconds.
-            settle_s: How long bumps are still ignored after a move ends, in
-                seconds.
+            bump_detector: Spots bumps in the readings.
+            read_period_s: Time between two readings, in seconds.
+            settle_after_move_s: How long bumps are still ignored after a move
+                ends, in seconds.
         """
         self._reachy_mini = reachy_mini
         self._shared_state = shared_state
-        self._detector = detector or BumpDetector()
-        self.period_s = period_s
-        self.settle_s = settle_s
-        self._missing_reported = False
+        self._bump_detector = bump_detector or BumpDetector()
+        self.read_period_s = read_period_s
+        self.settle_after_move_s = settle_after_move_s
+        self._said_no_inertial_unit = False
 
     def run(self, stop_event: threading.Event) -> None:
         """Read the inertial unit until stop_event is set.
@@ -100,24 +100,24 @@ class InertialUnitSense:
         Args:
             stop_event: Set externally to stop the sense.
         """
-        while not stop_event.wait(self.period_s):
-            self.step(time.monotonic())
+        while not stop_event.wait(self.read_period_s):
+            self.read_once(time.monotonic())
 
-    def step(self, now: float) -> None:
+    def read_once(self, now: float) -> None:
         """Take one reading, and record a bump if it is one.
 
         Args:
             now: Time of the reading, in seconds, on time.monotonic()'s clock.
         """
-        imu = self._reachy_mini.imu
-        if imu is None:
-            if not self._missing_reported:
+        reading = self._reachy_mini.imu
+        if reading is None:
+            if not self._said_no_inertial_unit:
                 logger.info("No inertial unit data: bumps won't be sensed")
-                self._missing_reported = True
+                self._said_no_inertial_unit = True
             return
         if self._robot_moves_itself():
             return
-        if self._detector.update(now, tuple(imu["accelerometer"])):
+        if self._bump_detector.update(now, tuple(reading["accelerometer"])):
             self._shared_state.record_bump(now)
             logger.info("Bump")
 
@@ -125,5 +125,5 @@ class InertialUnitSense:
         """Whether a move plays, or ended too recently for the head to be still."""
         return (
             self._shared_state.is_move_playing()
-            or self._shared_state.seconds_since_last_activity() < self.settle_s
+            or self._shared_state.seconds_since_last_activity() < self.settle_after_move_s
         )
