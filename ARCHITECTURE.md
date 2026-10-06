@@ -36,12 +36,14 @@ flowchart LR
     page["the app's page"] -->|"POST /moves/{name}/play"| routes["routes.py<br/>(web server thread)"]
     routes -->|queues the move| queue[["move requests"]]
     routes -->|changes the idle move interval| state[("SharedState")]
+    imu["InertialUnitSense<br/>(own thread)"] -->|a bump| state
     queue --> selector["ActionSelector"]
     idle["IdleManager<br/>(brainstem)"] -->|proposes| selector
     state -->|interval, idle timer| idle
     selector -->|one command| controller["RobotController<br/>(control loop)"]
     controller -->|a move plays, then ends| state
     controller --> robot(["Reachy Mini"])
+    robot -->|inertial unit readings| imu
 ```
 
 ### Breathing, then an idle move
@@ -72,6 +74,13 @@ resumes from neutral.
 - From there, it goes like an idle move: played, its end recorded, then
   breathing again.
 
+### Meanwhile, the senses
+
+The senses run beside the loop, each in its own thread. `InertialUnitSense`
+reads the inertial unit a hundred times a second and records each bump in
+`SharedState`. It ignores what it feels while a move plays and just after:
+the robot's own motion would read as bumps. Nothing reacts to bumps yet.
+
 ### What never happens
 
 Nothing calls a move directly, and no thread but the loop's drives the
@@ -97,6 +106,9 @@ what lets reflexes and deliberation join later without touching the rest.
 - **Efference copy**: what the robot is doing itself, kept as a fact so the
   senses can tell its own motion and sounds from the world's. Today: whether
   a move is playing.
+- **Sense**: a module that reads one of the robot's sensors in its own
+  thread and writes what it perceives to `SharedState`, such as a bump.
+  Senses never drive the robot.
 - **The app's page**: the web page the app serves. It shows up next to
   Reachy Mini Control while the app runs, or at `http://localhost:8042`.
 
@@ -128,7 +140,8 @@ keeps moving the robot while the rest thinks.
 
 **2. One component executes.** Only the `RobotController` drives the robot,
 from the loop's thread. Moves do talk to the robot, but only while the
-`RobotController` plays them.
+`RobotController` plays them. Reading a sensor isn't driving: the senses
+read the robot from their own threads.
 
 **3. One component chooses.** Decision-makers only propose; the
 `ActionSelector` alone decides what runs each tick. When one proposal wins
