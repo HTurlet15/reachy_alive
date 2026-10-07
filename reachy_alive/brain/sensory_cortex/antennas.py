@@ -1,24 +1,35 @@
 """Touch felt through the antennas: someone pushing one away from where it was sent."""
 
+import logging
 import math
+import threading
+import time
 from collections import deque
 
 import numpy as np
+from reachy_mini import ReachyMini
+
+from reachy_alive.shared_state import SharedState
+
+logger = logging.getLogger(__name__)
+
+# The antennas in the SDK's order, on the real robot.
+ANTENNA_SIDES = ("right", "left")
 
 
 class AntennaPushDetector:
     """Spots when someone pushes one antenna away from where it was sent.
 
-    The motor follows its target with a short delay: an antenna sent to 10°
-    at 1.00 s only reaches 10° around 1.08 s. So at time t, the antenna
-    isn't expected at the target just sent, but at the target sent
-    `delay_s` earlier:
+    The motor follows its target with a delay: an antenna sent to 10° at
+    0.95 s only reaches 10° around 1.10 s. So at time t, the antenna isn't
+    expected at the target just sent, but at the target sent `delay_s`
+    earlier:
 
-        time sent        1.00   1.02   1.04   1.06   1.08   1.10
-        target           10°    11°    12°    13°    14°    15°
-                                 ↑
-        at t = 1.10 s, with delay_s = 0.08, the antenna is expected at
-        the target sent at 1.02 s: 11°, not 15°.
+        time sent        0.95   1.00   1.05   1.10
+        target           10°    11°    12°    13°
+                          ↑
+        at t = 1.10 s, with delay_s = 0.15, the antenna is expected at
+        the target sent at 0.95 s: 10°, not 13°.
 
     The gap is how far the measured position is from that expected one.
     A push starts when the gap reaches `push_threshold_deg`, and ends once
@@ -37,7 +48,7 @@ class AntennaPushDetector:
         self,
         push_threshold_deg: float = 5.0,
         release_threshold_deg: float = 3.0,
-        delay_s: float = 0.08,
+        delay_s: float = 0.15,
     ) -> None:
         """
         Args:
@@ -103,3 +114,90 @@ class AntennaPushDetector:
         if t < self._target_times[0]:
             return None
         return float(np.interp(t, self._target_times, self._target_angles_rad))
+
+
+class AntennasSense:
+    """Reads the antennas and records in SharedState when one is pushed.
+
+    Runs in its own thread, never drives the robot. Each antenna's measured
+    position is compared to where RobotController last sent it, by one
+    AntennaPushDetector per antenna. It stays quiet while the robot moves
+    itself (a move, waking up, going to sleep) and for a short while after:
+    the targets then don't come from RobotController's poses, so it doesn't
+    know where the antennas should be.
+
+    Attributes:
+        read_period_s: Time between two readings, in seconds.
+        settle_after_move_s: How long it stays quiet after the robot last
+            moved itself, in seconds.
+    """
+
+    def __init__(
+        self,
+        reachy_mini: ReachyMini,
+        shared_state: SharedState,
+        read_period_s: float = 0.01,
+        settle_after_move_s: float = 0.5,
+    ) -> None:
+        """
+        Args:
+            reachy_mini: Connected robot instance, only read from.
+            shared_state: Where pushes are recorded, and where the sense
+                learns where the antennas were sent and whether the robot
+                is moving itself.
+            read_period_s: Time between two readings, in seconds.
+            settle_after_move_s: How long it stays quiet after the robot
+                last moved itself, in seconds.
+        """
+        self._reachy_mini = reachy_mini
+        self._shared_state = shared_state
+        self.read_period_s = read_period_s
+        self.settle_after_move_s = settle_after_move_s
+        self._push_detectors = self._fresh_push_detectors()
+        self._last_seen_moving_at = -math.inf
+
+    def run(self, stop_event: threading.Event) -> None:
+        """Read the antennas until stop_event is set.
+
+        Args:
+            stop_event: Set externally to stop the sense.
+        """
+        while not stop_event.wait(self.read_period_s):
+            self.read_once(time.monotonic())
+
+    def read_once(self, now: float) -> None:
+        """Take one reading of both antennas, and record whether each is pushed.
+
+        Args:
+            now: Time of the reading, in seconds, on time.monotonic()'s clock.
+        """
+        commanded_pose = self._shared_state.last_commanded_pose()
+        if commanded_pose is None or self._robot_moves_itself(now):
+            # New detectors: what the old ones remember (an antenna pushed
+            # before the robot moved) may no longer be true.
+            self._push_detectors = self._fresh_push_detectors()
+            for side in ANTENNA_SIDES:
+                self._shared_state.set_antenna_pushed_since(side, None)
+            return
+
+        present_rad = self._reachy_mini.get_present_antenna_joint_positions()
+        for i, side in enumerate(ANTENNA_SIDES):
+            was_pushed = self._shared_state.antenna_pushed_since(side) is not None
+            pushed_since = self._push_detectors[side].update(
+                now, commanded_pose.antennas[i], present_rad[i]
+            )
+            self._shared_state.set_antenna_pushed_since(side, pushed_since)
+            if pushed_since is not None and not was_pushed:
+                logger.info("%s antenna pushed", side.capitalize())
+
+    def _robot_moves_itself(self, now: float) -> bool:
+        """Whether the robot moves itself, or did so too recently for its targets to be gone."""
+        if self._shared_state.is_move_playing():
+            self._last_seen_moving_at = now
+            return True
+        return now - self._last_seen_moving_at < self.settle_after_move_s
+
+    @staticmethod
+    def _fresh_push_detectors() -> dict[str, AntennaPushDetector]:
+        """One new push detector per antenna, with no history."""
+        return {side: AntennaPushDetector() for side in ANTENNA_SIDES}

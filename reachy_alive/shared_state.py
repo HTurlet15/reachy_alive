@@ -48,6 +48,7 @@ class SharedState:
         self._commanded_pose: CommandedPose | None = None
         self._last_bump_at: float | None = None
         self._idle_move_interval_range_s = DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S
+        self._antenna_pushed_since: dict[str, float | None] = {"right": None, "left": None}
 
     # Idle timer. Written by RobotController, when a move ends.
 
@@ -108,6 +109,27 @@ class SharedState:
         with self.lock:
             return self._last_bump_at
 
+    def set_antenna_pushed_since(self, side: str, since: float | None) -> None:
+        """Record since when an antenna is pushed, or None once it isn't.
+
+        Written by AntennasSense.
+
+        Args:
+            side: "right" or "left", the robot's own sides.
+            since: When the push started (time.monotonic()), or None.
+        """
+        with self.lock:
+            self._antenna_pushed_since[side] = since
+
+    def antenna_pushed_since(self, side: str) -> float | None:
+        """Return since when an antenna is pushed (time.monotonic()), or None if it isn't.
+
+        Args:
+            side: "right" or "left", the robot's own sides.
+        """
+        with self.lock:
+            return self._antenna_pushed_since[side]
+        
     # Settings. Written by the app's page, through its routes.
 
     def idle_move_interval_range_s(self) -> tuple[float, float]:

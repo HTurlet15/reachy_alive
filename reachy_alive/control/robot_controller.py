@@ -13,9 +13,9 @@ class RobotController:
     It makes no decisions of its own: each tick, it asks the ActionSelector
     for a command and carries it out. It records in SharedState each pose it
     sends (its efference copy), and when a move plays and ends, whoever asked
-    for it, waking up included.
-    Decision-makers never drive the robot. Moves do talk to the robot, but
-    only while RobotController executes a PlayMove, from this loop's thread.
+    for it, waking up and going to sleep included. Decision-makers never
+    drive the robot. Moves do talk to the robot, but only while
+    RobotController executes a PlayMove, from this loop's thread.
 
     Attributes:
         action_selector: Chooses the command for each tick.
@@ -37,7 +37,7 @@ class RobotController:
         Args:
             reachy_mini: Connected robot instance.
             shared_state: Shared blackboard. Passed to the ActionSelector,
-                and updated when a move plays and ends.
+                and updated with what the robot is sent and does.
             stop_event: Set externally (e.g. on Ctrl+C) to terminate the loop.
         """
         reachy_mini.enable_motors()
@@ -55,6 +55,7 @@ class RobotController:
                 self._execute(command, reachy_mini, shared_state)
                 time.sleep(self.tick_period_s)
         finally:
+            shared_state.set_move_playing(True)
             reachy_mini.goto_sleep()
             reachy_mini.disable_motors()
 
@@ -66,7 +67,8 @@ class RobotController:
         Args:
             command: The command to execute.
             reachy_mini: Connected robot instance.
-            shared_state: Shared blackboard, updated when a move plays and ends.
+            shared_state: Shared blackboard, updated with what the robot is
+                sent and when a move plays and ends.
 
         Raises:
             TypeError: If the command type is unknown.

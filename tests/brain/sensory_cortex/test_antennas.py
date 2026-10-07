@@ -13,7 +13,7 @@ from reachy_alive.brain.sensory_cortex.antennas import AntennaPushDetector
 
 DATA = Path(__file__).parent / "data"
 RIGHT, LEFT = 0, 1  # the SDK's order for the antennas, on the real robot
-MOTOR_DELAY_S = 0.08  # how far behind its target the motor runs (the default delay_s)
+MOTOR_DELAY_S = 0.15  # how far behind its target the motor runs (the default delay_s)
 
 
 def times_at_50_hz(duration_s: float) -> list[float]:

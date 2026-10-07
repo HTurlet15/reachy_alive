@@ -5,16 +5,18 @@ import threading
 from reachy_mini import ReachyMini, ReachyMiniApp
 from reachy_mini.motion.recorded_move import RecordedMoves
 
-from reachy_alive.control.action_selector import ActionSelector
 from reachy_alive.brain.brainstem.idle_manager import IdleManager
+from reachy_alive.brain.sensory_cortex.antennas import AntennasSense
+from reachy_alive.brain.sensory_cortex.inertial_unit import InertialUnitSense
+from reachy_alive.control.action_selector import ActionSelector
+from reachy_alive.control.robot_controller import RobotController
 from reachy_alive.moves.base import LibraryMove, Move
 from reachy_alive.moves.sneezing import Sneezing
 from reachy_alive.moves.stretching import Stretching
 from reachy_alive.moves.yawning import Yawning
-from reachy_alive.control.robot_controller import RobotController
 from reachy_alive.routes import create_router
 from reachy_alive.shared_state import SharedState
-from reachy_alive.brain.sensory_cortex.inertial_unit import InertialUnitSense
+
 
 class ReachyAlive(ReachyMiniApp):
     custom_app_url: str | None = "http://0.0.0.0:8042"
@@ -30,7 +32,8 @@ class ReachyAlive(ReachyMiniApp):
             reachy_mini: Connected robot instance.
             stop_event: Set by the SDK to stop the app.
         """
-        # Facts shared across threads: the idle timer, the page's settings.
+        # Facts shared across threads: the idle timer, the page's settings,
+        # what the robot senses.
         shared_state = SharedState()
 
         # The moves idle picks from. The page can play the same moves, looked
@@ -48,21 +51,26 @@ class ReachyAlive(ReachyMiniApp):
             create_router(idle_moves_by_name, move_requests, shared_state)
         )
 
+        # The senses, each in its own thread: they read the robot and write
+        # facts to shared_state, never driving it.
+        senses = {
+            "inertial_unit": InertialUnitSense(reachy_mini, shared_state),
+            "antennas": AntennasSense(reachy_mini, shared_state),
+        }
+        for name, sense in senses.items():
+            threading.Thread(
+                target=sense.run, args=(stop_event,), name=name, daemon=True
+            ).start()
+
         # Decide, choose, execute: IdleManager proposes, ActionSelector picks
         # a requested move over idle, RobotController drives the robot.
         idle_manager = IdleManager(idle_moves)
         action_selector = ActionSelector(idle_manager, move_requests)
         robot_controller = RobotController(action_selector)
 
-        # The senses, each in its own thread: they read the robot and write
-        # facts to shared_state, never driving it.
-        inertial_unit = InertialUnitSense(reachy_mini, shared_state)
-        threading.Thread(
-            target=inertial_unit.run, args=(stop_event,), name="inertial_unit", daemon=True
-        ).start()
-
         # The control loop, in this thread, until the app stops.
         robot_controller.run(reachy_mini, shared_state, stop_event)
+
     def _build_idle_moves(self) -> list[Move]:
         """Build the moves the idle manager picks from.
 
@@ -74,7 +82,6 @@ class ReachyAlive(ReachyMiniApp):
 
         # Recorded by Pollen, played as-is. Excludes waiting, mini-deep-sleep
         # and toc-toc-toc, which wedge the IK solver (pollen-robotics/reachy_mini#1417).
-        
         pollen_moves = self._library_moves(pollen_emotions, [
             "boredom1", "tired1", "serenity1", "curious1", "lonely1",
         ])
