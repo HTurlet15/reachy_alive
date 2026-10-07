@@ -86,9 +86,12 @@ class AntennaPushDetector:
             return self._pushed_since  # not enough history yet to judge
 
         gap_deg = abs(math.degrees(present_rad - delayed_target_rad))
-        if self._pushed_since is None and gap_deg >= self.push_threshold_deg:
+        was_pushed = self._pushed_since is not None
+        push_starts = not was_pushed and gap_deg >= self.push_threshold_deg
+        push_ends = was_pushed and gap_deg < self.release_threshold_deg
+        if push_starts:
             self._pushed_since = t
-        elif self._pushed_since is not None and gap_deg < self.release_threshold_deg:
+        elif push_ends:
             self._pushed_since = None
         return self._pushed_since
 
@@ -100,7 +103,8 @@ class AntennaPushDetector:
         """
         self._target_times.append(t)
         self._target_angles_rad.append(target_rad)
-        while self._target_times[0] < t - 2 * self.delay_s:
+        oldest_worth_keeping = t - 2 * self.delay_s
+        while self._target_times[0] < oldest_worth_keeping:
             self._target_times.popleft()
             self._target_angles_rad.popleft()
 
@@ -111,7 +115,8 @@ class AntennaPushDetector:
         target sent at 1.03 s, between 11° at 1.02 s and 12° at 1.04 s, is
         11.5°. Returns None if t is before the oldest target remembered.
         """
-        if t < self._target_times[0]:
+        oldest_remembered = self._target_times[0]
+        if t < oldest_remembered:
             return None
         return float(np.interp(t, self._target_times, self._target_angles_rad))
 
@@ -171,8 +176,13 @@ class AntennasSense:
         Args:
             now: Time of the reading, in seconds, on time.monotonic()'s clock.
         """
+        if self._shared_state.is_move_playing():
+            self._last_seen_moving_at = now
+        robot_just_moved = now - self._last_seen_moving_at < self.settle_after_move_s
         commanded_pose = self._shared_state.last_commanded_pose()
-        if commanded_pose is None or self._robot_moves_itself(now):
+        knows_where_antennas_should_be = commanded_pose is not None and not robot_just_moved
+
+        if not knows_where_antennas_should_be:
             # New detectors: what the old ones remember (an antenna pushed
             # before the robot moved) may no longer be true.
             self._push_detectors = self._fresh_push_detectors()
@@ -180,22 +190,18 @@ class AntennasSense:
                 self._shared_state.set_antenna_pushed_since(side, None)
             return
 
-        present_rad = self._reachy_mini.get_present_antenna_joint_positions()
-        for i, side in enumerate(ANTENNA_SIDES):
+        present_positions_rad = self._reachy_mini.get_present_antenna_joint_positions()
+        for side, target_rad, present_rad in zip(
+            ANTENNA_SIDES, commanded_pose.antennas, present_positions_rad
+        ):
             was_pushed = self._shared_state.antenna_pushed_since(side) is not None
-            pushed_since = self._push_detectors[side].update(
-                now, commanded_pose.antennas[i], present_rad[i]
-            )
+            pushed_since = self._push_detectors[side].update(now, target_rad, present_rad)
             self._shared_state.set_antenna_pushed_since(side, pushed_since)
-            if pushed_since is not None and not was_pushed:
-                logger.info("%s antenna pushed", side.capitalize())
 
-    def _robot_moves_itself(self, now: float) -> bool:
-        """Whether the robot moves itself, or did so too recently for its targets to be gone."""
-        if self._shared_state.is_move_playing():
-            self._last_seen_moving_at = now
-            return True
-        return now - self._last_seen_moving_at < self.settle_after_move_s
+            is_pushed = pushed_since is not None
+            push_just_started = is_pushed and not was_pushed
+            if push_just_started:
+                logger.info("%s antenna pushed", side.capitalize())
 
     @staticmethod
     def _fresh_push_detectors() -> dict[str, AntennaPushDetector]:
