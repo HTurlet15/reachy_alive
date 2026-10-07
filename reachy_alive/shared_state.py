@@ -1,9 +1,13 @@
+"""Facts shared across threads: a blackboard any module can read."""
+
 import threading
 import time
 from dataclasses import dataclass
+
 import numpy as np
 
 DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S = (20.0, 30.0)
+
 
 @dataclass(frozen=True)
 class CommandedPose:
@@ -19,32 +23,33 @@ class CommandedPose:
     head: np.ndarray
     antennas: np.ndarray
 
+
 class SharedState:
     """Central, thread-safe blackboard of state shared across modules.
 
     It holds facts any module may read at any time, such as when the last
-    notable activity happened. It does not carry orders: a module that
-    wants something done hands over a command instead (see
-    reachy_alive.control.commands).
+    move ended. It does not carry orders: a module that wants something done
+    hands over a command instead (see reachy_alive.control.commands).
+
+    Methods are grouped by fact. Each group names its one writer; every
+    other module only reads.
 
     Attributes:
         lock: Guards all reads/writes to prevent race conditions.
         last_activity_at: Monotonic clock reading (time.monotonic()) of when
-            the last move ended, written by RobotController whoever asked for
-            the move. Starts at the app's launch.
+            the last move ended, whoever asked for the move. Starts at the
+            app's launch.
     """
 
     def __init__(self) -> None:
         self.lock = threading.Lock()
         self.last_activity_at: float = time.monotonic()
-        # Written by the app's page only; read by IdleManager.
-        self._idle_move_interval_range_s = DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S
-        # Written by RobotController only, around each move it plays.
         self._move_playing = False
-        # Written by InertialUnitSense only.
-        self._last_bump_at: float | None = None
-        # Written by RobotController only, each time it sends a pose.
         self._commanded_pose: CommandedPose | None = None
+        self._last_bump_at: float | None = None
+        self._idle_move_interval_range_s = DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S
+
+    # Idle timer. Written by RobotController, when a move ends.
 
     def mark_activity(self) -> None:
         """Record that something notable just happened, resetting the idle timer."""
@@ -59,6 +64,9 @@ class SharedState:
         """
         with self.lock:
             return time.monotonic() - self.last_activity_at
+
+    # Efference copy: what the robot is doing itself. Written by
+    # RobotController.
 
     def set_move_playing(self, playing: bool) -> None:
         """Record whether RobotController is playing a move right now, waking
@@ -75,16 +83,6 @@ class SharedState:
         with self.lock:
             return self._move_playing
 
-    def record_bump(self, at: float) -> None:
-        """Record a bump felt at `at`, a time.monotonic() reading."""
-        with self.lock:
-            self._last_bump_at = at
-
-    def last_bump_at(self) -> float | None:
-        """Return when the last bump was felt (time.monotonic()), or None if none yet."""
-        with self.lock:
-            return self._last_bump_at
-
     def record_commanded_pose(self, pose: CommandedPose) -> None:
         """Record the pose RobotController just sent to the robot."""
         with self.lock:
@@ -94,7 +92,24 @@ class SharedState:
         """Return the last pose RobotController sent, or None if none yet."""
         with self.lock:
             return self._commanded_pose
-        
+
+    # Senses: what the robot perceives. Each fact is written by its sense.
+
+    def record_bump(self, at: float) -> None:
+        """Record a bump felt at `at`, a time.monotonic() reading.
+
+        Written by InertialUnitSense.
+        """
+        with self.lock:
+            self._last_bump_at = at
+
+    def last_bump_at(self) -> float | None:
+        """Return when the last bump was felt (time.monotonic()), or None if none yet."""
+        with self.lock:
+            return self._last_bump_at
+
+    # Settings. Written by the app's page, through its routes.
+
     def idle_move_interval_range_s(self) -> tuple[float, float]:
         """Return the (min, max) seconds to wait between two idle moves."""
         with self.lock:
