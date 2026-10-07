@@ -40,6 +40,10 @@ Throwaway branch, never merged: these answers go into the PR of each sense.
 - Users' robots will differ: a fixed threshold tuned on one antenna may
   misfire elsewhere. Option for later: learn each antenna's normal error
   while breathing, and flag what stands out from it.
+  - Option B (target from the daemon) is blocked in 1.11: /api/state/full
+  computes the target, but its response model (FullState) has no target
+  field, so FastAPI drops it. Known: pollen-robotics/reachy_mini#1457.
+  Back to option A: the RobotController publishes the target it sends.
 
 ## Hearing (2026-10-05, from the laptop over WebRTC)
 
