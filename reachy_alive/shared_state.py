@@ -1,8 +1,23 @@
 import threading
 import time
+from dataclasses import dataclass
+import numpy as np
 
 DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S = (20.0, 30.0)
 
+@dataclass(frozen=True)
+class CommandedPose:
+    """A pose RobotController sent to the robot: its efference copy.
+
+    Attributes:
+        at: Monotonic clock reading (time.monotonic()) of when it was sent.
+        head: 4x4 head pose matrix.
+        antennas: Antenna angles, in radians.
+    """
+
+    at: float
+    head: np.ndarray
+    antennas: np.ndarray
 
 class SharedState:
     """Central, thread-safe blackboard of state shared across modules.
@@ -28,6 +43,8 @@ class SharedState:
         self._move_playing = False
         # Written by InertialUnitSense only.
         self._last_bump_at: float | None = None
+        # Written by RobotController only, each time it sends a pose.
+        self._commanded_pose: CommandedPose | None = None
 
     def mark_activity(self) -> None:
         """Record that something notable just happened, resetting the idle timer."""
@@ -68,6 +85,16 @@ class SharedState:
         with self.lock:
             return self._last_bump_at
 
+    def record_commanded_pose(self, pose: CommandedPose) -> None:
+        """Record the pose RobotController just sent to the robot."""
+        with self.lock:
+            self._commanded_pose = pose
+
+    def last_commanded_pose(self) -> CommandedPose | None:
+        """Return the last pose RobotController sent, or None if none yet."""
+        with self.lock:
+            return self._commanded_pose
+        
     def idle_move_interval_range_s(self) -> tuple[float, float]:
         """Return the (min, max) seconds to wait between two idle moves."""
         with self.lock:

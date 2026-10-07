@@ -59,8 +59,9 @@ If you notice this and want to fix it, don't — say so and move on.
 - **Who writes `SharedState`.** `last_activity_at`: `RobotController`, when
   a move ends. `move_playing`: `RobotController`, around each move it plays.
   `last_bump_at`: `InertialUnitSense`. `move_playing`: `RobotController`, 
-  around each move it plays and while the robot wakes up. The idle move 
-  interval: the routes only.
+  around each move it plays and while the robot wakes up. `commanded_pose`:
+  `RobotController`, each pose it sends. The idle move interval: the routes 
+  only.
 - **Logging.** In SDK 1.11 only the daemon configures logging. `main.py`'s
   `__main__` block calls `basicConfig` (no `force`) and sets the
   `reachy_alive` logger to INFO; Reachy Mini Control never runs that block.

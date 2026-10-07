@@ -4,15 +4,16 @@ from reachy_mini import ReachyMini
 
 from reachy_alive.control.action_selector import ActionSelector
 from reachy_alive.control.commands import Command, HoldPose, PlayMove
-from reachy_alive.shared_state import SharedState
+from reachy_alive.shared_state import CommandedPose, SharedState
 
 
 class RobotController:
     """Runs the control loop and executes the commands it receives.
 
     It makes no decisions of its own: each tick, it asks the ActionSelector
-    for a command and carries it out. It also records in SharedState when a
-    move plays and when it ends, whoever asked for it, waking up included.
+    for a command and carries it out. It records in SharedState each pose it
+    sends (its efference copy), and when a move plays and ends, whoever asked
+    for it, waking up included.
     Decision-makers never drive the robot. Moves do talk to the robot, but
     only while RobotController executes a PlayMove, from this loop's thread.
 
@@ -60,7 +61,7 @@ class RobotController:
     def _execute(
         self, command: Command, reachy_mini: ReachyMini, shared_state: SharedState
     ) -> None:
-        """Carry out one command on the robot, recording when a move plays and ends.
+        """Carry out one command on the robot, recording what it sends.
 
         Args:
             command: The command to execute.
@@ -72,6 +73,9 @@ class RobotController:
         """
         if isinstance(command, HoldPose):
             reachy_mini.set_target(head=command.head, antennas=command.antennas)
+            shared_state.record_commanded_pose(
+                CommandedPose(at=time.monotonic(), head=command.head, antennas=command.antennas)
+            )
         elif isinstance(command, PlayMove):
             shared_state.set_move_playing(True)
             try:

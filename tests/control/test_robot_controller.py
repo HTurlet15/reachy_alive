@@ -111,3 +111,24 @@ def test_waking_up_counts_as_a_move_playing(fake_reachy_mini):
 
     assert playing_during_wake_up == [True]
     assert state.is_move_playing() is False
+
+def test_hold_pose_records_the_pose_it_sends(fake_reachy_mini):
+    state = SharedState()
+    head = np.eye(4)
+    antennas = np.array([-0.17, 0.17])
+    before = time.monotonic()
+
+    run_one_tick(HoldPose(head=head, antennas=antennas), fake_reachy_mini, state)
+
+    pose = state.last_commanded_pose()
+    assert pose.head is head
+    assert pose.antennas is antennas
+    assert pose.at >= before
+
+
+def test_play_move_records_no_pose(fake_reachy_mini):
+    state = SharedState()
+
+    run_one_tick(PlayMove(MagicMock()), fake_reachy_mini, state)
+
+    assert state.last_commanded_pose() is None
