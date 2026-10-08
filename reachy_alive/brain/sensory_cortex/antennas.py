@@ -82,19 +82,19 @@ class AntennaPushDetector:
         # Twice the delay, not just the delay: a target sent before
         # t - delay_s must stay remembered, to interpolate from.
         self._forget_targets_before(t - 2 * self.delay_s)
-        # Where the antenna should be now if nobody touches it: the target
+        # Where the antenna is expected now if nobody touches it: the target
         # it was sent delay_s ago, which the motor is only reaching now.
-        delayed_target_rad = self._target_at(t - self.delay_s)
-        if delayed_target_rad is None:
+        expected_present_rad = self._target_rad_at(t - self.delay_s)
+        if expected_present_rad is None:
             return self._pushed_since  # not enough history yet to judge
 
-        gap_deg = abs(math.degrees(present_rad - delayed_target_rad))
+        gap_deg = abs(math.degrees(present_rad - expected_present_rad))
         was_pushed = self._pushed_since is not None
-        push_starts = not was_pushed and gap_deg >= self.push_threshold_deg
-        push_ends = was_pushed and gap_deg < self.release_threshold_deg
-        if push_starts:
+        push_is_starting = not was_pushed and gap_deg >= self.push_threshold_deg
+        push_is_ending = was_pushed and gap_deg < self.release_threshold_deg
+        if push_is_starting:
             self._pushed_since = t
-        elif push_ends:
+        elif push_is_ending:
             self._pushed_since = None
         return self._pushed_since
 
@@ -109,15 +109,15 @@ class AntennaPushDetector:
             self._target_times.popleft()
             self._target_angles_rad.popleft()
 
-    def _target_at(self, t: float) -> float | None:
+    def _target_rad_at(self, t: float) -> float | None:
         """Return where the antenna was sent at t.
 
         Between two remembered targets, takes the point in between: the
         target sent at 1.03 s, between 11° at 1.02 s and 12° at 1.04 s, is
         11.5°. Returns None if t is before the oldest target remembered.
         """
-        oldest_remembered = self._target_times[0]
-        if t < oldest_remembered:
+        oldest_target_time = self._target_times[0]
+        if t < oldest_target_time:
             return None
         return float(np.interp(t, self._target_times, self._target_angles_rad))
 
