@@ -13,7 +13,7 @@ from reachy_alive.brain.sensory_cortex.antennas import AntennaPushDetector
 
 DATA = Path(__file__).parent / "data"
 RIGHT, LEFT = 0, 1  # the SDK's order for the antennas, on the real robot
-MOTOR_DELAY_S = 0.15  # how far behind its target the motor runs (the default delay_s)
+MOTOR_DELAY_S = 0.08  # how far behind its target a healthy motor runs
 
 
 def times_at_50_hz(duration_s: float) -> list[float]:
@@ -49,6 +49,19 @@ def recorded_samples(name: str, antenna: int) -> list[tuple[float, float, float]
         ]
 
 
+def stretches_between_moves(samples) -> list[list[tuple[float, float, float]]]:
+    """Split samples where the sense went quiet for a move (a gap over 0.1 s).
+
+    The sense starts each stretch with new detectors, as these tests do.
+    """
+    stretches = [[samples[0]]]
+    for previous, sample in zip(samples, samples[1:]):
+        if sample[0] - previous[0] > 0.1:
+            stretches.append([])
+        stretches[-1].append(sample)
+    return stretches
+
+
 # Made-up samples: one rule per test.
 
 
@@ -65,6 +78,14 @@ def test_a_motor_reaching_its_targets_late_is_not_pushed():
     ]
 
     assert push_starts(late_by_the_motor_delay) == []
+
+
+def test_measurements_late_by_up_to_200_ms_are_not_a_push():
+    late_by_200_ms = [
+        (t, breathing_sway_rad(t), breathing_sway_rad(t - 0.2)) for t in times_at_50_hz(8.0)
+    ]
+
+    assert push_starts(late_by_200_ms) == []
 
 
 def test_moving_the_antenna_away_starts_a_push():
@@ -86,7 +107,7 @@ def test_a_push_lasts_until_the_gap_falls_under_the_release_threshold():
 
 
 def test_nothing_is_judged_before_a_target_was_sent_long_enough_ago():
-    detector = AntennaPushDetector(delay_s=MOTOR_DELAY_S)
+    detector = AntennaPushDetector(max_delay_s=0.25)
 
     assert detector.update(0.00, 0.0, math.radians(30.0)) is None
 
@@ -96,6 +117,8 @@ def test_nothing_is_judged_before_a_target_was_sent_long_enough_ago():
 #   left, three on the right, then the left held pushed twice.
 # - antennas_sway_check.csv: both antennas swaying like breathing, untouched.
 # - antennas_sway.csv: the same, untouched for the first 20 s.
+# - antennas_in_app.csv: recorded by AntennasSense in the app, run from a
+#   laptop, untouched, with moves in between.
 # The right antenna of that robot catches in its gearbox: it moves in jerks.
 
 
@@ -110,7 +133,7 @@ def test_swaying_antennas_are_not_pushed():
 
 
 def test_without_the_motor_delay_the_jerky_antenna_reads_as_pushed():
-    no_delay = AntennaPushDetector(delay_s=0.0)
+    no_delay = AntennaPushDetector(min_delay_s=0.0, max_delay_s=0.0)
 
     assert push_starts(recorded_samples("antennas_sway_check.csv", RIGHT), no_delay) != []
 
@@ -120,3 +143,10 @@ def test_the_left_antenna_is_not_pushed_while_swaying_untouched():
     untouched = [s for s in recorded_samples("antennas_sway.csv", LEFT) if s[0] < 20.0]
 
     assert push_starts(untouched) == []
+
+
+def test_the_left_antenna_is_not_pushed_in_the_app_despite_frozen_measurements():
+    # Over the network, the measured positions sometimes stop updating for
+    # up to 0.26 s while the targets keep moving.
+    for stretch in stretches_between_moves(recorded_samples("antennas_in_app.csv", LEFT)):
+        assert push_starts(stretch) == []
