@@ -33,7 +33,7 @@ def test_records_the_move_as_playing_only_while_it_plays(fake_reachy_mini):
     move = MagicMock()
     move.play.side_effect = lambda _: playing_during_play.append(state.is_move_playing())
 
-    run_one_tick(PlayMove(move), fake_reachy_mini, state)
+    RobotController(MagicMock())._execute(PlayMove(move), fake_reachy_mini, state)
 
     assert playing_during_play == [True]  # seen from inside the move
     assert state.is_move_playing() is False  # and over once it has ended
@@ -45,7 +45,7 @@ def test_move_stops_playing_even_when_the_move_fails(fake_reachy_mini):
     move.play.side_effect = RuntimeError("the move failed")
 
     with pytest.raises(RuntimeError):
-        run_one_tick(PlayMove(move), fake_reachy_mini, state)
+        RobotController(MagicMock())._execute(PlayMove(move), fake_reachy_mini, state)
 
     assert state.is_move_playing() is False
 
@@ -100,14 +100,52 @@ def test_unknown_command_raises_and_still_puts_the_robot_to_sleep(fake_reachy_mi
     fake_reachy_mini.goto_sleep.assert_called_once()
     fake_reachy_mini.disable_motors.assert_called_once()
 
+
 def test_waking_up_counts_as_a_move_playing(fake_reachy_mini):
     state = SharedState()
     playing_during_wake_up = []
+    playing_once_awake = []
     fake_reachy_mini.wake_up.side_effect = lambda: playing_during_wake_up.append(
+        state.is_move_playing()
+    )
+    fake_reachy_mini.set_target.side_effect = lambda **_: playing_once_awake.append(
         state.is_move_playing()
     )
 
     run_one_tick(HoldPose(head=np.eye(4), antennas=np.zeros(2)), fake_reachy_mini, state)
 
     assert playing_during_wake_up == [True]
-    assert state.is_move_playing() is False
+    assert playing_once_awake == [False]  # back to poses, before going to sleep
+
+
+def test_hold_pose_records_the_pose_it_sends(fake_reachy_mini):
+    state = SharedState()
+    head = np.eye(4)
+    antennas = np.array([-0.17, 0.17])
+    before = time.monotonic()
+
+    run_one_tick(HoldPose(head=head, antennas=antennas), fake_reachy_mini, state)
+
+    pose = state.last_commanded_pose()
+    assert pose.head is head
+    assert pose.antennas is antennas
+    assert pose.at >= before
+
+
+def test_play_move_records_no_pose(fake_reachy_mini):
+    state = SharedState()
+
+    run_one_tick(PlayMove(MagicMock()), fake_reachy_mini, state)
+
+    assert state.last_commanded_pose() is None
+
+def test_going_to_sleep_counts_as_a_move_playing(fake_reachy_mini):
+    state = SharedState()
+    playing_while_going_to_sleep = []
+    fake_reachy_mini.goto_sleep.side_effect = lambda: playing_while_going_to_sleep.append(
+    state.is_move_playing()
+    )
+
+    run_one_tick(HoldPose(head=np.eye(4), antennas=np.zeros(2)), fake_reachy_mini, state)
+
+    assert playing_while_going_to_sleep == [True]

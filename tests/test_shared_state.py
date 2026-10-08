@@ -2,8 +2,9 @@
 
 import pytest
 import time
+import numpy as np
 
-from reachy_alive.shared_state import DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S, SharedState
+from reachy_alive.shared_state import DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S, SharedState,CommandedPose
 
 
 def test_seconds_since_last_activity_starts_near_zero():
@@ -63,3 +64,17 @@ def test_record_bump_keeps_the_latest():
     state.record_bump(10.0)
     state.record_bump(12.5)
     assert state.last_bump_at() == 12.5
+
+def test_no_commanded_pose_at_first():
+    assert SharedState().last_commanded_pose() is None
+
+
+def test_record_commanded_pose_keeps_the_latest():
+    state = SharedState()
+    first = CommandedPose(at=1.0, head=np.eye(4), antennas=np.zeros(2))
+    second = CommandedPose(at=2.0, head=np.eye(4), antennas=np.ones(2))
+
+    state.record_commanded_pose(first)
+    state.record_commanded_pose(second)
+
+    assert state.last_commanded_pose() is second
