@@ -78,7 +78,10 @@ class AntennaPushDetector:
             When the current push started, or None if the antenna isn't
             pushed.
         """
-        self._remember_target(t, target_rad)
+        self._add_target(t, target_rad)
+        # Twice the delay, not just the delay: a target sent before
+        # t - delay_s must stay remembered, to interpolate from.
+        self._forget_targets_before(t - 2 * self.delay_s)
         # Where the antenna should be now if nobody touches it: the target
         # it was sent delay_s ago, which the motor is only reaching now.
         delayed_target_rad = self._target_at(t - self.delay_s)
@@ -95,15 +98,13 @@ class AntennaPushDetector:
             self._pushed_since = None
         return self._pushed_since
 
-    def _remember_target(self, t: float, target_rad: float) -> None:
-        """Add a target, and forget those older than twice the delay.
-
-        Keeping twice the delay, not just the delay, guarantees a target
-        sent before t - delay_s is still remembered, to interpolate from.
-        """
+    def _add_target(self, t: float, target_rad: float) -> None:
+        """Remember where the antenna was sent at time t."""
         self._target_times.append(t)
         self._target_angles_rad.append(target_rad)
-        oldest_worth_keeping = t - 2 * self.delay_s
+
+    def _forget_targets_before(self, oldest_worth_keeping: float) -> None:
+        """Forget the targets sent before `oldest_worth_keeping`, in seconds."""
         while self._target_times[0] < oldest_worth_keeping:
             self._target_times.popleft()
             self._target_angles_rad.popleft()
