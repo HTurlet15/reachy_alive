@@ -6,7 +6,6 @@ import threading
 import time
 from collections import deque
 
-import numpy as np
 from reachy_mini import ReachyMini
 
 from reachy_alive.shared_state import SharedState
@@ -20,113 +19,122 @@ ANTENNA_SIDES = ("right", "left")
 class AntennaPushDetector:
     """Spots when someone pushes one antenna away from where it was sent.
 
-    The motor follows its target with a delay: an antenna sent to 10° at
-    0.95 s only reaches 10° around 1.10 s. So at time t, the antenna isn't
-    expected at the target just sent, but at the target sent `delay_s`
-    earlier:
+    The motor reaches each target late, by a delay that varies (stiff motor,
+    jittery network). So the antenna is expected anywhere between the
+    targets sent `min_delay_s` and `max_delay_s` earlier: the expected
+    range. What counts is the gap outside that range; inside it, the gap is
+    zero.
 
-        time sent        0.95   1.00   1.05   1.10
-        target           10°    11°    12°    13°
-                          ↑
-        at t = 1.10 s, with delay_s = 0.15, the antenna is expected at
-        the target sent at 0.95 s: 10°, not 13°.
-
-    The gap is how far the measured position is from that expected one.
-    A push starts when the gap reaches `push_threshold_deg`, and ends once
-    it falls back under `release_threshold_deg`: with two thresholds, a gap
-    hovering around one value doesn't flicker between pushed and released.
+    A push starts when the gap reaches `push_threshold_deg`, and ends under
+    `release_threshold_deg`: two thresholds, so it doesn't flicker. A push in
+    the direction the antenna already moves can hide in the range, up to
+    about 5° while breathing.
 
     One detector watches one antenna.
 
     Attributes:
-        push_threshold_deg: Gap at which a push starts, in degrees.
-        release_threshold_deg: Gap under which a push ends, in degrees.
-        delay_s: How far behind its target the motor runs, in seconds.
+        push_threshold_deg: Gap outside the expected range at which a push
+            starts, in degrees.
+        release_threshold_deg: Gap outside the expected range under which a
+            push ends, in degrees.
+        min_delay_s: Shortest delay the motor may run behind its target, in
+            seconds.
+        max_delay_s: Longest delay the motor may run behind its target, in
+            seconds.
     """
 
     def __init__(
         self,
         push_threshold_deg: float = 5.0,
         release_threshold_deg: float = 3.0,
-        delay_s: float = 0.15,
+        min_delay_s: float = 0.05,
+        max_delay_s: float = 0.25,
     ) -> None:
         """
         Args:
-            push_threshold_deg: Gap at which a push starts, in degrees.
-            release_threshold_deg: Gap under which a push ends, in degrees.
-            delay_s: How far behind its target the motor runs, in seconds.
+            push_threshold_deg: Gap outside the expected range at which a
+                push starts, in degrees.
+            release_threshold_deg: Gap outside the expected range under which
+                a push ends, in degrees.
+            min_delay_s: Shortest delay the motor may run behind its target,
+                in seconds.
+            max_delay_s: Longest delay the motor may run behind its target,
+                in seconds.
         """
         self.push_threshold_deg = push_threshold_deg
         self.release_threshold_deg = release_threshold_deg
-        self.delay_s = delay_s
+        self.min_delay_s = min_delay_s
+        self.max_delay_s = max_delay_s
         # The targets of the last moments, oldest first: when each was sent,
         # and where it sent the antenna.
         self._target_times: deque[float] = deque()
-        self._target_angles_rad: deque[float] = deque()
+        self._target_positions_rad: deque[float] = deque()
         self._pushed_since: float | None = None
 
-    def update(self, t: float, target_rad: float, present_rad: float) -> float | None:
+    def update(
+        self, t: float, target_position_rad: float, measured_position_rad: float
+    ) -> float | None:
         """Read one sample of the antenna.
 
         Args:
             t: Time of the sample, in seconds, on a clock that only goes
                 forward.
-            target_rad: Where the antenna was sent, in radians.
-            present_rad: Where the antenna is, measured, in radians.
+            target_position_rad: Where the antenna was just sent.
+            measured_position_rad: Where the antenna is, measured.
 
         Returns:
             When the current push started, or None if the antenna isn't
             pushed.
         """
-        self._add_target(t, target_rad)
-        # Twice the delay, not just the delay: a target sent before
-        # t - delay_s must stay remembered, to interpolate from.
-        self._forget_targets_before(t - 2 * self.delay_s)
-        # Where the antenna is expected now if nobody touches it: the target
-        # it was sent delay_s ago, which the motor is only reaching now.
-        expected_present_rad = self._target_rad_at(t - self.delay_s)
-        if expected_present_rad is None:
+        self._add_target(t, target_position_rad)
+        self._forget_targets_before(t - self.max_delay_s)
+        expected_positions_rad = self._targets_sent_before(t - self.min_delay_s)
+        if not expected_positions_rad:
             return self._pushed_since  # not enough history yet to judge
 
-        gap_deg = abs(math.degrees(present_rad - expected_present_rad))
+        expected_low_rad = min(expected_positions_rad)
+        expected_high_rad = max(expected_positions_rad)
+        gap_outside_expected_rad = max(
+            expected_low_rad - measured_position_rad,  # below the expected range
+            measured_position_rad - expected_high_rad,  # above it
+            0.0,  # inside it: the motor's lag explains everything
+        )
+        gap_outside_expected_deg = math.degrees(gap_outside_expected_rad)
+
         was_pushed = self._pushed_since is not None
-        push_is_starting = not was_pushed and gap_deg >= self.push_threshold_deg
-        push_is_ending = was_pushed and gap_deg < self.release_threshold_deg
+        push_is_starting = not was_pushed and gap_outside_expected_deg >= self.push_threshold_deg
+        push_is_ending = was_pushed and gap_outside_expected_deg < self.release_threshold_deg
         if push_is_starting:
             self._pushed_since = t
         elif push_is_ending:
             self._pushed_since = None
         return self._pushed_since
 
-    def _add_target(self, t: float, target_rad: float) -> None:
+    def _add_target(self, t: float, target_position_rad: float) -> None:
         """Remember where the antenna was sent at time t."""
         self._target_times.append(t)
-        self._target_angles_rad.append(target_rad)
+        self._target_positions_rad.append(target_position_rad)
 
     def _forget_targets_before(self, oldest_worth_keeping: float) -> None:
         """Forget the targets sent before `oldest_worth_keeping`, in seconds."""
         while self._target_times[0] < oldest_worth_keeping:
             self._target_times.popleft()
-            self._target_angles_rad.popleft()
+            self._target_positions_rad.popleft()
 
-    def _target_rad_at(self, t: float) -> float | None:
-        """Return where the antenna was sent at t.
-
-        Between two remembered targets, takes the point in between: the
-        target sent at 1.03 s, between 11° at 1.02 s and 12° at 1.04 s, is
-        11.5°. Returns None if t is before the oldest target remembered.
-        """
-        oldest_target_time = self._target_times[0]
-        if t < oldest_target_time:
-            return None
-        return float(np.interp(t, self._target_times, self._target_angles_rad))
+    def _targets_sent_before(self, latest: float) -> list[float]:
+        """Return the remembered target positions sent at or before `latest`, in radians."""
+        return [
+            position_rad
+            for sent_time, position_rad in zip(self._target_times, self._target_positions_rad)
+            if sent_time <= latest
+        ]
 
 
 class AntennasSense:
     """Reads the antennas and records in SharedState when one is pushed.
 
     Runs in its own thread, never drives the robot. Each antenna's measured
-    position is compared to where RobotController last sent it, by one
+    position is compared to where RobotController sent it, by one
     AntennaPushDetector per antenna. It stays quiet while the robot moves
     itself (a move, waking up, going to sleep) and for a short while after:
     the targets then don't come from RobotController's poses, so it doesn't
@@ -191,12 +199,14 @@ class AntennasSense:
                 self._shared_state.set_antenna_pushed_since(side, None)
             return
 
-        present_positions_rad = self._reachy_mini.get_present_antenna_joint_positions()
-        for side, target_rad, present_rad in zip(
-            ANTENNA_SIDES, commanded_pose.antennas, present_positions_rad
+        measured_positions_rad = self._reachy_mini.get_present_antenna_joint_positions()
+        for side, target_position_rad, measured_position_rad in zip(
+            ANTENNA_SIDES, commanded_pose.antennas, measured_positions_rad
         ):
             was_pushed = self._shared_state.antenna_pushed_since(side) is not None
-            pushed_since = self._push_detectors[side].update(now, target_rad, present_rad)
+            pushed_since = self._push_detectors[side].update(
+                now, target_position_rad, measured_position_rad
+            )
             self._shared_state.set_antenna_pushed_since(side, pushed_since)
 
             is_pushed = pushed_since is not None
