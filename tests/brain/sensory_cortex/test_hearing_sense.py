@@ -89,7 +89,7 @@ def test_a_noise_right_after_a_move_is_not_recorded():
 
 
 def test_without_microphones_the_sense_says_so_and_stops(caplog):
-    sense, state = make_sense([], sample_rate_hz=-1)
+    sense, _ = make_sense([], sample_rate_hz=-1)
 
     with caplog.at_level(logging.INFO):
         sense.run(MagicMock())
