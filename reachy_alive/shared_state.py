@@ -46,9 +46,10 @@ class SharedState:
         self.last_activity_at: float = time.monotonic()
         self._move_playing = False
         self._commanded_pose: CommandedPose | None = None
-        self._last_bump_at: float | None = None
         self._idle_move_interval_range_s = DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S
+        self._last_bump_at: float | None = None
         self._antenna_pushed_since: dict[str, float | None] = {"right": None, "left": None}
+        self._last_sudden_noise_at: float | None = None
 
     # Idle timer. Written by RobotController, when a move ends.
 
@@ -129,6 +130,19 @@ class SharedState:
         """
         with self.lock:
             return self._antenna_pushed_since[side]
+
+    def record_sudden_noise(self, at: float) -> None:
+        """Record that a sudden noise started at `at` (time.monotonic()).
+
+        Written by HearingSense.
+        """
+        with self.lock:
+            self._last_sudden_noise_at = at
+
+    def last_sudden_noise_at(self) -> float | None:
+        """When the last sudden noise started, or None if none was heard yet."""
+        with self.lock:
+            return self._last_sudden_noise_at
         
     # Settings. Written by the app's page, through its routes.
 

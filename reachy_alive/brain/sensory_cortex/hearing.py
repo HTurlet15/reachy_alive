@@ -6,9 +6,17 @@ judged 20 ms at a time: each stretch of 320 samples becomes one loudness
 level, and the levels go to the detector.
 """
 
+import logging
 import math
+import threading
+import time
 
 import numpy as np
+from reachy_mini import ReachyMini
+
+from reachy_alive.shared_state import SharedState
+
+logger = logging.getLogger(__name__)
 
 # The loudness given to silence, in dBFS: a level in decibels has no value at zero.
 SILENCE_DBFS = -100.0
@@ -121,3 +129,99 @@ class SuddenNoiseDetector:
         self._background_updated_at = t
         smoothing_factor = 1.0 - math.exp(-elapsed_s / self.background_time_constant_s)
         self._background_dbfs += smoothing_factor * (level_dbfs - self._background_dbfs)
+
+
+class HearingSense:
+    """Listens to the microphones and records sudden noises in SharedState.
+
+    Runs in its own thread, never drives the robot. The microphones give
+    sound in chunks of any length; the sense cuts them into stretches of
+    `stretch_s`, turns each into a loudness level, and hands it to a
+    SuddenNoiseDetector. The detector times the stretches by the sound
+    itself: how much of it has been heard so far.
+
+    The robot hears its own sounds, which today all come from its moves:
+    noises starting while the robot moves itself, or right after, aren't
+    recorded. The detector still hears them, so its background stays true.
+
+    Attributes:
+        stretch_s: Length of the stretches of sound judged, in seconds.
+        settle_after_move_s: How long noises are still ignored after the
+            robot last moved itself, in seconds.
+    """
+
+    def __init__(
+        self,
+        reachy_mini: ReachyMini,
+        shared_state: SharedState,
+        sudden_noise_detector: SuddenNoiseDetector | None = None,
+        stretch_s: float = 0.02,
+        settle_after_move_s: float = 0.5,
+    ) -> None:
+        """
+        Args:
+            reachy_mini: Connected robot instance, only listened to.
+            shared_state: Where sudden noises are recorded, and where the
+                sense learns whether the robot is moving itself.
+            sudden_noise_detector: Spots sudden noises in the levels.
+            stretch_s: Length of the stretches of sound judged, in seconds.
+            settle_after_move_s: How long noises are still ignored after the
+                robot last moved itself, in seconds.
+        """
+        self._reachy_mini = reachy_mini
+        self._shared_state = shared_state
+        self._sudden_noise_detector = sudden_noise_detector or SuddenNoiseDetector()
+        self.stretch_s = stretch_s
+        self.settle_after_move_s = settle_after_move_s
+        sample_rate_hz = reachy_mini.media.get_input_audio_samplerate()
+        self._has_microphones = sample_rate_hz > 0
+        self._samples_per_stretch = round(sample_rate_hz * stretch_s)
+        self._samples_not_judged_yet = np.zeros(0)
+        self._sound_heard_s = 0.0
+        self._last_seen_moving_at = -math.inf
+
+    def run(self, stop_event: threading.Event) -> None:
+        """Listen until stop_event is set.
+
+        Args:
+            stop_event: Set externally to stop the sense.
+        """
+        if not self._has_microphones:
+            logger.info("No microphones: sudden noises won't be heard")
+            return
+        self._reachy_mini.media.start_recording()
+        try:
+            while not stop_event.is_set():
+                self.read_once(time.monotonic())  # waits up to 20 ms for sound
+        finally:
+            self._reachy_mini.media.stop_recording()
+
+    def read_once(self, now: float) -> None:
+        """Take one chunk of sound, judge its stretches, and record a sudden noise.
+
+        Args:
+            now: Time of the reading, in seconds, on time.monotonic()'s clock.
+        """
+        chunk = self._reachy_mini.media.get_audio_sample()
+        if chunk is None:
+            return  # no new sound yet
+
+        if self._shared_state.is_move_playing():
+            self._last_seen_moving_at = now
+        robot_may_hear_itself = now - self._last_seen_moving_at < self.settle_after_move_s
+
+        # The microphones give stereo; loudness only needs one channel's worth.
+        mono_samples = chunk.mean(axis=1) if chunk.ndim == 2 else chunk
+        self._samples_not_judged_yet = np.concatenate([self._samples_not_judged_yet, mono_samples])
+
+        while len(self._samples_not_judged_yet) >= self._samples_per_stretch:
+            stretch = self._samples_not_judged_yet[: self._samples_per_stretch]
+            self._samples_not_judged_yet = self._samples_not_judged_yet[self._samples_per_stretch :]
+            self._sound_heard_s += self.stretch_s
+
+            noise_starts = self._sudden_noise_detector.update(
+                self._sound_heard_s, loudness_dbfs(stretch)
+            )
+            if noise_starts and not robot_may_hear_itself:
+                self._shared_state.record_sudden_noise(now)
+                logger.info("Sudden noise")
