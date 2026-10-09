@@ -8,6 +8,7 @@ from reachy_mini.motion.recorded_move import RecordedMoves
 from reachy_alive.brain.brainstem.idle_manager import IdleManager
 from reachy_alive.brain.sensory_cortex.antennas import AntennasSense
 from reachy_alive.brain.sensory_cortex.inertial_unit import InertialUnitSense
+from reachy_alive.brain.sensory_cortex.hearing import HearingSense
 from reachy_alive.control.action_selector import ActionSelector
 from reachy_alive.control.robot_controller import RobotController
 from reachy_alive.moves.base import LibraryMove, Move
@@ -56,6 +57,7 @@ class ReachyAlive(ReachyMiniApp):
         senses = {
             "inertial_unit": InertialUnitSense(reachy_mini, shared_state),
             "antennas": AntennasSense(reachy_mini, shared_state),
+            "hearing": HearingSense(reachy_mini, shared_state),
         }
         for name, sense in senses.items():
             threading.Thread(

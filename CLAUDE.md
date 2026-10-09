@@ -60,7 +60,8 @@ If you notice this and want to fix it, don't — say so and move on.
   a move ends. `move_playing`: `RobotController`, around each move it plays.
   `last_bump_at`: `InertialUnitSense`. `move_playing`: `RobotController`, 
   around each move it plays and while the robot wakes up. `commanded_pose`:
-  `RobotController`, each pose it sends. The idle move interval: the routes 
+  `RobotController`, each pose it sends. `last_sudden_noise_at`: `HearingSense`.
+  The idle move interval: the routes 
   only. antenna_pushed_since: AntennasSense
 - **Logging.** In SDK 1.11 only the daemon configures logging. `main.py`'s
   `__main__` block calls `basicConfig` (no `force`) and sets the
