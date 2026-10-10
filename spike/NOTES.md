@@ -67,6 +67,40 @@ Throwaway branch, never merged: these answers go into the PR of each sense.
 - A second client (try-move) cut the recording's audio stream after
   11.7 s. Over WebRTC only? The hearing sense must be tried on the robot.
 
+## Hearing, second round (2026-10-09, during the sense's PR, laptop over WebRTC)
+
+Recorded with `hearing/levels_record.py`: one loudness level per 20 ms
+stretch, the detector's verdict, and the chip's automatic gain read every
+0.5 s. No sound kept. Data: `hearing/levels_speech.csv` (+ `.png`); the
+controlled recording went into the PR's tests (`hearing_levels.csv`).
+
+- Over WebRTC, chunks are always 320 stereo samples (20 ms, Opus frames),
+  with ~1 s of nothing while the connection opens, then lone gaps (network
+  jitter). Chunk size on the robot itself (`alsasrc`) not measured.
+- The mic chip (XMOS XVF3800) has automatic gain on (`PP_AGCONOFF = 1`),
+  readable through the daemon: `/api/audio/config/parameter/PP_AGCGAIN`
+  (a factor). It climbs in silence (+15 dB after a minute) and drops within
+  ~0.3 s once someone talks. Absolute levels are unreliable: a floor at
+  -16 dBFS was tried and dropped.
+- The jump above the background doesn't separate voice from knocks: the
+  start of a sentence jumps 26-37 dB (more in a quieter room), claps 39-60,
+  a mouse put down hard 37-45.
+- Abruptness does, so far: the rise within one 20 ms stretch is 34-46 dB for
+  claps, 37-38 for a mouse put down hard, 17-21 gently, 20 for a knuckle
+  knock (in two steps), 26 for someone shifting on a chair, and 2-16 at the
+  start of a sentence. Not yet checked on a door slammed close by.
+- A mouse on the robot's table or on another table reads the same: the
+  sound comes through the air, not the table.
+- People get used to repeated sounds: of three claps in a row, only the
+  first should startle. Habituation (a loud sound is expected within 10 s
+  of the last, unless 10 dB louder) does it on the first two recordings. In
+  `levels_speech`, talking counted as loud sounds: the first clap, 6 s
+  later, was expected, and the second, 20 dB louder, startled. Another
+  reason for voice to be a feature of the sound.
+- Perceiving isn't reacting: whether a voice or a bang should startle the
+  robot depends on context (asleep, sees someone, expects it). The sense
+  describes the sound (how loud, how abrupt, voice or not); reflexes decide.
+
 ## Vision (2026-10-05)
 
 - 1280x720 frames, analysed at 320x180 (one pixel in four each way).
@@ -116,7 +150,11 @@ Still open:
 - How far away a face is still found (the spike's face width was wrong).
 - How vision tells breathing apart from real motion (prediction, global
   shift, or local change).
-- Hearing on the robot itself, without WebRTC.
+- Hearing on the robot itself, without WebRTC (chunk size, gain).
+- Abruptness on a door slammed close by, and on a sound split across two
+  stretches.
+- How reliable and how late the chip's voice detection (`speech_detected`)
+  is, as a feature of the sound.
 - Predicting the head's acceleration from its commanded trajectory, to feel
   a tap during a move.
 - The right antenna: gearbox or a screw too tight (Pollen's checks).
