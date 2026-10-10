@@ -7,6 +7,7 @@ from reachy_mini.motion.recorded_move import RecordedMoves
 
 from reachy_alive.brain.brainstem.idle_manager import IdleManager
 from reachy_alive.brain.sensory_cortex.antennas import AntennasSense
+from reachy_alive.brain.sensory_cortex.hearing import HearingSense
 from reachy_alive.brain.sensory_cortex.inertial_unit import InertialUnitSense
 from reachy_alive.control.action_selector import ActionSelector
 from reachy_alive.control.robot_controller import RobotController
@@ -21,6 +22,9 @@ from reachy_alive.shared_state import SharedState
 class ReachyAlive(ReachyMiniApp):
     custom_app_url: str | None = "http://0.0.0.0:8042"
     request_media_backend: str | None = None
+
+    # A sense stuck in a call must not hang the app's shutdown.
+    SENSE_STOP_TIMEOUT_S = 1.0
 
     def run(self, reachy_mini: ReachyMini, stop_event: threading.Event):
         """Build every part of the app, wire them together, and run the loop.
@@ -56,11 +60,14 @@ class ReachyAlive(ReachyMiniApp):
         senses = {
             "inertial_unit": InertialUnitSense(reachy_mini, shared_state),
             "antennas": AntennasSense(reachy_mini, shared_state),
+            "hearing": HearingSense(reachy_mini, shared_state),
         }
-        for name, sense in senses.items():
-            threading.Thread(
-                target=sense.run, args=(stop_event,), name=name, daemon=True
-            ).start()
+        sense_threads = [
+            threading.Thread(target=sense.run, args=(stop_event,), name=name, daemon=True)
+            for name, sense in senses.items()
+        ]
+        for thread in sense_threads:
+            thread.start()
 
         # Decide, choose, execute: IdleManager proposes, ActionSelector picks
         # a requested move over idle, RobotController drives the robot.
@@ -68,8 +75,14 @@ class ReachyAlive(ReachyMiniApp):
         action_selector = ActionSelector(idle_manager, move_requests)
         robot_controller = RobotController(action_selector)
 
-        # The control loop, in this thread, until the app stops.
-        robot_controller.run(reachy_mini, shared_state, stop_event)
+        # The control loop, in this thread, until the app stops. The senses
+        # stop first: the robot closes once run() returns.
+        try:
+            robot_controller.run(reachy_mini, shared_state, stop_event)
+        finally:
+            stop_event.set()
+            for thread in sense_threads:
+                thread.join(timeout=self.SENSE_STOP_TIMEOUT_S)
 
     def _build_idle_moves(self) -> list[Move]:
         """Build the moves the idle manager picks from.
