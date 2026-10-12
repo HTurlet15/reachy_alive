@@ -158,3 +158,23 @@ Still open:
 - Predicting the head's acceleration from its commanded trajectory, to feel
   a tap during a move.
 - The right antenna: gearbox or a screw too tight (Pollen's checks).
+
+## Vision, second round (2026-10-11 → 12): face features on the real camera
+
+Tool: `spike/vision/faces_measure.py` (YuNet from the SDK + our `seen_face`),
+90 s protocol at 0.5 to 2.5 m, then steps left and right. Runs on the laptop:
+the robot only streams the images.
+
+- **Frames**: 30 images/s received over WebRTC; plenty for the planned 5 Hz.
+- **Detection time (laptop)**: 3 ms at 320 px, 7 ms at 640, 30 ms at full
+  resolution (1280). On the CM4, expect about 10x more.
+- **Range at 320 px**: steady up to 2 m; intermittent from 2.5 m (74-88%,
+  box about 13 px). No false face once the person left the view.
+- **x sign**: confirmed. Stepping to the robot's left gives negative x.
+- **Distance**: the first runs (`faces_measure`, `faces_640`, `faces_full`)
+  were placed by eye and looked like box ∝ d^-0.6; that was the placement.
+  With a tape (`faces_tape.csv`, camera to nose): box ∝ d^-0.98, so the pinhole
+  model holds; the estimate was a constant 0.77 of the truth.
+  → `AVERAGE_FACE_WIDTH_M` set to 0.195 m: YuNet's box is wider than the face.
+- **Lesson**: calibrate on a measured ground truth; by-eye distances drifted
+  more than the error being chased.
