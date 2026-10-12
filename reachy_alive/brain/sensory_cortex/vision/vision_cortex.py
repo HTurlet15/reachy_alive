@@ -37,9 +37,10 @@ class VisionFrame:
     robot_moving_itself: bool
 
 
-# Width of an average face, as the face detector boxes it. Faces vary by
-# about 20%, and so does the distance estimated from it.
-AVERAGE_FACE_WIDTH_M = 0.15
+# Width of an average face, as the face detector boxes it: wider than the face
+# itself, ears and hair included. Measured with a tape, 0.5 to 2.5 m. Faces vary
+# by about 20%, and so does the distance estimated from it.
+AVERAGE_FACE_WIDTH_M = 0.195
 
 
 def seen_face(face: Face, image_width_px: int, image_height_px: int, focal_px: float) -> SeenFace:
