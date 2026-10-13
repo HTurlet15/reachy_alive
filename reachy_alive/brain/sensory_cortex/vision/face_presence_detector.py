@@ -5,6 +5,8 @@ import logging
 from reachy_alive.brain.sensory_cortex.vision.vision_frame import SeenFace, VisionFrame
 from reachy_alive.shared_state import VisionFacts
 
+logger = logging.getLogger(__name__)
+
 
 class FacePresenceDetector:
     """Decides when a face appears and leaves, despite the face detector's flickers.
@@ -54,6 +56,7 @@ class FacePresenceDetector:
         elif self._seen_long_enough(t):
             self._in_view = True
             self._facts.record_face_appeared(self._first_seen_at, face)
+            logger.info("Face appeared, %.1f m away", face.distance_m)
 
     def _follow_absence(self, t: float) -> None:
         """Note that no face is seen at `t`.
@@ -68,6 +71,7 @@ class FacePresenceDetector:
             self._in_view = False
             self._first_seen_at = None
             self._facts.record_face_lost(self._last_seen_at)
+            logger.info("Face lost")
 
     def _seen_long_enough(self, t: float) -> bool:
         return t - self._first_seen_at >= self.APPEAR_AFTER_S
