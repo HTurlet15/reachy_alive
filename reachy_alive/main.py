@@ -14,6 +14,7 @@ from reachy_alive.moves.sneezing import Sneezing
 from reachy_alive.moves.stretching import Stretching
 from reachy_alive.moves.yawning import Yawning
 from reachy_alive.routes import create_router
+from reachy_alive.senses_routes import create_senses_router
 from reachy_alive.shared_state import SharedState
 
 
@@ -49,7 +50,8 @@ class ReachyAlive(ReachyMiniApp):
         self.settings_app.include_router(
             create_router(idle_moves_by_name, move_requests, shared_state)
         )
-
+        self.settings_app.include_router(create_senses_router(shared_state))
+        
         # The senses, each in its own thread: they read the robot and write
         # facts to shared_state, never driving it.
         sense_manager = SenseManager(reachy_mini, shared_state)

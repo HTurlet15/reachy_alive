@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reachy Alive — senses</title>
+  <style>
+    :root { --ink: #111; --muted: #bbb; --hit: #ff5a36; --face: #1f8a5b; }
+    html, body { margin: 0; height: 100%; background: #fff; color: var(--ink);
+                 font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+    body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4vh; }
+    #face { font-size: 6vw; font-weight: 700; color: var(--muted); transition: color .3s; }
+    #face.seen { color: var(--face); }
+    #events { display: flex; flex-wrap: wrap; justify-content: center; gap: 3vw; min-height: 14vw; }
+    .event { font-size: 7vw; font-weight: 800; color: var(--hit); opacity: 0;
+             transform: scale(.9); transition: opacity .25s, transform .25s; }
+    .event.on { opacity: 1; transform: scale(1); }
+    #status { position: fixed; bottom: 2vh; font-size: 1.2vw; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div id="face">No one in view</div>
+  <div id="events">
+    <div class="event" id="bump">Bump</div>
+    <div class="event" id="noise">Sudden noise</div>
+    <div class="event" id="right">Right antenna pushed</div>
+    <div class="event" id="left">Left antenna pushed</div>
+    <div class="event" id="appeared">Face appeared</div>
+    <div class="event" id="lost">Face lost</div>
+  </div>
+  <div id="status">connecting…</div>
+
+  <script>
+    const SHOW_FOR_S = 2.0;   // how long an event stays on screen
+    const POLL_MS = 100;
+
+    const el = (id) => document.getElementById(id);
+    const recent = (at, now) => at !== null && now - at < SHOW_FOR_S;
+
+    async function refresh() {
+      try {
+        const response = await fetch("/senses-state", { cache: "no-store" });
+        const s = await response.json();
+        const now = s.now;
+
+        el("bump").classList.toggle("on", recent(s.last_bump_at, now));
+        el("noise").classList.toggle("on", recent(s.last_sudden_noise_at, now));
+        el("right").classList.toggle("on", s.right_antenna_pushed_since !== null);
+        el("left").classList.toggle("on", s.left_antenna_pushed_since !== null);
+        el("appeared").classList.toggle("on", recent(s.face_seen_since, now));
+        el("lost").classList.toggle("on", recent(s.last_face_lost_at, now)
+                                          && s.face_seen_since === null);
+
+        const face = el("face");
+        if (s.face_seen_since !== null) {
+          face.textContent = `Someone in view · ${s.face_distance_m.toFixed(1)} m`;
+          face.classList.add("seen");
+        } else {
+          face.textContent = "No one in view";
+          face.classList.remove("seen");
+        }
+        el("status").textContent = "live";
+      } catch (error) {
+        el("status").textContent = "app not reachable…";
+      }
+    }
+
+    setInterval(refresh, POLL_MS);
+    refresh();
+  </script>
+</body>
+</html>
