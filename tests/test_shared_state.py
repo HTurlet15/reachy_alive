@@ -1,10 +1,19 @@
 """Unit tests for SharedState."""
 
-import pytest
 import time
-import numpy as np
 
-from reachy_alive.shared_state import DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S, SharedState,CommandedPose
+import numpy as np
+import pytest
+
+from reachy_alive.brain.sensory_cortex.vision.vision_frame import SeenFace
+from reachy_alive.shared_state import (
+    DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S,
+    CommandedPose,
+    SharedState,
+)
+
+FACE = SeenFace(x=0.1, y=-0.2, distance_m=1.0)
+FACE_MOVED = SeenFace(x=0.5, y=-0.2, distance_m=1.2)
 
 
 def test_seconds_since_last_activity_starts_near_zero():
@@ -26,6 +35,7 @@ def test_seconds_since_last_activity_increases_over_time():
     state.last_activity_at = time.monotonic() - 5.0
     assert state.seconds_since_last_activity() >= 5.0
 
+
 def test_idle_move_interval_starts_at_the_default():
     assert SharedState().idle_move_interval_range_s() == DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S
 
@@ -42,6 +52,7 @@ def test_set_idle_move_interval_rejects_min_above_max():
         state.set_idle_move_interval_range_s(90.0, 60.0)
     assert state.idle_move_interval_range_s() == DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S
 
+
 def test_no_move_is_playing_at_first():
     assert SharedState().is_move_playing() is False
 
@@ -55,15 +66,6 @@ def test_set_move_playing_records_whether_a_move_plays():
     state.set_move_playing(False)
     assert state.is_move_playing() is False
 
-def test_no_bump_at_first():
-    assert SharedState().last_bump_at() is None
-
-
-def test_record_bump_keeps_the_latest():
-    state = SharedState()
-    state.record_bump(10.0)
-    state.record_bump(12.5)
-    assert state.last_bump_at() == 12.5
 
 def test_no_commanded_pose_at_first():
     assert SharedState().last_commanded_pose() is None
@@ -78,3 +80,49 @@ def test_record_commanded_pose_keeps_the_latest():
     state.record_commanded_pose(second)
 
     assert state.last_commanded_pose() is second
+
+
+def test_no_bump_at_first():
+    assert SharedState().last_bump_at() is None
+
+
+def test_record_bump_keeps_the_latest():
+    state = SharedState()
+    state.record_bump(10.0)
+    state.record_bump(12.5)
+    assert state.last_bump_at() == 12.5
+
+
+def test_no_face_at_first():
+    vision = SharedState().vision
+    assert vision.face_seen_since() is None
+    assert vision.last_face_lost_at() is None
+    assert vision.main_face() is None
+
+
+def test_a_face_appears_with_its_position():
+    vision = SharedState().vision
+    vision.record_face_appeared(at=10.0, face=FACE)
+    assert vision.face_seen_since() == 10.0
+    assert vision.main_face() == FACE
+
+
+def test_the_face_moves_but_stays_seen_since_it_appeared():
+    vision = SharedState().vision
+    vision.record_face_appeared(at=10.0, face=FACE)
+
+    vision.record_main_face(FACE_MOVED)
+
+    assert vision.face_seen_since() == 10.0
+    assert vision.main_face() == FACE_MOVED
+
+
+def test_a_lost_face_leaves_no_position_behind():
+    vision = SharedState().vision
+    vision.record_face_appeared(at=10.0, face=FACE)
+
+    vision.record_face_lost(at=15.0)
+
+    assert vision.face_seen_since() is None
+    assert vision.main_face() is None
+    assert vision.last_face_lost_at() == 15.0

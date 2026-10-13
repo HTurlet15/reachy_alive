@@ -6,6 +6,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from reachy_alive.brain.sensory_cortex.vision.vision_frame import SeenFace
+
 DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S = (20.0, 30.0)
 
 
@@ -24,6 +26,55 @@ class CommandedPose:
     antennas: np.ndarray
 
 
+class VisionFacts:
+    """What the robot sees, as facts. Read it as `shared_state.vision`.
+
+    Each change is one event, written whole under the lock: a reader never
+    sees a face that appeared without its position.
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._face_seen_since: float | None = None
+        self._last_face_lost_at: float | None = None
+        self._main_face: SeenFace | None = None
+
+    # Face presence. Written by FacePresenceDetector.
+
+    def record_face_appeared(self, at: float, face: SeenFace) -> None:
+        """Record that a face appeared at `at` (time.monotonic()), and where it is."""
+        with self._lock:
+            self._face_seen_since = at
+            self._main_face = face
+
+    def record_main_face(self, face: SeenFace) -> None:
+        """Record where the face in view is now."""
+        with self._lock:
+            self._main_face = face
+
+    def record_face_lost(self, at: float) -> None:
+        """Record that the face left the view at `at` (time.monotonic())."""
+        with self._lock:
+            self._face_seen_since = None
+            self._last_face_lost_at = at
+            self._main_face = None
+
+    def face_seen_since(self) -> float | None:
+        """Return since when a face is in view (time.monotonic()), or None if none is."""
+        with self._lock:
+            return self._face_seen_since
+
+    def last_face_lost_at(self) -> float | None:
+        """Return when the last face left the view (time.monotonic()), or None if none did yet."""
+        with self._lock:
+            return self._last_face_lost_at
+
+    def main_face(self) -> SeenFace | None:
+        """Return the face in view, the nearest one if several, or None if none is."""
+        with self._lock:
+            return self._main_face
+
+
 class SharedState:
     """Central, thread-safe blackboard of state shared across modules.
 
@@ -32,18 +83,21 @@ class SharedState:
     hands over a command instead (see reachy_alive.control.commands).
 
     Methods are grouped by fact. Each group names its one writer; every
-    other module only reads.
+    other module only reads. The facts of a sense live in their own object,
+    such as `vision`.
 
     Attributes:
         lock: Guards all reads/writes to prevent race conditions.
         last_activity_at: Monotonic clock reading (time.monotonic()) of when
             the last move ended, whoever asked for the move. Starts at the
             app's launch.
+        vision: What the robot sees.
     """
 
     def __init__(self) -> None:
         self.lock = threading.Lock()
         self.last_activity_at: float = time.monotonic()
+        self.vision = VisionFacts()
         self._move_playing = False
         self._commanded_pose: CommandedPose | None = None
         self._idle_move_interval_range_s = DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S
@@ -143,7 +197,7 @@ class SharedState:
         """When the last sudden noise started, or None if none was heard yet."""
         with self.lock:
             return self._last_sudden_noise_at
-        
+
     # Settings. Written by the app's page, through its routes.
 
     def idle_move_interval_range_s(self) -> tuple[float, float]:
