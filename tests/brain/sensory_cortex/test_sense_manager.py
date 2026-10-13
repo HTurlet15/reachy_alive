@@ -6,6 +6,7 @@ import threading
 import pytest
 
 from reachy_alive.brain.sensory_cortex import vision
+from reachy_alive.brain.sensory_cortex.sense import Sense
 from reachy_alive.brain.sensory_cortex.sense_manager import SenseManager
 from reachy_alive.brain.sensory_cortex.vision.face_presence_detector import FacePresenceDetector
 from reachy_alive.shared_state import VisionFacts
@@ -74,16 +75,22 @@ def test_every_detector_is_given_the_sense_facts(made_up_sense):
 # Handing frames on
 
 
-class ScriptedSense:
-    """Gives the frames it is told to, then stops the watch."""
-
-    PERIOD_S = 0.0
+class ScriptedSense(Sense):
+    """Gives the frames it is told to, then stops the watch. Notes when it is opened and closed."""
 
     def __init__(self, frames: list, stop_event: threading.Event) -> None:
         self._frames = list(frames)
         self._stop_event = stop_event
+        self.events: list[str] = []
+
+    def open(self) -> None:
+        self.events.append("open")
+
+    def close(self) -> None:
+        self.events.append("close")
 
     def read_once(self, now: float):
+        self.events.append("read")
         frame = self._frames.pop(0)
         if not self._frames:
             self._stop_event.set()
@@ -118,6 +125,25 @@ def test_a_missing_frame_is_skipped():
     SenseManager.watch(sense, [detector], stop_event)
 
     assert detector.frames == ["frame"]
+
+
+def test_the_sense_is_opened_before_reading_and_closed_after():
+    stop_event = threading.Event()
+    sense = ScriptedSense(["frame 1", "frame 2"], stop_event)
+
+    SenseManager.watch(sense, [], stop_event)
+
+    assert sense.events == ["open", "read", "read", "close"]
+
+
+def test_the_sense_is_closed_even_if_reading_fails():
+    stop_event = threading.Event()
+    sense = ScriptedSense([], stop_event)  # no frame to give: read_once fails
+
+    with pytest.raises(IndexError):
+        SenseManager.watch(sense, [], stop_event)
+
+    assert sense.events == ["open", "read", "close"]
 
 
 class FailingDetector:

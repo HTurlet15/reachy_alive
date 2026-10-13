@@ -5,16 +5,17 @@ import logging
 from reachy_mini import ReachyMini
 
 from reachy_alive.brain.sensory_cortex.inertial.inertial_frame import InertialFrame
+from reachy_alive.brain.sensory_cortex.sense import Sense
 from reachy_alive.shared_state import SharedState
 
 logger = logging.getLogger(__name__)
 
 
-class InertialSense:
+class InertialSense(Sense):
     """Reads the inertial unit and describes each reading as an InertialFrame.
 
-    Never drives the robot, and knows nothing of the detectors: SenseManager
-    calls it and hands its frames on.
+    It counts as available even in simulation: the SDK gives no data until
+    the first reading, so it can't tell yet.
     """
 
     # The SDK refreshes the inertial unit 50 times a second: reading faster
@@ -33,10 +34,6 @@ class InertialSense:
         self._reachy_mini = reachy_mini
         self._shared_state = shared_state
         self._said_no_data = False
-
-    def is_available(self) -> bool:
-        """Return True: the SDK gives no data until the first reading, so it can't tell yet."""
-        return True
 
     def read_once(self, now: float) -> InertialFrame | None:
         """Describe the latest reading, or return None if the inertial unit gives none.

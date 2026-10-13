@@ -4,16 +4,13 @@ import numpy as np
 from reachy_mini import ReachyMini
 from reachy_mini.vision.face_detector import Face, FaceDetector
 
+from reachy_alive.brain.sensory_cortex.sense import Sense
 from reachy_alive.brain.sensory_cortex.vision.vision_frame import SeenFace, VisionFrame
 from reachy_alive.shared_state import SharedState
 
 
-class VisionSense:
-    """Looks through the camera and describes each image as a VisionFrame.
-
-    Never drives the robot, and knows nothing of the detectors: SenseManager
-    calls it a few times a second and hands its frames on.
-    """
+class VisionSense(Sense):
+    """Looks through the camera and describes each image as a VisionFrame."""
 
     PERIOD_S = 0.2
     # Wide enough to find a face up to about 2.5 m; each doubling costs about

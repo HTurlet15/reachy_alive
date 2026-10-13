@@ -4,16 +4,13 @@ import math
 
 from reachy_mini import ReachyMini
 
+from reachy_alive.brain.sensory_cortex.sense import Sense
 from reachy_alive.brain.sensory_cortex.touch.touch_frame import TouchFrame
 from reachy_alive.shared_state import SharedState
 
 
-class TouchSense:
-    """Reads the antennas and describes each reading as a TouchFrame.
-
-    Never drives the robot, and knows nothing of the detectors: SenseManager
-    calls it and hands its frames on.
-    """
+class TouchSense(Sense):
+    """Reads the antennas and describes each reading as a TouchFrame."""
 
     # RobotController sends new targets 50 times a second.
     PERIOD_S = 0.02
@@ -31,10 +28,6 @@ class TouchSense:
         self._reachy_mini = reachy_mini
         self._shared_state = shared_state
         self._last_seen_moving_at = -math.inf
-
-    def is_available(self) -> bool:
-        """Return True: every Reachy Mini has antennas."""
-        return True
 
     def read_once(self, now: float) -> TouchFrame | None:
         """Describe where the antennas are, or return None if none was sent anywhere yet.
