@@ -1,7 +1,7 @@
 """Tests for FacePresenceDetector, fed with made-up frames at 5 per second."""
 
 from reachy_alive.brain.sensory_cortex.vision.face_presence_detector import FacePresenceDetector
-from reachy_alive.brain.sensory_cortex.vision.vision_cortex import SeenFace, VisionFrame
+from reachy_alive.brain.sensory_cortex.vision.vision_frame import SeenFace, VisionFrame
 from reachy_alive.shared_state import VisionFacts
 
 FRAME_PERIOD_S = 0.2

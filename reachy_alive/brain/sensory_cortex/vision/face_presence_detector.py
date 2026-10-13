@@ -1,6 +1,8 @@
 """Face presence: whether someone is in view, from the faces the vision cortex sees."""
 
-from reachy_alive.brain.sensory_cortex.vision.vision_cortex import SeenFace, VisionFrame
+import logging
+
+from reachy_alive.brain.sensory_cortex.vision.vision_frame import SeenFace, VisionFrame
 from reachy_alive.shared_state import VisionFacts
 
 
