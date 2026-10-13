@@ -32,14 +32,16 @@ class SenseManager:
     STOP_TIMEOUT_S = 1.0
 
     def __init__(self, reachy_mini: ReachyMini, shared_state: SharedState) -> None:
-        """Build every sense, and find the vision detectors.
+        """Build every sense, and find the detectors of each.
 
         Args:
             reachy_mini: Connected robot instance, only read.
             shared_state: Where the senses and their detectors record facts.
         """
-        self._vision = VisionSense(reachy_mini, shared_state)
-        self._vision_detectors = SenseManager.find_detectors(vision, shared_state.vision)
+        # Each sense with its detectors, found in the sense's folder.
+        self._senses = [
+            (VisionSense(reachy_mini, shared_state), self.find_detectors(vision, shared_state.vision)),
+        ]
         # Not yet split into a sense and its detectors: each runs its own loop.
         self._older_senses = [
             InertialUnitSense(reachy_mini, shared_state),
@@ -53,13 +55,13 @@ class SenseManager:
         for sense in self._older_senses:
             self._start_thread(sense, sense.run, stop_event)
 
-        if not self._vision.is_available():
-            logger.info("No camera: nothing will be seen")
-            return
-        logger.info("Vision detectors: %s", [type(d).__name__ for d in self._vision_detectors])
-        self._start_thread(
-            self._vision, SenseManager.watch, self._vision, self._vision_detectors, stop_event
-        )
+        for sense, detectors in self._senses:
+            sense_name = type(sense).__name__
+            if not sense.is_available():
+                logger.info("%s has nothing to read: not started", sense_name)
+                continue
+            logger.info("%s detectors: %s", sense_name, [type(d).__name__ for d in detectors])
+            self._start_thread(sense, SenseManager.watch, sense, detectors, stop_event)
 
     def join(self) -> None:
         """Wait for every sense to stop, STOP_TIMEOUT_S at most each."""
@@ -88,6 +90,9 @@ class SenseManager:
     def watch(sense, detectors: list, stop_event: threading.Event) -> None:
         """Read the sense every PERIOD_S, and hand each frame to every detector.
 
+        A detector that fails is switched off, so the sense and the other
+        detectors keep going.
+
         Args:
             sense: Has a PERIOD_S, and read_once(now) giving a frame or None.
             detectors: Each has update(frame).
@@ -97,10 +102,19 @@ class SenseManager:
             started_at = time.monotonic()
             frame = sense.read_once(started_at)
             if frame is not None:
-                for detector in detectors:
-                    detector.update(frame)
+                SenseManager._hand_frame(frame, detectors)
             elapsed_s = time.monotonic() - started_at
             stop_event.wait(max(0.0, sense.PERIOD_S - elapsed_s))  # wakes at once on stop
+
+    @staticmethod
+    def _hand_frame(frame, detectors: list) -> None:
+        """Hand one frame to every detector, and switch off any that fails."""
+        for detector in list(detectors):  # a copy: failing ones leave the list
+            try:
+                detector.update(frame)
+            except Exception:
+                logger.exception("%s failed: switched off", type(detector).__name__)
+                detectors.remove(detector)
 
     def _start_thread(self, sense, target, *args) -> None:
         """Run target(*args) in a thread named after the sense, and keep it to join."""

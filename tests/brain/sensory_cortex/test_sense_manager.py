@@ -108,3 +108,35 @@ def test_a_missing_frame_is_skipped():
     SenseManager.watch(sense, [detector], stop_event)
 
     assert detector.frames == ["frame"]
+
+
+class FailingDetector:
+    """Fails on every frame, like a detector with a bug."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def update(self, frame) -> None:
+        self.calls += 1
+        raise ValueError("a bug")
+
+
+def test_a_failing_detector_does_not_stop_the_others(caplog):
+    stop_event = threading.Event()
+    sense = ScriptedSense(["frame 1", "frame 2"], stop_event)
+    failing, working = FailingDetector(), RecordingDetector()
+
+    SenseManager.watch(sense, [failing, working], stop_event)
+
+    assert working.frames == ["frame 1", "frame 2"]
+    assert "FailingDetector failed: switched off" in caplog.text
+
+
+def test_a_failing_detector_is_switched_off_after_its_first_failure():
+    stop_event = threading.Event()
+    sense = ScriptedSense(["frame 1", "frame 2", "frame 3"], stop_event)
+    failing = FailingDetector()
+
+    SenseManager.watch(sense, [failing], stop_event)
+
+    assert failing.calls == 1
