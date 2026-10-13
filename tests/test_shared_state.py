@@ -93,6 +93,19 @@ def test_record_bump_keeps_the_latest():
     assert inertial.last_bump_at() == 12.5
 
 
+def test_no_antenna_is_pushed_at_first():
+    touch = SharedState().touch
+    assert touch.antenna_pushed_since("right") is None
+    assert touch.antenna_pushed_since("left") is None
+
+
+def test_a_push_is_recorded_on_its_own_side():
+    touch = SharedState().touch
+    touch.set_antenna_pushed_since("left", 3.0)
+    assert touch.antenna_pushed_since("left") == 3.0
+    assert touch.antenna_pushed_since("right") is None
+
+
 def test_no_face_at_first():
     vision = SharedState().vision
     assert vision.face_seen_since() is None

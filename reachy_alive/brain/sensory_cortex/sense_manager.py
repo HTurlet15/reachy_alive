@@ -15,10 +15,10 @@ from types import ModuleType
 
 from reachy_mini import ReachyMini
 
-from reachy_alive.brain.sensory_cortex import inertial, vision
-from reachy_alive.brain.sensory_cortex.antennas import AntennasSense
+from reachy_alive.brain.sensory_cortex import inertial, touch, vision
 from reachy_alive.brain.sensory_cortex.hearing import HearingSense
 from reachy_alive.brain.sensory_cortex.inertial.inertial_sense import InertialSense
+from reachy_alive.brain.sensory_cortex.touch.touch_sense import TouchSense
 from reachy_alive.brain.sensory_cortex.vision.vision_sense import VisionSense
 from reachy_alive.shared_state import SharedState
 
@@ -45,10 +45,10 @@ class SenseManager:
                 InertialSense(reachy_mini, shared_state),
                 self.find_detectors(inertial, shared_state.inertial),
             ),
+            (TouchSense(reachy_mini, shared_state), self.find_detectors(touch, shared_state.touch)),
         ]
         # Not yet split into a sense and its detectors: each runs its own loop.
         self._older_senses = [
-            AntennasSense(reachy_mini, shared_state),
             HearingSense(reachy_mini, shared_state),
         ]
         self._threads: list[threading.Thread] = []
