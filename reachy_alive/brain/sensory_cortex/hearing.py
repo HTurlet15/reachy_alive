@@ -212,7 +212,7 @@ class HearingSense:
                 self._sound_heard_s, loudness_dbfs(stretch)
             )
             if noise_starts and not robot_may_hear_itself:
-                self._shared_state.record_sudden_noise(now)
+                self._shared_state.hearing.record_sudden_noise(now)
                 logger.info("Sudden noise")
 
     def _watch_for_own_moves(self, now: float) -> None:

@@ -106,6 +106,17 @@ def test_a_push_is_recorded_on_its_own_side():
     assert touch.antenna_pushed_since("right") is None
 
 
+def test_no_sudden_noise_at_first():
+    assert SharedState().hearing.last_sudden_noise_at() is None
+
+
+def test_record_sudden_noise_keeps_the_latest():
+    hearing = SharedState().hearing
+    hearing.record_sudden_noise(10.0)
+    hearing.record_sudden_noise(12.5)
+    assert hearing.last_sudden_noise_at() == 12.5
+
+
 def test_no_face_at_first():
     vision = SharedState().vision
     assert vision.face_seen_since() is None

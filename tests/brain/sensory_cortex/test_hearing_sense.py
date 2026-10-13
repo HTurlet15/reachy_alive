@@ -44,7 +44,7 @@ def test_a_quiet_room_records_nothing():
 
     read_all(sense, len(chunks))
 
-    assert state.last_sudden_noise_at() is None
+    assert state.hearing.last_sudden_noise_at() is None
 
 
 def test_a_clap_is_recorded():
@@ -53,7 +53,7 @@ def test_a_clap_is_recorded():
 
     read_all(sense, len(chunks))
 
-    assert state.last_sudden_noise_at() == (len(chunks) - 1) * 0.01
+    assert state.hearing.last_sudden_noise_at() == (len(chunks) - 1) * 0.01
 
 
 def test_chunks_of_any_length_are_cut_into_stretches():
@@ -62,7 +62,7 @@ def test_chunks_of_any_length_are_cut_into_stretches():
 
     read_all(sense, len(chunks))
 
-    assert state.last_sudden_noise_at() is not None
+    assert state.hearing.last_sudden_noise_at() is not None
 
 
 def test_a_noise_while_a_move_plays_is_not_recorded():
@@ -72,7 +72,7 @@ def test_a_noise_while_a_move_plays_is_not_recorded():
 
     read_all(sense, len(chunks))
 
-    assert state.last_sudden_noise_at() is None
+    assert state.hearing.last_sudden_noise_at() is None
 
 
 def test_a_noise_right_after_a_move_is_not_recorded():
@@ -85,7 +85,7 @@ def test_a_noise_right_after_a_move_is_not_recorded():
 
     sense.read_once(len(quiet_chunks) * 0.01)  # 10 ms after the move
 
-    assert state.last_sudden_noise_at() is None
+    assert state.hearing.last_sudden_noise_at() is None
 
 
 def test_without_microphones_the_sense_says_so_and_stops(caplog):
