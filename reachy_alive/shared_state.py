@@ -95,6 +95,35 @@ class InertialFacts:
             return self._last_bump_at
 
 
+class TouchFacts:
+    """What the robot feels through its antennas, as facts. Read it as `shared_state.touch`."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._antenna_pushed_since: dict[str, float | None] = {"right": None, "left": None}
+
+    # Antenna pushes. Written by AntennaPushDetector.
+
+    def set_antenna_pushed_since(self, side: str, since: float | None) -> None:
+        """Record since when an antenna is pushed (time.monotonic()), or None once it isn't.
+
+        Args:
+            side: "right" or "left", the robot's own sides.
+            since: When the push started, or None.
+        """
+        with self._lock:
+            self._antenna_pushed_since[side] = since
+
+    def antenna_pushed_since(self, side: str) -> float | None:
+        """Return since when an antenna is pushed (time.monotonic()), or None if it isn't.
+
+        Args:
+            side: "right" or "left", the robot's own sides.
+        """
+        with self._lock:
+            return self._antenna_pushed_since[side]
+
+
 class SharedState:
     """Central, thread-safe blackboard of state shared across modules.
 
@@ -113,6 +142,7 @@ class SharedState:
             app's launch.
         vision: What the robot sees.
         inertial: What the robot feels through its inertial unit.
+        touch: What the robot feels through its antennas.
     """
 
     def __init__(self) -> None:
@@ -120,10 +150,10 @@ class SharedState:
         self.last_activity_at: float = time.monotonic()
         self.vision = VisionFacts()
         self.inertial = InertialFacts()
+        self.touch = TouchFacts()
         self._move_playing = False
         self._commanded_pose: CommandedPose | None = None
         self._idle_move_interval_range_s = DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S
-        self._antenna_pushed_since: dict[str, float | None] = {"right": None, "left": None}
         self._last_sudden_noise_at: float | None = None
 
     # Idle timer. Written by RobotController, when a move ends.
@@ -171,27 +201,6 @@ class SharedState:
             return self._commanded_pose
 
     # Senses: what the robot perceives. Each fact is written by its sense.
-
-    def set_antenna_pushed_since(self, side: str, since: float | None) -> None:
-        """Record since when an antenna is pushed, or None once it isn't.
-
-        Written by AntennasSense.
-
-        Args:
-            side: "right" or "left", the robot's own sides.
-            since: When the push started (time.monotonic()), or None.
-        """
-        with self.lock:
-            self._antenna_pushed_since[side] = since
-
-    def antenna_pushed_since(self, side: str) -> float | None:
-        """Return since when an antenna is pushed (time.monotonic()), or None if it isn't.
-
-        Args:
-            side: "right" or "left", the robot's own sides.
-        """
-        with self.lock:
-            return self._antenna_pushed_since[side]
 
     def record_sudden_noise(self, at: float) -> None:
         """Record that a sudden noise started at `at` (time.monotonic()).

@@ -1,7 +1,7 @@
-"""Unit tests for AntennaPushDetector.
+"""Unit tests for AntennaPush (one antenna) and AntennaPushDetector (both, writing facts).
 
 A sample is (t, target_rad, present_rad): when the antenna was read, where
-it was sent, and where it was measured. The detector is tested first on
+it was sent, and where it was measured. AntennaPush is tested first on
 made-up samples, one rule per test, then on recordings from the robot.
 """
 
@@ -9,9 +9,14 @@ import csv
 import math
 from pathlib import Path
 
-from reachy_alive.brain.sensory_cortex.antennas import AntennaPushDetector
+from reachy_alive.brain.sensory_cortex.touch.antenna_push_detector import (
+    AntennaPush,
+    AntennaPushDetector,
+)
+from reachy_alive.brain.sensory_cortex.touch.touch_frame import TouchFrame
+from reachy_alive.shared_state import TouchFacts
 
-DATA = Path(__file__).parent / "data"
+DATA = Path(__file__).parent.parent / "data"
 RIGHT, LEFT = 0, 1  # the SDK's order for the antennas, on the real robot
 MOTOR_DELAY_S = 0.08  # how far behind its target a healthy motor runs
 
@@ -26,15 +31,15 @@ def breathing_sway_rad(t: float) -> float:
     return math.radians(15.0) * math.sin(2 * math.pi * 0.25 * t)
 
 
-def push_starts(samples, detector: AntennaPushDetector | None = None) -> list[float]:
-    """Feed samples to a detector and return when each push started.
+def push_starts(samples, push: AntennaPush | None = None) -> list[float]:
+    """Feed samples to one AntennaPush and return when each push started.
 
     A push held for several samples counts once.
     """
-    detector = detector or AntennaPushDetector()
+    push = push or AntennaPush()
     starts = []
     for t, target_rad, present_rad in samples:
-        pushed_since = detector.update(t, target_rad, present_rad)
+        pushed_since = push.update(t, target_rad, present_rad)
         if pushed_since is not None and pushed_since not in starts:
             starts.append(pushed_since)
     return starts
@@ -52,7 +57,7 @@ def recorded_samples(name: str, antenna: int) -> list[tuple[float, float, float]
 def stretches_between_moves(samples) -> list[list[tuple[float, float, float]]]:
     """Split samples where the sense went quiet for a move (a gap over 0.1 s).
 
-    The sense starts each stretch with new detectors, as these tests do.
+    The detector forgets its pushes during each move, as these tests do.
     """
     stretches = [[samples[0]]]
     for previous, sample in zip(samples, samples[1:]):
@@ -97,19 +102,18 @@ def test_moving_the_antenna_away_starts_a_push():
 
 
 def test_a_push_lasts_until_the_gap_falls_under_the_release_threshold():
-    detector = AntennaPushDetector(push_threshold_deg=5.0, release_threshold_deg=3.0)
+    # With the class's thresholds: a push starts at 5° and ends under 3°.
+    push = AntennaPush()
     for t in times_at_50_hz(1.0):
-        detector.update(t, 0.0, 0.0)
+        push.update(t, 0.0, 0.0)
 
-    assert detector.update(1.00, 0.0, math.radians(6.0)) == 1.00  # reaches 5°: starts
-    assert detector.update(1.02, 0.0, math.radians(4.0)) == 1.00  # between 3° and 5°: goes on
-    assert detector.update(1.04, 0.0, math.radians(2.0)) is None  # under 3°: ends
+    assert push.update(1.00, 0.0, math.radians(6.0)) == 1.00  # reaches 5°: starts
+    assert push.update(1.02, 0.0, math.radians(4.0)) == 1.00  # between 3° and 5°: goes on
+    assert push.update(1.04, 0.0, math.radians(2.0)) is None  # under 3°: ends
 
 
 def test_nothing_is_judged_before_a_target_was_sent_long_enough_ago():
-    detector = AntennaPushDetector(max_delay_s=0.25)
-
-    assert detector.update(0.00, 0.0, math.radians(30.0)) is None
+    assert AntennaPush().update(0.00, 0.0, math.radians(30.0)) is None
 
 
 # Recordings from the robot, from the sprint B spike:
@@ -133,7 +137,8 @@ def test_swaying_antennas_are_not_pushed():
 
 
 def test_without_the_motor_delay_the_jerky_antenna_reads_as_pushed():
-    no_delay = AntennaPushDetector(min_delay_s=0.0, max_delay_s=0.0)
+    no_delay = AntennaPush()
+    no_delay.MIN_DELAY_S = no_delay.MAX_DELAY_S = 0.0
 
     assert push_starts(recorded_samples("antennas_sway_check.csv", RIGHT), no_delay) != []
 
@@ -150,3 +155,64 @@ def test_the_left_antenna_is_not_pushed_in_the_app_despite_frozen_measurements()
     # up to 0.26 s while the targets keep moving.
     for stretch in stretches_between_moves(recorded_samples("antennas_in_app.csv", LEFT)):
         assert push_starts(stretch) == []
+
+
+# AntennaPushDetector: both antennas, from frames to facts.
+
+NEUTRAL_RAD = (-0.17, 0.17)  # (right, left)
+
+
+def follow(detector: AntennaPushDetector, start_s: float, duration_s: float, measured_rad,
+           robot_moving_itself: bool = False) -> float:
+    """Hand a frame every 20 ms, antennas sent to NEUTRAL_RAD; return the time after."""
+    t = start_s
+    while t < start_s + duration_s - 1e-9:
+        detector.update(TouchFrame(t, NEUTRAL_RAD, measured_rad, robot_moving_itself))
+        t = round(t + 0.02, 6)
+    return t
+
+
+def test_a_push_is_recorded_on_the_antenna_moved_away():
+    facts = TouchFacts()
+    detector = AntennaPushDetector(facts)
+    t = follow(detector, 0.0, 0.5, NEUTRAL_RAD)
+
+    follow(detector, t, 0.02, (NEUTRAL_RAD[0], NEUTRAL_RAD[1] + math.radians(10.0)))
+
+    assert facts.antenna_pushed_since("left") == t
+    assert facts.antenna_pushed_since("right") is None
+
+
+def test_a_released_antenna_is_no_longer_pushed():
+    facts = TouchFacts()
+    detector = AntennaPushDetector(facts)
+    t = follow(detector, 0.0, 0.5, NEUTRAL_RAD)
+    t = follow(detector, t, 0.2, (NEUTRAL_RAD[0] + math.radians(10.0), NEUTRAL_RAD[1]))
+
+    follow(detector, t, 0.02, NEUTRAL_RAD)
+
+    assert facts.antenna_pushed_since("right") is None
+
+
+def test_nothing_is_pushed_while_the_robot_moves_itself():
+    facts = TouchFacts()
+    detector = AntennaPushDetector(facts)
+    t = follow(detector, 0.0, 0.5, NEUTRAL_RAD)
+    far_away = (NEUTRAL_RAD[0] + math.radians(30.0), NEUTRAL_RAD[1] + math.radians(30.0))
+
+    follow(detector, t, 0.5, far_away, robot_moving_itself=True)
+
+    assert facts.antenna_pushed_since("right") is None
+    assert facts.antenna_pushed_since("left") is None
+
+
+def test_a_push_is_forgotten_once_the_robot_moves_itself():
+    facts = TouchFacts()
+    detector = AntennaPushDetector(facts)
+    t = follow(detector, 0.0, 0.5, NEUTRAL_RAD)
+    pushed = (NEUTRAL_RAD[0], NEUTRAL_RAD[1] + math.radians(10.0))
+    t = follow(detector, t, 0.2, pushed)
+
+    follow(detector, t, 0.02, pushed, robot_moving_itself=True)
+
+    assert facts.antenna_pushed_since("left") is None
