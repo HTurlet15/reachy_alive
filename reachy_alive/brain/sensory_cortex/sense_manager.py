@@ -41,7 +41,10 @@ class SenseManager:
         # Each sense with its detectors, found in the sense's folder.
         self._senses = [
             (VisionSense(reachy_mini, shared_state), self.find_detectors(vision, shared_state.vision)),
-            (InertialSense(reachy_mini, shared_state), self.find_detectors(inertial, shared_state.inertial)),
+            (
+                InertialSense(reachy_mini, shared_state),
+                self.find_detectors(inertial, shared_state.inertial),
+            ),
         ]
         # Not yet split into a sense and its detectors: each runs its own loop.
         self._older_senses = [
@@ -73,17 +76,17 @@ class SenseManager:
         """Build each detector of a sense's folder, giving it the sense's facts.
 
         A detector is a class named `…Detector`, written in a `*_detector.py`
-        file of that folder.
+        file of that folder. A file that fails to load is skipped, so the
+        other detectors still run.
         """
         detectors = []
         for file in pkgutil.iter_modules(sense_folder.__path__):
             if not file.name.endswith("_detector"):
                 continue
-            module = importlib.import_module(f"{sense_folder.__name__}.{file.name}")
-            for name, cls in inspect.getmembers(module, inspect.isclass):
-                written_here = cls.__module__ == module.__name__  # not imported from elsewhere
-                if name.endswith("Detector") and written_here:
-                    detectors.append(cls(facts))
+            try:
+                detectors += SenseManager._build_detectors(f"{sense_folder.__name__}.{file.name}", facts)
+            except Exception:
+                logger.exception("%s can't be loaded: skipped", file.name)
         return detectors
 
     @staticmethod
@@ -105,6 +108,16 @@ class SenseManager:
                 SenseManager._hand_frame(frame, detectors)
             elapsed_s = time.monotonic() - started_at
             stop_event.wait(max(0.0, sense.PERIOD_S - elapsed_s))  # wakes at once on stop
+
+    @staticmethod
+    def _build_detectors(module_name: str, facts) -> list:
+        """Import a detector file, and build each detector class written in it."""
+        module = importlib.import_module(module_name)
+        return [
+            cls(facts)
+            for name, cls in inspect.getmembers(module, inspect.isclass)
+            if name.endswith("Detector") and cls.__module__ == module.__name__  # not imported
+        ]
 
     @staticmethod
     def _hand_frame(frame, detectors: list) -> None:
