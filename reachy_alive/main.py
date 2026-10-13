@@ -35,7 +35,7 @@ class ReachyAlive(ReachyMiniApp):
         # Facts shared across threads: the idle timer, the page's settings,
         # what the robot senses.
         shared_state = SharedState()
-
+        shared_state.set_idle_move_interval_range_s(3600.0, 3600.0)  # demo: no idle move for an hour
         # The moves idle picks from. The page can play the same moves, looked
         # up by name, so two moves must never share one.
         idle_moves = self._build_idle_moves()
@@ -51,7 +51,7 @@ class ReachyAlive(ReachyMiniApp):
             create_router(idle_moves_by_name, move_requests, shared_state)
         )
         self.settings_app.include_router(create_senses_router(shared_state))
-        
+
         # The senses, each in its own thread: they read the robot and write
         # facts to shared_state, never driving it.
         sense_manager = SenseManager(reachy_mini, shared_state)
