@@ -23,7 +23,7 @@ def test_the_vision_folder_holds_the_face_presence_detector():
 
 @pytest.fixture
 def made_up_sense(tmp_path, monkeypatch):
-    """A sense folder written on the fly: two detector files, and a helper file."""
+    """A sense folder written on the fly: two detector files, a broken one, and a helper file."""
     package = tmp_path / "made_up_sense"
     package.mkdir()
     (package / "__init__.py").write_text("")
@@ -37,6 +37,9 @@ def made_up_sense(tmp_path, monkeypatch):
         "class SnapDetector:\n"
         "    def __init__(self, facts):\n"
         "        self.facts = facts\n"
+    )
+    (package / "broken_detector.py").write_text(
+        "import a_module_that_does_not_exist  # a contributor's mistake\n"
     )
     (package / "helpers.py").write_text(
         "class HelperDetector:  # not in a *_detector.py file: ignored\n"
@@ -53,6 +56,13 @@ def test_only_detector_classes_of_detector_files_are_found_once(made_up_sense):
     detectors = SenseManager.find_detectors(made_up_sense, facts="the facts")
 
     assert sorted(type(detector).__name__ for detector in detectors) == ["ClapDetector", "SnapDetector"]
+
+
+def test_a_detector_file_that_fails_to_load_is_skipped(made_up_sense, caplog):
+    detectors = SenseManager.find_detectors(made_up_sense, facts="the facts")
+
+    assert len(detectors) == 2
+    assert "broken_detector can't be loaded: skipped" in caplog.text
 
 
 def test_every_detector_is_given_the_sense_facts(made_up_sense):

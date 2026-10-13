@@ -83,14 +83,14 @@ def test_record_commanded_pose_keeps_the_latest():
 
 
 def test_no_bump_at_first():
-    assert SharedState().last_bump_at() is None
+    assert SharedState().inertial.last_bump_at() is None
 
 
 def test_record_bump_keeps_the_latest():
-    state = SharedState()
-    state.record_bump(10.0)
-    state.record_bump(12.5)
-    assert state.last_bump_at() == 12.5
+    inertial = SharedState().inertial
+    inertial.record_bump(10.0)
+    inertial.record_bump(12.5)
+    assert inertial.last_bump_at() == 12.5
 
 
 def test_no_face_at_first():

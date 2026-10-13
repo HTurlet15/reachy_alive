@@ -75,6 +75,26 @@ class VisionFacts:
             return self._main_face
 
 
+class InertialFacts:
+    """What the robot feels through its inertial unit, as facts. Read it as `shared_state.inertial`."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._last_bump_at: float | None = None
+
+    # Bumps. Written by BumpDetector.
+
+    def record_bump(self, at: float) -> None:
+        """Record a bump felt at `at` (time.monotonic())."""
+        with self._lock:
+            self._last_bump_at = at
+
+    def last_bump_at(self) -> float | None:
+        """Return when the last bump was felt (time.monotonic()), or None if none yet."""
+        with self._lock:
+            return self._last_bump_at
+
+
 class SharedState:
     """Central, thread-safe blackboard of state shared across modules.
 
@@ -92,16 +112,17 @@ class SharedState:
             the last move ended, whoever asked for the move. Starts at the
             app's launch.
         vision: What the robot sees.
+        inertial: What the robot feels through its inertial unit.
     """
 
     def __init__(self) -> None:
         self.lock = threading.Lock()
         self.last_activity_at: float = time.monotonic()
         self.vision = VisionFacts()
+        self.inertial = InertialFacts()
         self._move_playing = False
         self._commanded_pose: CommandedPose | None = None
         self._idle_move_interval_range_s = DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S
-        self._last_bump_at: float | None = None
         self._antenna_pushed_since: dict[str, float | None] = {"right": None, "left": None}
         self._last_sudden_noise_at: float | None = None
 
@@ -150,19 +171,6 @@ class SharedState:
             return self._commanded_pose
 
     # Senses: what the robot perceives. Each fact is written by its sense.
-
-    def record_bump(self, at: float) -> None:
-        """Record a bump felt at `at`, a time.monotonic() reading.
-
-        Written by InertialUnitSense.
-        """
-        with self.lock:
-            self._last_bump_at = at
-
-    def last_bump_at(self) -> float | None:
-        """Return when the last bump was felt (time.monotonic()), or None if none yet."""
-        with self.lock:
-            return self._last_bump_at
 
     def set_antenna_pushed_since(self, side: str, since: float | None) -> None:
         """Record since when an antenna is pushed, or None once it isn't.
