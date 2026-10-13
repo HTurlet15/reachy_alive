@@ -124,6 +124,26 @@ class TouchFacts:
             return self._antenna_pushed_since[side]
 
 
+class HearingFacts:
+    """What the robot hears, as facts. Read it as `shared_state.hearing`."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._last_sudden_noise_at: float | None = None
+
+    # Sudden noises. Written by SuddenNoiseDetector.
+
+    def record_sudden_noise(self, at: float) -> None:
+        """Record a sudden noise that started at `at` (time.monotonic())."""
+        with self._lock:
+            self._last_sudden_noise_at = at
+
+    def last_sudden_noise_at(self) -> float | None:
+        """Return when the last sudden noise started (time.monotonic()), or None if none yet."""
+        with self._lock:
+            return self._last_sudden_noise_at
+
+
 class SharedState:
     """Central, thread-safe blackboard of state shared across modules.
 
@@ -143,6 +163,7 @@ class SharedState:
         vision: What the robot sees.
         inertial: What the robot feels through its inertial unit.
         touch: What the robot feels through its antennas.
+        hearing: What the robot hears.
     """
 
     def __init__(self) -> None:
@@ -151,10 +172,10 @@ class SharedState:
         self.vision = VisionFacts()
         self.inertial = InertialFacts()
         self.touch = TouchFacts()
+        self.hearing = HearingFacts()
         self._move_playing = False
         self._commanded_pose: CommandedPose | None = None
         self._idle_move_interval_range_s = DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S
-        self._last_sudden_noise_at: float | None = None
 
     # Idle timer. Written by RobotController, when a move ends.
 
@@ -199,21 +220,6 @@ class SharedState:
         """Return the last pose RobotController sent, or None if none yet."""
         with self.lock:
             return self._commanded_pose
-
-    # Senses: what the robot perceives. Each fact is written by its sense.
-
-    def record_sudden_noise(self, at: float) -> None:
-        """Record that a sudden noise started at `at` (time.monotonic()).
-
-        Written by HearingSense.
-        """
-        with self.lock:
-            self._last_sudden_noise_at = at
-
-    def last_sudden_noise_at(self) -> float | None:
-        """When the last sudden noise started, or None if none was heard yet."""
-        with self.lock:
-            return self._last_sudden_noise_at
 
     # Settings. Written by the app's page, through its routes.
 

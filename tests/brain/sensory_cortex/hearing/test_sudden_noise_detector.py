@@ -1,33 +1,51 @@
-"""Unit tests for loudness_dbfs and SuddenNoiseDetector.
+"""Unit tests for SuddenNoiseDetector.
 
 The detector is tested on made-up levels and on a recording from the robot.
-It reads one loudness level per 20 ms stretch of sound, as the sense feeds it.
+It reads one frame per 20 ms stretch of sound, as the sense hands them.
 """
 
 import csv
-import math
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import numpy as np
 
-from reachy_alive.brain.sensory_cortex.hearing import (
-    SILENCE_DBFS,
-    SuddenNoiseDetector,
-    loudness_dbfs,
-)
+from reachy_alive.brain.sensory_cortex.hearing.hearing_frame import HearingFrame
+from reachy_alive.brain.sensory_cortex.hearing.sudden_noise_detector import SuddenNoiseDetector
+from reachy_alive.shared_state import HearingFacts
 
-DATA = Path(__file__).parent / "data"
-STRETCH_S = 0.02  # one loudness level every 20 ms
+DATA = Path(__file__).parent.parent / "data"
+STRETCH_S = 0.02  # one frame every 20 ms
 
 
-def noise_starts(levels_dbfs: list[float]) -> list[float]:
-    """Feed one level per stretch to a fresh detector; return when sudden noises started."""
-    detector = SuddenNoiseDetector()
-    return [
-        round(i * STRETCH_S, 2)
-        for i, level_dbfs in enumerate(levels_dbfs)
-        if detector.update(i * STRETCH_S, level_dbfs)
-    ]
+def recorded_noises(frames: list[HearingFrame]) -> list[float]:
+    """Feed frames to a fresh detector; return when it recorded each sudden noise.
+
+    The facts only keep the last noise: fake facts keep every call instead.
+    """
+    facts = MagicMock(spec=HearingFacts)
+    detector = SuddenNoiseDetector(facts)
+    for frame in frames:
+        detector.update(frame)
+    return [call.args[0] for call in facts.record_sudden_noise.call_args_list]
+
+
+def noise_starts(levels_dbfs: list[float], robot_moving_itself: bool = False) -> list[float]:
+    """Feed one level per stretch; return when sudden noises started.
+
+    Each stretch is read the moment its sound ends: both clocks agree.
+    """
+    return recorded_noises(
+        [
+            HearingFrame(
+                t=round(i * STRETCH_S, 2),
+                time_listened_s=i * STRETCH_S,
+                level_dbfs=level_dbfs,
+                robot_moving_itself=robot_moving_itself,
+            )
+            for i, level_dbfs in enumerate(levels_dbfs)
+        ]
+    )
 
 
 def steady(level_dbfs: float, duration_s: float) -> list[float]:
@@ -35,25 +53,7 @@ def steady(level_dbfs: float, duration_s: float) -> list[float]:
     return [level_dbfs] * round(duration_s / STRETCH_S)
 
 
-# loudness_dbfs
-
-
-def test_silence_is_the_quietest_level():
-    assert loudness_dbfs(np.zeros(320)) == SILENCE_DBFS
-
-
-def test_a_full_scale_square_wave_is_0_dbfs():
-    assert math.isclose(loudness_dbfs(np.array([1.0, -1.0] * 160)), 0.0)
-
-
-def test_halving_the_sound_lowers_it_by_6_db():
-    full = loudness_dbfs(np.array([1.0, -1.0] * 160))
-    half = loudness_dbfs(np.array([0.5, -0.5] * 160))
-
-    assert math.isclose(full - half, 20 * math.log10(2))
-
-
-# SuddenNoiseDetector: a loud sound
+# A loud sound
 
 QUIET_ROOM_DBFS = -60.0
 CLAP_DBFS = -10.0
@@ -78,6 +78,22 @@ def test_a_steady_room_is_quiet():
 
 def test_a_clap_in_a_quiet_room_is_a_sudden_noise():
     assert noise_starts(quiet_room_with(3.0, {2.0: CLAP_DBFS})) == [2.0]
+
+
+def test_a_sudden_noise_is_recorded_when_its_stretch_was_read():
+    facts = HearingFacts()
+    detector = SuddenNoiseDetector(facts)
+    quiet = HearingFrame(
+        t=10.0, time_listened_s=0.02, level_dbfs=QUIET_ROOM_DBFS, robot_moving_itself=False
+    )
+    clap = HearingFrame(
+        t=10.02, time_listened_s=0.04, level_dbfs=CLAP_DBFS, robot_moving_itself=False
+    )
+
+    detector.update(quiet)
+    detector.update(clap)
+
+    assert facts.last_sudden_noise_at() == 10.02  # t, not the sound's clock
 
 
 def test_a_clap_in_a_louder_room_still_counts():
@@ -121,7 +137,13 @@ def test_a_room_getting_much_louder_at_once_is_reported_once():
     assert noise_starts(vacuum_switched_on) == [2.0]
 
 
-# SuddenNoiseDetector: habituation
+def test_a_clap_while_the_robot_moves_itself_is_not_recorded():
+    levels = quiet_room_with(3.0, {2.0: CLAP_DBFS})
+
+    assert noise_starts(levels, robot_moving_itself=True) == []
+
+
+# Habituation
 
 
 def test_of_three_claps_in_a_row_only_the_first_is_sudden():
@@ -160,16 +182,20 @@ def test_a_much_louder_bang_right_after_claps_is_sudden():
 def recorded_noise_starts(name: str) -> list[float]:
     """Feed a recording to a fresh detector; return when sudden noises started.
 
-    The detector is timed by the sound heard; the times returned are on the
-    clock printed on screen, to compare with the script.
+    Each row is a frame: read at clock_s, the clock printed on screen, to
+    compare with the script; time_listened_s is the sound's own clock.
     """
-    detector = SuddenNoiseDetector()
     with open(DATA / name) as f:
-        return [
-            float(row["clock_s"])
+        frames = [
+            HearingFrame(
+                t=float(row["clock_s"]),
+                time_listened_s=float(row["time_listened_s"]),
+                level_dbfs=float(row["level_dbfs"]),
+                robot_moving_itself=False,
+            )
             for row in csv.DictReader(f)
-            if detector.update(float(row["sound_heard_s"]), float(row["level_dbfs"]))
         ]
+    return recorded_noises(frames)
 
 
 def noises_between(start_s: float, end_s: float) -> list[float]:

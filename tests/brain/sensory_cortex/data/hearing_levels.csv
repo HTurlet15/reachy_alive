@@ -1,4 +1,4 @@
-clock_s,sound_heard_s,level_dbfs
+clock_s,time_listened_s,level_dbfs
 0.66,0.02,-33.7
 0.68,0.04,-33.4
 0.68,0.06,-32.5
