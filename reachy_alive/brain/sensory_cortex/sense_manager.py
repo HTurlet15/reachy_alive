@@ -15,8 +15,8 @@ from types import ModuleType
 
 from reachy_mini import ReachyMini
 
-from reachy_alive.brain.sensory_cortex import inertial, touch, vision
-from reachy_alive.brain.sensory_cortex.hearing import HearingSense
+from reachy_alive.brain.sensory_cortex import hearing, inertial, touch, vision
+from reachy_alive.brain.sensory_cortex.hearing.hearing_sense import HearingSense
 from reachy_alive.brain.sensory_cortex.inertial.inertial_sense import InertialSense
 from reachy_alive.brain.sensory_cortex.sense import Sense
 from reachy_alive.brain.sensory_cortex.touch.touch_sense import TouchSense
@@ -47,25 +47,22 @@ class SenseManager:
                 self.find_detectors(inertial, shared_state.inertial),
             ),
             (TouchSense(reachy_mini, shared_state), self.find_detectors(touch, shared_state.touch)),
-        ]
-        # Not yet split into a sense and its detectors: each runs its own loop.
-        self._older_senses = [
-            HearingSense(reachy_mini, shared_state),
+            (
+                HearingSense(reachy_mini, shared_state),
+                self.find_detectors(hearing, shared_state.hearing),
+            ),
         ]
         self._threads: list[threading.Thread] = []
 
     def start(self, stop_event: threading.Event) -> None:
         """Start one thread per sense. Each stops once stop_event is set."""
-        for sense in self._older_senses:
-            self._start_thread(sense, sense.run, stop_event)
-
         for sense, detectors in self._senses:
             sense_name = type(sense).__name__
             if not sense.is_available():
                 logger.info("%s has nothing to read: not started", sense_name)
                 continue
             logger.info("%s detectors: %s", sense_name, [type(d).__name__ for d in detectors])
-            self._start_thread(sense, SenseManager.watch, sense, detectors, stop_event)
+            self._start_thread(sense, detectors, stop_event)
 
     def join(self) -> None:
         """Wait for every sense to stop, STOP_TIMEOUT_S at most each."""
@@ -135,8 +132,13 @@ class SenseManager:
                 logger.exception("%s failed: switched off", type(detector).__name__)
                 detectors.remove(detector)
 
-    def _start_thread(self, sense, target, *args) -> None:
-        """Run target(*args) in a thread named after the sense, and keep it to join."""
-        thread = threading.Thread(target=target, args=args, name=type(sense).__name__, daemon=True)
+    def _start_thread(self, sense: Sense, detectors: list, stop_event: threading.Event) -> None:
+        """Watch the sense in a thread named after it, and keep the thread to join."""
+        thread = threading.Thread(
+            target=SenseManager.watch,
+            args=(sense, detectors, stop_event),
+            name=type(sense).__name__,
+            daemon=True,
+        )
         thread.start()
         self._threads.append(thread)
