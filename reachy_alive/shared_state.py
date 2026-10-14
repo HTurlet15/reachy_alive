@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from reachy_alive.brain.sensory_cortex.vision.vision_frame import SeenFace
+from reachy_alive.brain.sensory_cortex.vision.vision_features import SeenFace
 
 DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S = (20.0, 30.0)
 

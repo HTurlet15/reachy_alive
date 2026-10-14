@@ -1,7 +1,7 @@
-"""Tests for FacePresenceDetector, fed with made-up frames at 5 per second."""
+"""Tests for FacePresenceDetector, fed with the made-up features of 5 images per second."""
 
 from reachy_alive.brain.sensory_cortex.vision.face_presence_detector import FacePresenceDetector
-from reachy_alive.brain.sensory_cortex.vision.vision_frame import SeenFace, VisionFrame
+from reachy_alive.brain.sensory_cortex.vision.vision_features import SeenFace, VisionFeatures
 from reachy_alive.shared_state import VisionFacts
 
 FRAME_PERIOD_S = 0.2
@@ -18,10 +18,10 @@ def make_detector() -> tuple[FacePresenceDetector, VisionFacts]:
 
 def show(detector: FacePresenceDetector, start_s: float, duration_s: float, *faces: SeenFace,
          robot_moving_itself: bool = False) -> float:
-    """Feed one frame every FRAME_PERIOD_S for `duration_s`, and return when it stopped."""
+    """Feed one image's features every FRAME_PERIOD_S for `duration_s`, and return when it stopped."""
     t = start_s
     while t < start_s + duration_s - 1e-9:
-        detector.update(VisionFrame(t=t, faces=faces, robot_moving_itself=robot_moving_itself))
+        detector.update(VisionFeatures(t=t, faces=faces, robot_moving_itself=robot_moving_itself))
         t = round(t + FRAME_PERIOD_S, 6)
     return t
 
@@ -33,7 +33,7 @@ def test_no_face_seen_at_first():
 
 def test_a_face_glimpsed_does_not_appear():
     detector, facts = make_detector()
-    show(detector, 0.0, 0.2, NEAR)  # one stray frame: a false positive
+    show(detector, 0.0, 0.2, NEAR)  # one stray image: a false positive
     show(detector, 0.2, 2.0)
     assert facts.face_seen_since() is None
 
@@ -80,12 +80,31 @@ def test_a_face_too_far_is_ignored():
 
 def test_the_nearest_face_is_the_main_one():
     detector, facts = make_detector()
-    show(detector, 0.0, 1.0, NEARER, NEAR)  # the cortex sorts faces nearest first
+    show(detector, 0.0, 1.0, NEARER, NEAR)  # the sense sorts faces nearest first
     assert facts.main_face() == NEARER
 
 
-def test_frames_while_the_robot_moves_itself_are_ignored():
+def test_images_taken_while_the_robot_moves_itself_are_ignored():
     detector, facts = make_detector()
     t = show(detector, 0.0, 1.0, NEAR)
     show(detector, t, 2.0, robot_moving_itself=True)  # the camera swings: no face in view
     assert facts.face_seen_since() == 0.0
+
+
+def test_a_face_still_there_after_a_move_is_not_lost_at_once():
+    detector, facts = make_detector()
+    t = show(detector, 0.0, 1.0, NEAR)
+    t = show(detector, t, 10.0, robot_moving_itself=True)  # a long move
+    t = show(detector, t, 0.2)  # the first image after the move misses the face
+    show(detector, t, 0.4, NEAR)
+    assert facts.face_seen_since() == 0.0
+    assert facts.last_face_lost_at() is None
+
+
+def test_a_face_gone_during_a_move_is_lost_a_while_after_it():
+    detector, facts = make_detector()
+    t = show(detector, 0.0, 1.0, NEAR)
+    t = show(detector, t, 10.0, robot_moving_itself=True)
+    show(detector, t, 2.0)  # nobody there once the move is over
+    assert facts.face_seen_since() is None
+    assert facts.last_face_lost_at() == 0.8

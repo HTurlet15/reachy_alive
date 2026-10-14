@@ -5,7 +5,7 @@ import time
 import numpy as np
 import pytest
 
-from reachy_alive.brain.sensory_cortex.vision.vision_frame import SeenFace
+from reachy_alive.brain.sensory_cortex.vision.vision_features import SeenFace
 from reachy_alive.shared_state import (
     DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S,
     CommandedPose,
