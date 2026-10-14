@@ -67,6 +67,30 @@ def test_set_move_playing_records_whether_a_move_plays():
     assert state.is_move_playing() is False
 
 
+def test_no_move_ended_at_first():
+    assert SharedState().last_move_ended_at() is None
+
+
+def test_the_end_of_a_move_is_recorded():
+    state = SharedState()
+    state.set_move_playing(True)
+
+    before = time.monotonic()
+    state.set_move_playing(False)
+
+    assert before <= state.last_move_ended_at() <= time.monotonic()
+
+
+def test_starting_a_move_keeps_when_the_last_one_ended():
+    state = SharedState()
+    state.set_move_playing(False)
+    ended_at = state.last_move_ended_at()
+
+    state.set_move_playing(True)
+
+    assert state.last_move_ended_at() == ended_at
+
+
 def test_no_commanded_pose_at_first():
     assert SharedState().last_commanded_pose() is None
 

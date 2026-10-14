@@ -174,6 +174,7 @@ class SharedState:
         self.touch = TouchFacts()
         self.hearing = HearingFacts()
         self._move_playing = False
+        self._last_move_ended_at: float | None = None
         self._commanded_pose: CommandedPose | None = None
         self._idle_move_interval_range_s = DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S
 
@@ -198,18 +199,25 @@ class SharedState:
 
     def set_move_playing(self, playing: bool) -> None:
         """Record whether RobotController is playing a move right now, waking
-        the robot up included.
+        the robot up included, and when the last one ended.
 
         Args:
             playing: True when a move starts, False once it has ended.
         """
         with self.lock:
             self._move_playing = playing
+            if not playing:
+                self._last_move_ended_at = time.monotonic()
 
     def is_move_playing(self) -> bool:
         """Return whether RobotController is playing a move right now."""
         with self.lock:
             return self._move_playing
+
+    def last_move_ended_at(self) -> float | None:
+        """Return when the last move ended (time.monotonic()), or None if none did yet."""
+        with self.lock:
+            return self._last_move_ended_at
 
     def record_commanded_pose(self, pose: CommandedPose) -> None:
         """Record the pose RobotController just sent to the robot."""
