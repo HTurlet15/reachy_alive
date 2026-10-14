@@ -1,10 +1,10 @@
-"""The inertial messages: what the inertial sense hands to the inertial detectors."""
+"""The inertial features: what the inertial sense felt in one reading."""
 
 from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class InertialFrame:
+class InertialFeatures:
     """What the inertial unit felt in one reading: what every inertial detector reads.
 
     Attributes:
