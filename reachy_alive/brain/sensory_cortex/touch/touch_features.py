@@ -1,4 +1,4 @@
-"""The touch messages: what the touch sense hands to the touch detectors."""
+"""The touch features: what the touch sense felt in one reading."""
 
 from dataclasses import dataclass
 
@@ -7,7 +7,7 @@ ANTENNA_SIDES = ("right", "left")
 
 
 @dataclass(frozen=True)
-class TouchFrame:
+class TouchFeatures:
     """Where the antennas were sent, and where they are: what every touch detector reads.
 
     Attributes:

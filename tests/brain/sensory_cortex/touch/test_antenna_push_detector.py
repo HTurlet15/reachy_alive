@@ -13,7 +13,7 @@ from reachy_alive.brain.sensory_cortex.touch.antenna_push_detector import (
     AntennaPush,
     AntennaPushDetector,
 )
-from reachy_alive.brain.sensory_cortex.touch.touch_frame import TouchFrame
+from reachy_alive.brain.sensory_cortex.touch.touch_features import TouchFeatures
 from reachy_alive.shared_state import TouchFacts
 
 DATA = Path(__file__).parent.parent / "data"
@@ -157,17 +157,17 @@ def test_the_left_antenna_is_not_pushed_in_the_app_despite_frozen_measurements()
         assert push_starts(stretch) == []
 
 
-# AntennaPushDetector: both antennas, from frames to facts.
+# AntennaPushDetector: both antennas, from features to facts.
 
 NEUTRAL_RAD = (-0.17, 0.17)  # (right, left)
 
 
 def follow(detector: AntennaPushDetector, start_s: float, duration_s: float, measured_rad,
            robot_moving_itself: bool = False) -> float:
-    """Hand a frame every 20 ms, antennas sent to NEUTRAL_RAD; return the time after."""
+    """Hand features every 20 ms, antennas sent to NEUTRAL_RAD; return the time after."""
     t = start_s
     while t < start_s + duration_s - 1e-9:
-        detector.update(TouchFrame(t, NEUTRAL_RAD, measured_rad, robot_moving_itself))
+        detector.update(TouchFeatures(t, NEUTRAL_RAD, measured_rad, robot_moving_itself))
         t = round(t + 0.02, 6)
     return t
 
