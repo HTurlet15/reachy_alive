@@ -3,13 +3,14 @@
 import logging
 import math
 
-from reachy_alive.brain.sensory_cortex.hearing.hearing_frame import HearingFrame
+from reachy_alive.brain.sensory_cortex.detector import Detector
+from reachy_alive.brain.sensory_cortex.hearing.hearing_features import HearingFeatures
 from reachy_alive.shared_state import HearingFacts
 
 logger = logging.getLogger(__name__)
 
 
-class SuddenNoiseDetector:
+class SuddenNoiseDetector(Detector):
     """Spots sudden noises in the loudness of the sound: loud sounds nobody expected.
 
     A loud sound jumps well above the background, the level of the last few
@@ -17,8 +18,8 @@ class SuddenNoiseDetector:
     started moments ago and it isn't much louder: of three claps in a row,
     only the first is a sudden noise.
 
-    The robot hears its own moves: it keeps listening to them, so the
-    background follows, but records no noise starting then.
+    The robot hears its own moves: it keeps following the sound then, but
+    records no noise.
     """
 
     # The background trails the sound like a capacitor charging through a
@@ -37,39 +38,55 @@ class SuddenNoiseDetector:
     MUCH_LOUDER_DB = 10.0
 
     def __init__(self, facts: HearingFacts) -> None:
-        self._facts = facts
-        # Times below are on the sound's own clock: frame.time_listened_s.
+        super().__init__(facts)
+        # Times below are on the sound's own clock: features.time_listened_s.
         self._background_dbfs: float | None = None
         self._background_updated_at = -math.inf
         self._hearing_a_loud_sound = False
         self._last_loud_sound_at = -math.inf
         self._last_loud_sound_height_db = -math.inf
 
-    def update(self, frame: HearingFrame) -> None:
-        """Read one stretch of sound, and record a sudden noise if one starts on it."""
-        noise_starts = self._noise_starts(frame.time_listened_s, frame.level_dbfs)
-        if noise_starts and not frame.robot_moving_itself:
-            self._facts.record_sudden_noise(frame.t)
+    def _detect(self, features: HearingFeatures) -> None:
+        """Follow the sound through one stretch, and record a sudden noise if one starts on it."""
+        # Asked before following the sound, which updates everything the
+        # question compares with: the background, and the last loud sound.
+        noise_starts = self._is_sudden_noise(features)
+        self._follow_sound(features)
+        if noise_starts:
+            self._facts.record_sudden_noise(features.t)
             logger.info("Sudden noise")
 
-    def _noise_starts(self, time_listened_s: float, level_dbfs: float) -> bool:
-        """Follow the sound through one stretch; return whether a sudden noise starts on it."""
+    def _while_robot_moves(self, features: HearingFeatures) -> None:
+        """Follow the sound through one stretch, without asking about noises: they are the robot's.
+
+        The background and the habituation stay up to date for when the move is over.
+        """
+        self._follow_sound(features)
+
+    def _is_sudden_noise(self, features: HearingFeatures) -> bool:
+        """Whether a sudden noise starts on this stretch: a loud sound nobody expected."""
         if self._background_dbfs is None:
-            self._start_background(time_listened_s, level_dbfs)
-            return False
+            return False  # nothing heard yet to compare with
+        height_db = self._height_above_background_db(features.level_dbfs)
+        loud_sound_starts = self._is_loud_sound_starting(height_db)
+        return loud_sound_starts and not self._expects(features.time_listened_s, height_db)
 
+    def _follow_sound(self, features: HearingFeatures) -> None:
+        """Update the background, the loud sound going on, and the last loud sound heard."""
+        if self._background_dbfs is None:
+            self._start_background(features.time_listened_s, features.level_dbfs)
+            return
         # Measured before the background moves, so a sound doesn't shrink its own jump.
-        height_above_background_db = level_dbfs - self._background_dbfs
-        self._follow_background(time_listened_s, level_dbfs)
+        height_db = self._height_above_background_db(features.level_dbfs)
+        loud_sound_starts = self._is_loud_sound_starting(height_db)
+        self._follow_background(features.time_listened_s, features.level_dbfs)
+        self._track_loud_sound(height_db)
+        if loud_sound_starts:
+            self._remember_loud_sound(features.time_listened_s, height_db)
 
-        loud_sound_starts = self._is_loud_sound_starting(height_above_background_db)
-        self._track_loud_sound(height_above_background_db)
-        if not loud_sound_starts:
-            return False
-
-        is_expected = self._expects(time_listened_s, height_above_background_db)
-        self._remember_loud_sound(time_listened_s, height_above_background_db)
-        return not is_expected
+    def _height_above_background_db(self, level_dbfs: float) -> float:
+        """How far a level stands above the background, in dB."""
+        return level_dbfs - self._background_dbfs
 
     def _start_background(self, time_listened_s: float, level_dbfs: float) -> None:
         """Take the first level heard as the background."""
