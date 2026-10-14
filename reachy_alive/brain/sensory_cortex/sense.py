@@ -1,6 +1,6 @@
 """Sense: the contract every sense follows, so that SenseManager can run any of them."""
 
-from abc import ABC
+from abc import ABC, abstractmethod
 
 from reachy_mini import ReachyMini
 
@@ -50,6 +50,7 @@ class Sense(ABC):
         """
         return self._perceive(t=now, robot_moving_itself=self._robot_moving_itself(now))
 
+    @abstractmethod
     def _perceive(self, t: float, robot_moving_itself: bool):
         """Read the sensor, and return its features, or None if it gave nothing new.
 
@@ -63,7 +64,6 @@ class Sense(ABC):
                 the robot to be still, to give the features: the sense may
                 perceive the robot itself.
         """
-        raise NotImplementedError  # abstract once every sense writes it
 
     def _robot_moving_itself(self, now: float) -> bool:
         """Whether a move plays, or ended less than SETTLE_AFTER_MOVE_S before `now`."""

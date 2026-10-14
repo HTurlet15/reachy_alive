@@ -3,6 +3,8 @@
 from dataclasses import dataclass
 from unittest.mock import MagicMock
 
+import pytest
+
 from reachy_alive.brain.sensory_cortex.sense import Sense
 from reachy_alive.shared_state import SharedState
 
@@ -70,3 +72,11 @@ def test_the_robot_still_moves_itself_until_it_settles():
 
     assert sense.read_once(ended_at + 0.3).robot_moving_itself is True  # within SETTLE_AFTER_MOVE_S
     assert sense.read_once(ended_at + 0.6).robot_moving_itself is False
+
+
+def test_a_sense_without_perceive_cannot_be_built():
+    class ForgetfulSense(Sense):
+        pass
+
+    with pytest.raises(TypeError):
+        ForgetfulSense(MagicMock(), SharedState())

@@ -16,6 +16,7 @@ from types import ModuleType
 from reachy_mini import ReachyMini
 
 from reachy_alive.brain.sensory_cortex import hearing, inertial, touch, vision
+from reachy_alive.brain.sensory_cortex.detector import Detector
 from reachy_alive.brain.sensory_cortex.hearing.hearing_sense import HearingSense
 from reachy_alive.brain.sensory_cortex.inertial.inertial_sense import InertialSense
 from reachy_alive.brain.sensory_cortex.sense import Sense
@@ -73,8 +74,8 @@ class SenseManager:
     def find_detectors(sense_folder: ModuleType, facts) -> list:
         """Build each detector of a sense's folder, giving it the sense's facts.
 
-        A detector is a class named `…Detector`, written in a `*_detector.py`
-        file of that folder. A file that fails to load is skipped, so the
+        A detector is a class that inherits Detector, written in a
+        `*_detector.py` file of that folder. A file that fails to load is skipped, so the
         other detectors still run.
         """
         detectors = []
@@ -118,8 +119,8 @@ class SenseManager:
         module = importlib.import_module(module_name)
         return [
             cls(facts)
-            for name, cls in inspect.getmembers(module, inspect.isclass)
-            if name.endswith("Detector") and cls.__module__ == module.__name__  # not imported
+            for _, cls in inspect.getmembers(module, inspect.isclass)
+            if issubclass(cls, Detector) and cls.__module__ == module.__name__  # not imported
         ]
 
     @staticmethod

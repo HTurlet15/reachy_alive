@@ -19,7 +19,7 @@ class FacePresenceDetector(Detector):
 
     # Long enough to ignore a face imagined in a single image.
     APPEAR_AFTER_S = 0.4
-    # Long enough to bridge the frames missed on a far face.
+    # Long enough to bridge the images where a far face is missed.
     DISAPPEAR_AFTER_S = 1.0
     # Farther faces are ignored. Provisional: to tune by eye on the robot.
     MAX_FACE_DISTANCE_M = 2.0
