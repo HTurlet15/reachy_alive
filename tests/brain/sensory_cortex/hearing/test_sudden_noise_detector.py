@@ -1,7 +1,7 @@
 """Unit tests for SuddenNoiseDetector.
 
 The detector is tested on made-up levels and on a recording from the robot.
-It reads one frame per 20 ms stretch of sound, as the sense hands them.
+It reads the features of each 20 ms stretch of sound, as the sense hands them.
 """
 
 import csv
@@ -10,23 +10,23 @@ from unittest.mock import MagicMock
 
 import numpy as np
 
-from reachy_alive.brain.sensory_cortex.hearing.hearing_frame import HearingFrame
+from reachy_alive.brain.sensory_cortex.hearing.hearing_features import HearingFeatures
 from reachy_alive.brain.sensory_cortex.hearing.sudden_noise_detector import SuddenNoiseDetector
 from reachy_alive.shared_state import HearingFacts
 
 DATA = Path(__file__).parent.parent / "data"
-STRETCH_S = 0.02  # one frame every 20 ms
+STRETCH_S = 0.02  # one stretch every 20 ms
 
 
-def recorded_noises(frames: list[HearingFrame]) -> list[float]:
-    """Feed frames to a fresh detector; return when it recorded each sudden noise.
+def recorded_noises(stretches: list[HearingFeatures]) -> list[float]:
+    """Feed the features of each stretch to a fresh detector; return when it recorded noises.
 
     The facts only keep the last noise: fake facts keep every call instead.
     """
     facts = MagicMock(spec=HearingFacts)
     detector = SuddenNoiseDetector(facts)
-    for frame in frames:
-        detector.update(frame)
+    for features in stretches:
+        detector.update(features)
     return [call.args[0] for call in facts.record_sudden_noise.call_args_list]
 
 
@@ -37,7 +37,7 @@ def noise_starts(levels_dbfs: list[float], robot_moving_itself: bool = False) ->
     """
     return recorded_noises(
         [
-            HearingFrame(
+            HearingFeatures(
                 t=round(i * STRETCH_S, 2),
                 time_listened_s=i * STRETCH_S,
                 level_dbfs=level_dbfs,
@@ -83,10 +83,10 @@ def test_a_clap_in_a_quiet_room_is_a_sudden_noise():
 def test_a_sudden_noise_is_recorded_when_its_stretch_was_read():
     facts = HearingFacts()
     detector = SuddenNoiseDetector(facts)
-    quiet = HearingFrame(
+    quiet = HearingFeatures(
         t=10.0, time_listened_s=0.02, level_dbfs=QUIET_ROOM_DBFS, robot_moving_itself=False
     )
-    clap = HearingFrame(
+    clap = HearingFeatures(
         t=10.02, time_listened_s=0.04, level_dbfs=CLAP_DBFS, robot_moving_itself=False
     )
 
@@ -137,6 +137,23 @@ def test_a_room_getting_much_louder_at_once_is_reported_once():
     assert noise_starts(vacuum_switched_on) == [2.0]
 
 
+def test_the_background_keeps_following_the_room_while_the_robot_moves():
+    # The room gets louder during a 10 s move. Once it is over, a jump to
+    # -15 dBFS is only 15 dB above the background, if it kept following.
+    levels = steady(QUIET_ROOM_DBFS, 2.0) + steady(-30.0, 10.0) + [-15.0]
+    stretches = [
+        HearingFeatures(
+            t=round(i * STRETCH_S, 2),
+            time_listened_s=i * STRETCH_S,
+            level_dbfs=level_dbfs,
+            robot_moving_itself=2.0 <= i * STRETCH_S < 12.0,
+        )
+        for i, level_dbfs in enumerate(levels)
+    ]
+
+    assert recorded_noises(stretches) == []
+
+
 def test_a_clap_while_the_robot_moves_itself_is_not_recorded():
     levels = quiet_room_with(3.0, {2.0: CLAP_DBFS})
 
@@ -182,12 +199,12 @@ def test_a_much_louder_bang_right_after_claps_is_sudden():
 def recorded_noise_starts(name: str) -> list[float]:
     """Feed a recording to a fresh detector; return when sudden noises started.
 
-    Each row is a frame: read at clock_s, the clock printed on screen, to
+    Each row is a stretch: read at clock_s, the clock printed on screen, to
     compare with the script; time_listened_s is the sound's own clock.
     """
     with open(DATA / name) as f:
-        frames = [
-            HearingFrame(
+        stretches = [
+            HearingFeatures(
                 t=float(row["clock_s"]),
                 time_listened_s=float(row["time_listened_s"]),
                 level_dbfs=float(row["level_dbfs"]),
@@ -195,7 +212,7 @@ def recorded_noise_starts(name: str) -> list[float]:
             )
             for row in csv.DictReader(f)
         ]
-    return recorded_noises(frames)
+    return recorded_noises(stretches)
 
 
 def noises_between(start_s: float, end_s: float) -> list[float]:

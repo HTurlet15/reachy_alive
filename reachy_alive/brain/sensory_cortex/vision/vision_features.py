@@ -1,4 +1,4 @@
-"""The vision messages: what the vision sense hands to the vision detectors.
+"""The vision features: what the vision sense saw in one image.
 
 The catalogue for whoever writes a vision detector: everything it can read.
 """
@@ -23,14 +23,14 @@ class SeenFace:
 
 
 @dataclass(frozen=True)
-class VisionFrame:
-    """What the camera saw in one image: the features every vision detector reads.
+class VisionFeatures:
+    """What the camera saw in one image: what every vision detector reads.
 
     Attributes:
         t: When the image was taken, in seconds, on time.monotonic()'s clock.
         faces: Every face in view, nearest first.
-        robot_moving_itself: Whether the robot was playing a move, so the view
-            itself was moving.
+        robot_moving_itself: Whether a move was playing or had just ended, so
+            the view itself may have been moving.
     """
 
     t: float

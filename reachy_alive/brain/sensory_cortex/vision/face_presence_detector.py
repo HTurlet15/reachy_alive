@@ -1,14 +1,15 @@
-"""Face presence: whether someone is in view, from the faces the vision cortex sees."""
+"""Face presence: whether someone is in view, from the faces the vision sense sees."""
 
 import logging
 
-from reachy_alive.brain.sensory_cortex.vision.vision_frame import SeenFace, VisionFrame
+from reachy_alive.brain.sensory_cortex.detector import Detector
+from reachy_alive.brain.sensory_cortex.vision.vision_features import SeenFace, VisionFeatures
 from reachy_alive.shared_state import VisionFacts
 
 logger = logging.getLogger(__name__)
 
 
-class FacePresenceDetector:
+class FacePresenceDetector(Detector):
     """Decides when a face appears and leaves, despite the face detector's flickers.
 
     A face appears once seen without a break for APPEAR_AFTER_S, and leaves once
@@ -16,34 +17,40 @@ class FacePresenceDetector:
     last seen: the delays only make the detector sure.
     """
 
-    # Long enough to ignore a face imagined in a single frame.
+    # Long enough to ignore a face imagined in a single image.
     APPEAR_AFTER_S = 0.4
-    # Long enough to bridge the frames missed on a far face.
+    # Long enough to bridge the images where a far face is missed.
     DISAPPEAR_AFTER_S = 1.0
     # Farther faces are ignored. Provisional: to tune by eye on the robot.
     MAX_FACE_DISTANCE_M = 2.0
 
     def __init__(self, facts: VisionFacts) -> None:
-        self._facts = facts
+        super().__init__(facts)
         self._in_view = False
         self._first_seen_at: float | None = None
         self._last_seen_at: float | None = None
+        self._unseen_since: float | None = None
 
-    def update(self, frame: VisionFrame) -> None:
-        """Follow the main face through one frame, and record what changed."""
-        if frame.robot_moving_itself:
-            return  # its own gesture blurs or turns the camera: no evidence either way
-        face = self._main_face(frame)
+    def _detect(self, features: VisionFeatures) -> None:
+        """Follow the main face through one image, and record what changed."""
+        face = self._main_face(features)
         if face is None:
-            self._follow_absence(frame.t)
+            self._follow_absence(features.t)
         else:
-            self._follow_face(frame.t, face)
+            self._follow_face(features.t, face)
 
-    def _main_face(self, frame: VisionFrame) -> SeenFace | None:
+    def _while_robot_moves(self, features: VisionFeatures) -> None:
+        """Count absence again from scratch once the move is over.
+
+        The robot's own move blurs or turns the camera: no evidence either way.
+        """
+        self._unseen_since = None
+
+    def _main_face(self, features: VisionFeatures) -> SeenFace | None:
         """Return the nearest face if it is close enough to count, or None."""
-        if not frame.faces:
+        if not features.faces:
             return None
-        nearest = frame.faces[0]
+        nearest = features.faces[0]
         return nearest if nearest.distance_m <= self.MAX_FACE_DISTANCE_M else None
 
     def _follow_face(self, t: float, face: SeenFace) -> None:
@@ -51,6 +58,7 @@ class FacePresenceDetector:
         if self._first_seen_at is None:
             self._first_seen_at = t
         self._last_seen_at = t
+        self._unseen_since = None
         if self._in_view:
             self._facts.record_main_face(face)
         elif self._seen_long_enough(t):
@@ -67,9 +75,12 @@ class FacePresenceDetector:
         if not self._in_view:
             self._first_seen_at = None  # a break: the face must be seen anew
             return
+        if self._unseen_since is None:
+            self._unseen_since = t
         if self._unseen_long_enough(t):
             self._in_view = False
             self._first_seen_at = None
+            self._unseen_since = None
             self._facts.record_face_lost(self._last_seen_at)
             logger.info("Face lost")
 
@@ -77,4 +88,4 @@ class FacePresenceDetector:
         return t - self._first_seen_at >= self.APPEAR_AFTER_S
 
     def _unseen_long_enough(self, t: float) -> bool:
-        return t - self._last_seen_at >= self.DISAPPEAR_AFTER_S
+        return t - self._unseen_since >= self.DISAPPEAR_AFTER_S

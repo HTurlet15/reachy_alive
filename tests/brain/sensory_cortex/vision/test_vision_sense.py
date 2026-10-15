@@ -1,4 +1,4 @@
-"""Unit tests for the vision sense: its features, then its frames from a made-up camera.
+"""Unit tests for the vision sense: one face described, then whole images from a made-up camera.
 
 Pixel coordinates start at the image's top-left corner: x grows to the right,
 y grows downward. The analysed image is 320x180, the size the sense shrinks
@@ -11,7 +11,7 @@ from types import SimpleNamespace
 import numpy as np
 from reachy_mini.vision.face_detector import Face
 
-from reachy_alive.brain.sensory_cortex.vision.vision_frame import SeenFace
+from reachy_alive.brain.sensory_cortex.vision.vision_features import SeenFace
 from reachy_alive.brain.sensory_cortex.vision.vision_sense import VisionSense
 from reachy_alive.shared_state import SharedState
 
@@ -53,7 +53,7 @@ def describe(face: Face) -> SeenFace:
     return VisionSense.seen_face(face, IMAGE_WIDTH_PX, IMAGE_HEIGHT_PX, FOCAL_PX)
 
 
-# Features
+# One face
 
 
 def test_a_face_at_the_center_of_the_image_is_at_zero_zero():
@@ -95,7 +95,7 @@ def test_a_face_half_as_wide_is_twice_as_far():
     assert math.isclose(far.distance_m, 2 * near.distance_m)
 
 
-# Frames, from a made-up camera and face detector
+# Whole images, from a made-up camera and face detector
 
 
 class FakeFaceFinder:
@@ -119,12 +119,12 @@ def make_sense(image=CAMERA_IMAGE, faces=(), has_camera=True):
     return VisionSense(reachy_mini, shared_state, face_finder), shared_state, face_finder
 
 
-def test_a_frame_is_timed_by_the_reading():
+def test_the_features_are_timed_by_the_reading():
     sense, _, _ = make_sense()
 
-    frame = sense.read_once(now=12.0)
+    features = sense.read_once(now=12.0)
 
-    assert frame.t == 12.0
+    assert features.t == 12.0
 
 
 def test_faces_are_found_in_a_shrunk_image():
@@ -139,9 +139,9 @@ def test_the_focal_length_shrinks_with_the_image():
     face = face_centered_at(CENTER_X_PX, CENTER_Y_PX, width_px=FACE_AT_ONE_METER_PX)
     sense, _, _ = make_sense(faces=[face])
 
-    frame = sense.read_once(now=0.0)
+    features = sense.read_once(now=0.0)
 
-    assert math.isclose(frame.faces[0].distance_m, 1.0)
+    assert math.isclose(features.faces[0].distance_m, 1.0)
 
 
 def test_faces_come_nearest_first():
@@ -149,22 +149,22 @@ def test_faces_come_nearest_first():
     near = face_centered_at(CENTER_X_PX, CENTER_Y_PX, width_px=40)
     sense, _, _ = make_sense(faces=[far, near])
 
-    frame = sense.read_once(now=0.0)
+    features = sense.read_once(now=0.0)
 
-    distances_m = [face.distance_m for face in frame.faces]
+    distances_m = [face.distance_m for face in features.faces]
     assert distances_m == sorted(distances_m)
 
 
-def test_the_frame_says_when_the_robot_moves_itself():
+def test_the_features_say_when_the_robot_moves_itself():
     sense, shared_state, _ = make_sense()
     shared_state.set_move_playing(True)
 
-    frame = sense.read_once(now=0.0)
+    features = sense.read_once(now=0.0)
 
-    assert frame.robot_moving_itself is True
+    assert features.robot_moving_itself is True
 
 
-def test_no_image_yet_gives_no_frame():
+def test_no_image_yet_gives_no_features():
     sense, _, _ = make_sense(image=None)
 
     assert sense.read_once(now=0.0) is None

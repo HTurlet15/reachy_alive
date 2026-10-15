@@ -4,7 +4,8 @@ import logging
 import math
 from collections import deque
 
-from reachy_alive.brain.sensory_cortex.touch.touch_frame import ANTENNA_SIDES, TouchFrame
+from reachy_alive.brain.sensory_cortex.detector import Detector
+from reachy_alive.brain.sensory_cortex.touch.touch_features import ANTENNA_SIDES, TouchFeatures
 from reachy_alive.shared_state import TouchFacts
 
 logger = logging.getLogger(__name__)
@@ -90,33 +91,30 @@ class AntennaPush:
         ]
 
 
-class AntennaPushDetector:
+class AntennaPushDetector(Detector):
     """Spots when someone pushes an antenna away from where it was sent.
 
-    Follows each antenna with its own AntennaPush. While the robot moves
-    itself, it stays quiet and forgets what it followed: an antenna pushed
-    before the robot moved may no longer be.
+    Follows each antenna with its own AntennaPush, and forgets them while
+    the robot moves itself.
     """
 
     def __init__(self, facts: TouchFacts) -> None:
-        self._facts = facts
+        super().__init__(facts)
         self._pushes = self._fresh_pushes()
 
-    def update(self, frame: TouchFrame) -> None:
-        """Follow both antennas through one frame, and record whether each is pushed."""
-        if frame.robot_moving_itself:
-            self._forget_pushes()
-            return
+    def _detect(self, features: TouchFeatures) -> None:
+        """Follow both antennas through one reading, and record whether each is pushed."""
         for side, target_rad, measured_rad in zip(
-            ANTENNA_SIDES, frame.targets_rad, frame.measured_rad
+            ANTENNA_SIDES, features.targets_rad, features.measured_rad
         ):
             was_pushed = self._facts.antenna_pushed_since(side) is not None
-            pushed_since = self._pushes[side].update(frame.t, target_rad, measured_rad)
+            pushed_since = self._pushes[side].update(features.t, target_rad, measured_rad)
             self._facts.set_antenna_pushed_since(side, pushed_since)
             if pushed_since is not None and not was_pushed:
                 logger.info("%s antenna pushed", side.capitalize())
 
-    def _forget_pushes(self) -> None:
+    def _while_robot_moves(self, features: TouchFeatures) -> None:
+        """Forget every push: an antenna pushed before the robot moved may no longer be."""
         self._pushes = self._fresh_pushes()
         for side in ANTENNA_SIDES:
             self._facts.set_antenna_pushed_since(side, None)

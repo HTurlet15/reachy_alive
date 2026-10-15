@@ -1,16 +1,16 @@
-"""The vision sense: what the camera sees, described as a VisionFrame a few times a second."""
+"""The vision sense: the faces the camera sees, a few times a second."""
 
 import numpy as np
 from reachy_mini import ReachyMini
 from reachy_mini.vision.face_detector import Face, FaceDetector
 
 from reachy_alive.brain.sensory_cortex.sense import Sense
-from reachy_alive.brain.sensory_cortex.vision.vision_frame import SeenFace, VisionFrame
+from reachy_alive.brain.sensory_cortex.vision.vision_features import SeenFace, VisionFeatures
 from reachy_alive.shared_state import SharedState
 
 
 class VisionSense(Sense):
-    """Looks through the camera and describes each image as a VisionFrame."""
+    """Looks through the camera and describes each image by its VisionFeatures."""
 
     PERIOD_S = 0.2
     # Wide enough to find a face up to about 2.5 m; each doubling costs about
@@ -36,28 +36,23 @@ class VisionSense(Sense):
                 default, a stand-in in tests. Not one of our detectors: it has
                 no memory, no threshold of ours, and records no fact.
         """
-        self._reachy_mini = reachy_mini
-        self._shared_state = shared_state
+        super().__init__(reachy_mini, shared_state)
         self._face_finder = face_finder or FaceDetector()
 
     def is_available(self) -> bool:
         """Return whether the robot has a camera to look through."""
         return self._reachy_mini.media.camera is not None
 
-    def read_once(self, now: float) -> VisionFrame | None:
-        """Describe the latest image, or return None if the camera isn't ready yet.
-
-        Args:
-            now: Time of the reading, in seconds, on time.monotonic()'s clock.
-        """
+    def _perceive(self, t: float, robot_moving_itself: bool) -> VisionFeatures | None:
+        """Describe the faces in the latest image, or return None if the camera isn't ready yet."""
         image = self._reachy_mini.media.get_frame()
         camera_matrix = self._reachy_mini.media.camera.K
         if image is None or camera_matrix is None:
             return None
-        return VisionFrame(
-            t=now,
+        return VisionFeatures(
+            t=t,
             faces=self._find_faces(image, camera_matrix),
-            robot_moving_itself=self._shared_state.is_move_playing(),
+            robot_moving_itself=robot_moving_itself,
         )
 
     @staticmethod

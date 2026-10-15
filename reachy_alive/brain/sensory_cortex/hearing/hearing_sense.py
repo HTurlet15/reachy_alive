@@ -1,4 +1,4 @@
-"""The hearing sense: how loud the sound is, 20 ms at a time, as HearingFrames.
+"""The hearing sense: how loud the sound is, 20 ms at a time.
 
 The microphones give 16,000 samples per second, each between -1 and 1. Each
 stretch of 320 samples becomes one loudness level.
@@ -9,7 +9,7 @@ import math
 import numpy as np
 from reachy_mini import ReachyMini
 
-from reachy_alive.brain.sensory_cortex.hearing.hearing_frame import HearingFrame
+from reachy_alive.brain.sensory_cortex.hearing.hearing_features import HearingFeatures
 from reachy_alive.brain.sensory_cortex.sense import Sense
 from reachy_alive.shared_state import SharedState
 
@@ -18,17 +18,15 @@ SILENCE_DBFS = -100.0
 
 
 class HearingSense(Sense):
-    """Listens to the microphones and describes each stretch of sound as a HearingFrame.
+    """Listens to the microphones and describes each stretch of sound by its HearingFeatures.
 
     Sound arrives in chunks of any length: the sense cuts it into stretches,
-    one frame each, and times them by how long it has listened.
+    and times them by how long it has listened.
     """
 
     # As fast as sound comes: waiting for the next chunk paces the sense.
     PERIOD_S = 0.0
     STRETCH_S = 0.02
-    # How long the robot may still hear itself after it last moved itself.
-    SETTLE_AFTER_MOVE_S = 0.5
 
     def __init__(self, reachy_mini: ReachyMini, shared_state: SharedState) -> None:
         """Size the stretches from the microphones' sample rate.
@@ -37,14 +35,12 @@ class HearingSense(Sense):
             reachy_mini: Connected robot instance, only listened to.
             shared_state: Where the sense learns whether the robot is moving itself.
         """
-        self._reachy_mini = reachy_mini
-        self._shared_state = shared_state
+        super().__init__(reachy_mini, shared_state)
         self._sample_rate_hz = reachy_mini.media.get_input_audio_samplerate()
         self._samples_per_stretch = round(self._sample_rate_hz * self.STRETCH_S)
         self._samples_not_read_yet = np.zeros(0)
         # The sound's own clock, never reset: chunks can arrive late, the sound itself can't.
         self._time_listened_s = 0.0
-        self._last_seen_moving_at = -math.inf
 
     def is_available(self) -> bool:
         """Return whether the robot has microphones: without any, the sample rate isn't positive."""
@@ -58,12 +54,8 @@ class HearingSense(Sense):
         """Stop recording."""
         self._reachy_mini.media.stop_recording()
 
-    def read_once(self, now: float) -> HearingFrame | None:
-        """Describe the next stretch of sound, or return None if no full stretch came yet.
-
-        Args:
-            now: Time of the reading, in seconds, on time.monotonic()'s clock.
-        """
+    def _perceive(self, t: float, robot_moving_itself: bool) -> HearingFeatures | None:
+        """Describe the next stretch of sound, or return None if no full stretch came yet."""
         if len(self._samples_not_read_yet) < self._samples_per_stretch:
             self._add_next_chunk()
         if len(self._samples_not_read_yet) < self._samples_per_stretch:
@@ -71,13 +63,11 @@ class HearingSense(Sense):
 
         stretch = self._take_stretch()
         self._time_listened_s += self.STRETCH_S
-        if self._shared_state.is_move_playing():
-            self._last_seen_moving_at = now
-        return HearingFrame(
-            t=now,
+        return HearingFeatures(
+            t=t,
             time_listened_s=self._time_listened_s,
             level_dbfs=self.loudness_dbfs(stretch),
-            robot_moving_itself=now - self._last_seen_moving_at < self.SETTLE_AFTER_MOVE_S,
+            robot_moving_itself=robot_moving_itself,
         )
 
     @staticmethod
@@ -114,3 +104,4 @@ class HearingSense(Sense):
         stretch = self._samples_not_read_yet[: self._samples_per_stretch]
         self._samples_not_read_yet = self._samples_not_read_yet[self._samples_per_stretch :]
         return stretch
+    

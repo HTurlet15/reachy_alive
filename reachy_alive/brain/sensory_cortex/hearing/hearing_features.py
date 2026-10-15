@@ -1,10 +1,10 @@
-"""The hearing messages: what the hearing sense hands to the hearing detectors."""
+"""The hearing features: what the hearing sense heard in one 20 ms stretch of sound."""
 
 from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class HearingFrame:
+class HearingFeatures:
     """How loud one 20 ms stretch of sound is: what every hearing detector reads.
 
     Attributes:
@@ -25,3 +25,4 @@ class HearingFrame:
     time_listened_s: float
     level_dbfs: float
     robot_moving_itself: bool
+    

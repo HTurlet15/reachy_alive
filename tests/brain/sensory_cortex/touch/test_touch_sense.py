@@ -21,35 +21,35 @@ def make_sense(pose_sent: bool = True) -> tuple[TouchSense, SharedState]:
     return TouchSense(reachy_mini, state), state
 
 
-def test_a_frame_holds_where_the_antennas_were_sent_and_where_they_are():
+def test_the_features_hold_where_the_antennas_were_sent_and_where_they_are():
     sense, _ = make_sense()
 
-    frame = sense.read_once(12.0)
+    features = sense.read_once(12.0)
 
-    assert frame.t == 12.0
-    assert frame.targets_rad == (-0.17, 0.17)
-    assert frame.measured_rad == (-0.15, 0.20)
-    assert frame.robot_moving_itself is False
+    assert features.t == 12.0
+    assert features.targets_rad == (-0.17, 0.17)
+    assert features.measured_rad == (-0.15, 0.20)
+    assert features.robot_moving_itself is False
 
 
-def test_no_frame_until_a_pose_was_sent():
+def test_no_features_until_a_pose_was_sent():
     sense, _ = make_sense(pose_sent=False)
 
     assert sense.read_once(0.0) is None
 
 
-def test_the_frame_says_when_a_move_plays():
+def test_the_features_say_when_a_move_plays():
     sense, state = make_sense()
     state.set_move_playing(True)
 
     assert sense.read_once(0.0).robot_moving_itself is True
 
 
-def test_the_frame_says_when_the_robot_just_moved_itself():
+def test_the_features_say_when_the_robot_just_moved_itself():
     sense, state = make_sense()
     state.set_move_playing(True)
-    sense.read_once(0.0)
     state.set_move_playing(False)
+    ended_at = state.last_move_ended_at()
 
-    assert sense.read_once(0.3).robot_moving_itself is True  # within SETTLE_AFTER_MOVE_S
-    assert sense.read_once(1.0).robot_moving_itself is False
+    assert sense.read_once(ended_at + 0.3).robot_moving_itself is True  # within SETTLE_AFTER_MOVE_S
+    assert sense.read_once(ended_at + 1.0).robot_moving_itself is False

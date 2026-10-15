@@ -4,7 +4,7 @@ import csv
 from pathlib import Path
 
 from reachy_alive.brain.sensory_cortex.inertial.bump_detector import BumpDetector
-from reachy_alive.brain.sensory_cortex.inertial.inertial_frame import InertialFrame
+from reachy_alive.brain.sensory_cortex.inertial.inertial_features import InertialFeatures
 from reachy_alive.shared_state import InertialFacts
 
 DATA = Path(__file__).parent.parent / "data"
@@ -27,7 +27,7 @@ def bump_times(readings, robot_moving_itself: bool = False) -> list[float]:
     detector = BumpDetector(facts)
     times = []
     for t, accelerometer in readings:
-        detector.update(InertialFrame(t, accelerometer, robot_moving_itself))
+        detector.update(InertialFeatures(t, accelerometer, robot_moving_itself))
         if facts.last_bump_at() == t:
             times.append(t)
     return times

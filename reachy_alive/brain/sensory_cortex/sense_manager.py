@@ -1,7 +1,7 @@
-"""SenseManager: runs the robot's senses, and carries their frames to the detectors.
+"""SenseManager: runs the robot's senses, and carries their features to the detectors.
 
-A sense describes what it perceives as a frame. A detector reads frames and
-records facts. Neither knows the other: SenseManager carries the frames.
+A sense describes each reading of its sensor by its features. A detector reads
+them and records facts. Neither knows the other: SenseManager carries the features.
 Any `*_detector.py` file in a sense's folder is one of its detectors.
 """
 
@@ -16,6 +16,7 @@ from types import ModuleType
 from reachy_mini import ReachyMini
 
 from reachy_alive.brain.sensory_cortex import hearing, inertial, touch, vision
+from reachy_alive.brain.sensory_cortex.detector import Detector
 from reachy_alive.brain.sensory_cortex.hearing.hearing_sense import HearingSense
 from reachy_alive.brain.sensory_cortex.inertial.inertial_sense import InertialSense
 from reachy_alive.brain.sensory_cortex.sense import Sense
@@ -73,8 +74,8 @@ class SenseManager:
     def find_detectors(sense_folder: ModuleType, facts) -> list:
         """Build each detector of a sense's folder, giving it the sense's facts.
 
-        A detector is a class named `…Detector`, written in a `*_detector.py`
-        file of that folder. A file that fails to load is skipped, so the
+        A detector is a class that inherits Detector, written in a
+        `*_detector.py` file of that folder. A file that fails to load is skipped, so the
         other detectors still run.
         """
         detectors = []
@@ -89,7 +90,7 @@ class SenseManager:
 
     @staticmethod
     def watch(sense: Sense, detectors: list, stop_event: threading.Event) -> None:
-        """Open the sense, read it every PERIOD_S and hand each frame to every detector.
+        """Open the sense, read it every PERIOD_S, and hand the features to every detector.
 
         The sense is closed once stop_event is set, even after an error. A
         detector that fails is switched off, so the sense and the other
@@ -97,16 +98,16 @@ class SenseManager:
 
         Args:
             sense: The sense to read.
-            detectors: Each has update(frame).
+            detectors: Each has update(features).
             stop_event: Set externally to stop watching.
         """
         sense.open()
         try:
             while not stop_event.is_set():
                 started_at = time.monotonic()
-                frame = sense.read_once(started_at)
-                if frame is not None:
-                    SenseManager._hand_frame(frame, detectors)
+                features = sense.read_once(started_at)
+                if features is not None:
+                    SenseManager._hand_features(features, detectors)
                 elapsed_s = time.monotonic() - started_at
                 stop_event.wait(max(0.0, sense.PERIOD_S - elapsed_s))  # wakes at once on stop
         finally:
@@ -118,16 +119,16 @@ class SenseManager:
         module = importlib.import_module(module_name)
         return [
             cls(facts)
-            for name, cls in inspect.getmembers(module, inspect.isclass)
-            if name.endswith("Detector") and cls.__module__ == module.__name__  # not imported
+            for _, cls in inspect.getmembers(module, inspect.isclass)
+            if issubclass(cls, Detector) and cls.__module__ == module.__name__  # not imported
         ]
 
     @staticmethod
-    def _hand_frame(frame, detectors: list) -> None:
-        """Hand one frame to every detector, and switch off any that fails."""
+    def _hand_features(features, detectors: list) -> None:
+        """Hand the features of one reading to every detector, and switch off any that fails."""
         for detector in list(detectors):  # a copy: failing ones leave the list
             try:
-                detector.update(frame)
+                detector.update(features)
             except Exception:
                 logger.exception("%s failed: switched off", type(detector).__name__)
                 detectors.remove(detector)
