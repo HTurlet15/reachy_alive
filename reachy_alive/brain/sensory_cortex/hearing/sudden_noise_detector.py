@@ -69,7 +69,8 @@ class SuddenNoiseDetector(Detector):
             return False  # nothing heard yet to compare with
         height_db = self._height_above_background_db(features.level_dbfs)
         loud_sound_starts = self._is_loud_sound_starting(height_db)
-        return loud_sound_starts and not self._expects(features.time_listened_s, height_db)
+        is_expected = self._expects(features.time_listened_s, height_db)
+        return loud_sound_starts and not is_expected
 
     def _follow_sound(self, features: HearingFeatures) -> None:
         """Update the background, the loud sound going on, and the last loud sound heard."""
