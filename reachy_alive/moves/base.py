@@ -87,7 +87,7 @@ class Move(ABC):
 
     @property
     def name(self) -> str:
-        """Identifier of the move, used in logs and by the settings page.
+        """Identifier of the move, used in logs and by the app's page.
 
         Lowercase words joined by hyphens, like recorded moves. Derived from
         the class name by default: DeepBreath becomes deep-breath.
