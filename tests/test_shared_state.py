@@ -125,7 +125,7 @@ def test_no_antenna_is_pushed_at_first():
 
 def test_a_push_is_recorded_on_its_own_side():
     touch = SharedState().touch
-    touch.set_antenna_pushed_since("left", 3.0)
+    touch.record_antenna_pushed_since("left", 3.0)
     assert touch.antenna_pushed_since("left") == 3.0
     assert touch.antenna_pushed_since("right") is None
 
