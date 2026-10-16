@@ -90,3 +90,14 @@ def test_head_never_goes_below_the_reachable_workspace(move_class, fake_library)
 
     for phase, (head, _, _) in _sampled_poses(move):
         assert head[2, 3] >= LOWEST_HEAD_Z_M, phase
+
+
+def test_no_two_moves_share_a_sound_file_name(fake_library):
+    # Uploads to the robot are keyed by file name: two sounds with the same
+    # name overwrite each other's copy.
+    paths = {path for build in MOVES.values() for path in build(fake_library).sound_paths()}
+    names = [path.name for path in paths]
+
+    shared = sorted({name for name in names if names.count(name) > 1})
+
+    assert not shared, f"Sound file names used by several moves: {', '.join(shared)}"
