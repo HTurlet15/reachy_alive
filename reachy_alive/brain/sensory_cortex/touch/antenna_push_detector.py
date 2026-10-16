@@ -43,7 +43,7 @@ class AntennaPush:
         """Read one sample of the antenna.
 
         Args:
-            t: Time of the sample, in seconds, on a clock that only goes forward.
+            t: Time of the sample, in seconds, on a monotonic clock.
             target_rad: Where the antenna was just sent.
             measured_rad: Where the antenna is, measured.
 
@@ -102,10 +102,9 @@ class AntennaPushDetector(Detector):
         for side, target_rad, measured_rad in zip(
             ANTENNA_SIDES, features.targets_rad, features.measured_rad
         ):
-            was_pushed = self._facts.antenna_pushed_since(side) is not None
             pushed_since = self._pushes[side].update(features.t, target_rad, measured_rad)
             self._facts.set_antenna_pushed_since(side, pushed_since)
-            if pushed_since is not None and not was_pushed:
+            if pushed_since == features.t:  # a push that starts on this reading
                 logger.info("%s antenna pushed", side.capitalize())
 
     def _while_robot_moves(self, features: TouchFeatures) -> None:

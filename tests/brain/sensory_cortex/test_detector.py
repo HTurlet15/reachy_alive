@@ -141,16 +141,12 @@ def test_the_off_threshold_cannot_be_above_the_on_threshold():
 # Background, with a time constant of 2 s
 
 
-def test_a_background_has_no_level_until_it_follows_a_value():
-    assert Background(time_constant_s=2.0).level is None
-
-
 def test_the_first_value_followed_is_the_background():
     background = Background(time_constant_s=2.0)
 
     background.follow(0.0, -60.0)
 
-    assert background.level == -60.0
+    assert background.height_of(-60.0) == 0.0
 
 
 def test_after_one_time_constant_it_has_covered_63_percent_of_the_way():
@@ -159,7 +155,8 @@ def test_after_one_time_constant_it_has_covered_63_percent_of_the_way():
 
     background.follow(2.0, 100.0)
 
-    assert math.isclose(background.level, 100.0 * (1 - math.exp(-1)))  # about 63
+    level = 100.0 - background.height_of(100.0)
+    assert math.isclose(level, 100.0 * (1 - math.exp(-1)))  # about 63
 
 
 def test_two_steps_of_1_s_cover_as_much_as_one_step_of_2_s():
@@ -172,7 +169,7 @@ def test_two_steps_of_1_s_cover_as_much_as_one_step_of_2_s():
     in_one_step.follow(0.0, 0.0)
     in_one_step.follow(2.0, 100.0)
 
-    assert math.isclose(in_two_steps.level, in_one_step.level)
+    assert math.isclose(in_two_steps.height_of(0.0), in_one_step.height_of(0.0))
 
 
 def test_nothing_stands_out_before_the_background_has_a_level():

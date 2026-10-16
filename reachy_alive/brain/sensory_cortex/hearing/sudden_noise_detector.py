@@ -13,8 +13,9 @@ logger = logging.getLogger(__name__)
 class Habituation:
     """Gets used to loud sounds: one is expected for a while after another, unless much louder.
 
-    Every loud sound keeps the habit going: of three claps in
-    a row, only the first is a surprise.
+    Every loud sound is remembered, even an expected one: a sound that keeps
+    repeating stays expected, and only the first of three claps in a row is a
+    surprise.
     """
 
     def __init__(self, lasts_s: float, much_louder_db: float) -> None:
@@ -34,7 +35,7 @@ class Habituation:
         """Return whether a loud sound starting at t is expected: like one heard moments ago.
 
         Args:
-t: When the sound starts, in seconds, on a monotonic clock.
+            t: When the sound starts, in seconds, on a monotonic clock.
             height_db: How far it stands above the background.
         """
         heard_one_moments_ago = t - self._last_loud_sound_at < self._lasts_s
@@ -88,8 +89,8 @@ class SuddenNoiseDetector(Detector):
 
     def _detect(self, features: HearingFeatures) -> None:
         """Follow the sound through one stretch, and record a sudden noise if one starts on it."""
-        # Asked before following the sound, which updates everything the
-        # question compares with: the background, and the last loud sound.
+        # Asked before following the sound, which updates everything the question
+        # compares with: the background, the loud sound going on, and the habituation.
         noise_starts = self._is_sudden_noise(features)
         self._follow_sound(features)
         if noise_starts:
@@ -99,7 +100,7 @@ class SuddenNoiseDetector(Detector):
     def _while_robot_moves(self, features: HearingFeatures) -> None:
         """Follow the sound through one stretch, without asking about noises: they are the robot's.
 
-        The background and the habituation stay up to date for when the move is over.
+        Every mechanism stays up to date for when the move is over.
         """
         self._follow_sound(features)
 

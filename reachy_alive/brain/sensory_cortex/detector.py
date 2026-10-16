@@ -13,9 +13,11 @@ class Detector(ABC):
     """Reads the features of one sense, and records what they mean as facts.
 
     SenseManager builds it with its sense's facts, and hands it the features
-    of every reading. To write a detector, write _detect: this class hands it
-    the features of the readings the robot didn't disturb. The others go to
-    _while_robot_moves, which ignores them unless overridden.
+    of every reading. To write a detector, subclass it in a `*_detector.py`
+    file of its sense's folder, where SenseManager finds it, and write
+    _detect: this class hands it the features of the readings the robot
+    didn't disturb. The others go to _while_robot_moves, which ignores them
+    unless overridden.
     """
 
     def __init__(self, facts) -> None:
@@ -84,7 +86,7 @@ class SchmittTrigger:
         """Turn on or off with a new value.
 
         Args:
-            t: Time of the value, in seconds, on a clock that only goes forward.
+            t: Time of the value, in seconds, on a monotonic clock.
             value: The value followed.
         """
         if self.would_turn_on(value):
@@ -99,9 +101,6 @@ class Background:
     It follows the signal like a capacitor charging through a resistor: after
     one time constant, it has covered 63% of the way to a new level. The
     first value followed is taken as the background.
-
-    Attributes:
-        level: The background's level, or None until a first value is followed.
     """
 
     def __init__(self, time_constant_s: float) -> None:
@@ -111,26 +110,27 @@ class Background:
             time_constant_s: Short to follow quickly, long to follow slowly.
         """
         self._time_constant_s = time_constant_s
-        self.level: float | None = None
+        self._level: float | None = None  # None until a first value is followed
         self._updated_at = -math.inf
 
     def height_of(self, value: float) -> float:
         """Return how far a value stands above the background: 0 until it has a level."""
-        if self.level is None:
+        if self._level is None:
             return 0.0  # nothing to stand out from yet
-        return value - self.level
+        return value - self._level
 
     def follow(self, t: float, value: float) -> None:
         """Move a step toward a value, as far as the time since the last step allows.
 
         Args:
-            t: Time of the value, in seconds, on a clock that only goes forward.
+            t: Time of the value, in seconds, on a monotonic clock.
             value: The value followed.
         """
-        if self.level is None:
-            self.level = value
+        if self._level is None:
+            self._level = value
         else:
             elapsed_s = t - self._updated_at
             smoothing_factor = 1.0 - math.exp(-elapsed_s / self._time_constant_s)
-            self.level += smoothing_factor * (value - self.level)
+            self._level += smoothing_factor * (value - self._level)
         self._updated_at = t
+        
