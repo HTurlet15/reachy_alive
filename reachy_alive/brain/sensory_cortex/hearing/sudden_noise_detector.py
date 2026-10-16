@@ -52,9 +52,9 @@ class SuddenNoiseDetector(Detector):
 
     def _detect(self, features: HearingFeatures) -> None:
         """Follow the sound through one stretch, and record a sudden noise if one starts on it."""
-        # Measured and judged before the sound is followed and remembered, which
-        # moves everything it is judged against: the background, so a sound
-        # doesn't shrink its own jump, the loud sound going on, and the habituation.
+        # Judged before the sound is followed and remembered, since both move what it
+        # is judged against: the background (a sound would shrink its own jump), the
+        # loud sound going on, and the habituation.
         height_db = self._background.height_of(features.level_dbfs)
         loud_sound_starts = self._loud_sound_trigger.would_turn_on(height_db)
         is_expected = self._habituation.is_expected(features.time_listened_s, height_db)
