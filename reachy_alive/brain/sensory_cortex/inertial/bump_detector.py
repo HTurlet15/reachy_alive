@@ -30,13 +30,11 @@ class BumpDetector(Detector):
 
     def _detect(self, features: InertialFeatures) -> None:
         """Record a bump if one starts on this reading."""
-        if features.t < self._ignore_until:
-            return
-        if not self._strays_from_gravity(features.accelerometer):
-            return
-        self._ignore_until = features.t + self.REFRACTORY_S
-        self._facts.record_bump(features.t)
-        logger.info("Bump")
-
-    def _strays_from_gravity(self, accelerometer: tuple[float, float, float]) -> bool:
-        return abs(math.hypot(*accelerometer) - self.GRAVITY_M_S2) >= self.THRESHOLD_M_S2
+        head_still_rings = features.t < self._ignore_until
+        strays_from_gravity = (
+            abs(math.hypot(*features.accelerometer) - self.GRAVITY_M_S2) >= self.THRESHOLD_M_S2
+        )
+        if strays_from_gravity and not head_still_rings:
+            self._ignore_until = features.t + self.REFRACTORY_S
+            self._facts.record_bump(features.t)
+            logger.info("Bump")

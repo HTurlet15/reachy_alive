@@ -10,44 +10,6 @@ from reachy_alive.shared_state import HearingFacts
 logger = logging.getLogger(__name__)
 
 
-class Habituation:
-    """Gets used to loud sounds: one is expected for a while after another, unless much louder.
-
-    Every loud sound is remembered, even an expected one: a sound that keeps
-    repeating stays expected, and only the first of three claps in a row is a
-    surprise.
-    """
-
-    def __init__(self, lasts_s: float, much_louder_db: float) -> None:
-        """Set how long the habit lasts, and what breaks it.
-
-        Args:
-            lasts_s: How long a loud sound stays expected after the last one.
-            much_louder_db: How much louder than the last one a sound must be
-                to surprise anyway.
-        """
-        self._lasts_s = lasts_s
-        self._much_louder_db = much_louder_db
-        self._last_loud_sound_at = -math.inf
-        self._last_loud_sound_height_db = -math.inf
-
-    def is_expected(self, t: float, height_db: float) -> bool:
-        """Return whether a loud sound starting at t is expected: like one heard moments ago.
-
-        Args:
-            t: When the sound starts, in seconds, on a monotonic clock.
-            height_db: How far it stands above the background.
-        """
-        heard_one_moments_ago = t - self._last_loud_sound_at < self._lasts_s
-        much_louder = height_db >= self._last_loud_sound_height_db + self._much_louder_db
-        return heard_one_moments_ago and not much_louder
-
-    def remember(self, t: float, height_db: float) -> None:
-        """Keep a loud sound in mind, expected or not."""
-        self._last_loud_sound_at = t
-        self._last_loud_sound_height_db = height_db
-
-
 class SuddenNoiseDetector(Detector):
     """Spots sudden noises in the loudness of the sound: loud sounds nobody expected.
 
@@ -89,27 +51,22 @@ class SuddenNoiseDetector(Detector):
 
     def _detect(self, features: HearingFeatures) -> None:
         """Follow the sound through one stretch, and record a sudden noise if one starts on it."""
-        # Asked before following the sound, which updates everything the question
-        # compares with: the background, the loud sound going on, and the habituation.
-        noise_starts = self._is_sudden_noise(features)
+        # Judged before following the sound, which moves everything it is judged
+        # against: the background, the loud sound going on, and the habituation.
+        height_db = self._background.height_of(features.level_dbfs)
+        loud_sound_starts = self._loud_sound_trigger.would_turn_on(height_db)
+        is_expected = self._habituation.is_expected(features.time_listened_s, height_db)
         self._follow_sound(features)
-        if noise_starts:
+        if loud_sound_starts and not is_expected:
             self._facts.record_sudden_noise(features.t)
             logger.info("Sudden noise")
 
     def _while_robot_moves(self, features: HearingFeatures) -> None:
-        """Follow the sound through one stretch, without asking about noises: they are the robot's.
+        """Follow the sound through one stretch, without judging it: it is the robot's.
 
         Every mechanism stays up to date for when the move is over.
         """
         self._follow_sound(features)
-
-    def _is_sudden_noise(self, features: HearingFeatures) -> bool:
-        """Whether a sudden noise starts on this stretch: a loud sound nobody expected."""
-        height_db = self._background.height_of(features.level_dbfs)
-        loud_sound_starts = self._loud_sound_trigger.would_turn_on(height_db)
-        is_expected = self._habituation.is_expected(features.time_listened_s, height_db)
-        return loud_sound_starts and not is_expected
 
     def _follow_sound(self, features: HearingFeatures) -> None:
         """Update the background, the loud sound going on, and the last loud sound heard."""
@@ -120,3 +77,41 @@ class SuddenNoiseDetector(Detector):
         self._loud_sound_trigger.update(features.time_listened_s, height_db)
         if loud_sound_starts:
             self._habituation.remember(features.time_listened_s, height_db)
+
+
+class Habituation:
+    """Gets used to loud sounds: one is expected for a while after another, unless much louder.
+
+    Every loud sound is remembered, even an expected one: a sound that keeps
+    repeating stays expected, and only the first of three claps in a row is a
+    surprise.
+    """
+
+    def __init__(self, lasts_s: float, much_louder_db: float) -> None:
+        """Set how long the habit lasts, and what breaks it.
+
+        Args:
+            lasts_s: How long a loud sound stays expected after the last one.
+            much_louder_db: How much louder than the last one a sound must be
+                to surprise anyway.
+        """
+        self._lasts_s = lasts_s
+        self._much_louder_db = much_louder_db
+        self._last_loud_sound_at = -math.inf
+        self._last_loud_sound_height_db = -math.inf
+
+    def is_expected(self, t: float, height_db: float) -> bool:
+        """Return whether a loud sound starting at t is expected: like one heard moments ago.
+
+        Args:
+            t: When the sound starts, in seconds, on a monotonic clock.
+            height_db: How far it stands above the background.
+        """
+        heard_one_moments_ago = t - self._last_loud_sound_at < self._lasts_s
+        much_louder = height_db >= self._last_loud_sound_height_db + self._much_louder_db
+        return heard_one_moments_ago and not much_louder
+
+    def remember(self, t: float, height_db: float) -> None:
+        """Keep a loud sound in mind, expected or not."""
+        self._last_loud_sound_at = t
+        self._last_loud_sound_height_db = height_db

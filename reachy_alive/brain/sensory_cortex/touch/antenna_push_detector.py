@@ -11,6 +11,34 @@ from reachy_alive.shared_state import TouchFacts
 logger = logging.getLogger(__name__)
 
 
+class AntennaPushDetector(Detector):
+    """Spots when someone pushes an antenna away from where it was sent.
+
+    Follows each antenna with its own AntennaPush, and forgets them while
+    the robot moves itself.
+    """
+
+    def __init__(self, facts: TouchFacts) -> None:
+        super().__init__(facts)
+        self._pushes = {side: AntennaPush() for side in ANTENNA_SIDES}
+
+    def _detect(self, features: TouchFeatures) -> None:
+        """Follow both antennas through one reading, and record whether each is pushed."""
+        for side, target_rad, measured_rad in zip(
+            ANTENNA_SIDES, features.targets_rad, features.measured_rad
+        ):
+            pushed_since = self._pushes[side].update(features.t, target_rad, measured_rad)
+            self._facts.set_antenna_pushed_since(side, pushed_since)
+            if pushed_since == features.t:  # a push that starts on this reading
+                logger.info("%s antenna pushed", side.capitalize())
+
+    def _while_robot_moves(self, features: TouchFeatures) -> None:
+        """Forget every push: an antenna pushed before the robot moved may no longer be."""
+        self._pushes = {side: AntennaPush() for side in ANTENNA_SIDES}
+        for side in ANTENNA_SIDES:
+            self._facts.set_antenna_pushed_since(side, None)
+
+
 class AntennaPush:
     """Follows one antenna: whether it is pushed away from where it was sent.
 
@@ -50,9 +78,14 @@ class AntennaPush:
         Returns:
             When the current push started, or None if the antenna isn't pushed.
         """
-        self._add_target(t, target_rad)
-        self._forget_targets_before(t - self.MAX_DELAY_S)
-        expected_positions_rad = self._targets_sent_before(t - self.MIN_DELAY_S)
+        #Add the target just sent, and forget the ones too old to matter.
+        self._sent_targets.append((t, target_rad))
+        self._forget_targets_before(t - self.MAX_DELAY_S) #remove targets sent before the maximum delay
+        expected_positions_rad = [
+            position_rad
+            for sent_at, position_rad in self._sent_targets
+            if sent_at <= t - self.MIN_DELAY_S  #filter targets sent after the minimum delay
+        ]
         if not expected_positions_rad:
             return self._push_trigger.on_since  # not enough history yet to judge
 
@@ -66,54 +99,9 @@ class AntennaPush:
         self._push_trigger.update(t, gap_outside_expected_deg)
         return self._push_trigger.on_since
 
-    def _add_target(self, t: float, target_rad: float) -> None:
-        """Remember where the antenna was sent at time t."""
-        self._sent_targets.append((t, target_rad))
-
     def _forget_targets_before(self, oldest_worth_keeping: float) -> None:
         """Forget the targets sent before `oldest_worth_keeping`, in seconds."""
         oldest_sent_at, _ = self._sent_targets[0]
         while oldest_sent_at < oldest_worth_keeping:
             self._sent_targets.popleft()
             oldest_sent_at, _ = self._sent_targets[0]
-
-    def _targets_sent_before(self, latest: float) -> list[float]:
-        """Return the remembered target positions sent at or before `latest`, in radians."""
-        return [
-                position_rad 
-                for sent_at, position_rad in self._sent_targets 
-                if sent_at <= latest
-                ]
-
-
-class AntennaPushDetector(Detector):
-    """Spots when someone pushes an antenna away from where it was sent.
-
-    Follows each antenna with its own AntennaPush, and forgets them while
-    the robot moves itself.
-    """
-
-    def __init__(self, facts: TouchFacts) -> None:
-        super().__init__(facts)
-        self._pushes = self._fresh_pushes()
-
-    def _detect(self, features: TouchFeatures) -> None:
-        """Follow both antennas through one reading, and record whether each is pushed."""
-        for side, target_rad, measured_rad in zip(
-            ANTENNA_SIDES, features.targets_rad, features.measured_rad
-        ):
-            pushed_since = self._pushes[side].update(features.t, target_rad, measured_rad)
-            self._facts.set_antenna_pushed_since(side, pushed_since)
-            if pushed_since == features.t:  # a push that starts on this reading
-                logger.info("%s antenna pushed", side.capitalize())
-
-    def _while_robot_moves(self, features: TouchFeatures) -> None:
-        """Forget every push: an antenna pushed before the robot moved may no longer be."""
-        self._pushes = self._fresh_pushes()
-        for side in ANTENNA_SIDES:
-            self._facts.set_antenna_pushed_since(side, None)
-
-    @staticmethod
-    def _fresh_pushes() -> dict[str, AntennaPush]:
-        """One new AntennaPush per antenna, with no history."""
-        return {side: AntennaPush() for side in ANTENNA_SIDES}
