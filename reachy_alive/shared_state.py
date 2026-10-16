@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from reachy_alive.brain.sensory_cortex.touch.touch_features import ANTENNA_SIDES
 from reachy_alive.brain.sensory_cortex.vision.vision_features import SeenFace
 
 DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S = (20.0, 30.0)
@@ -106,7 +107,7 @@ class TouchFacts:
     def __init__(self) -> None:
         """Start with neither antenna pushed."""
         self._lock = threading.Lock()
-        self._antenna_pushed_since: dict[str, float | None] = {"right": None, "left": None}
+        self._antenna_pushed_since: dict[str, float | None] = dict.fromkeys(ANTENNA_SIDES)
 
     # Antenna pushes. Written by AntennaPushDetector.
 

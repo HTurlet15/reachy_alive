@@ -1,4 +1,4 @@
-"""Compose hiccup_full.wav from its parts."""
+"""Compose sneezing.wav from its parts."""
 
 from pathlib import Path
 
@@ -12,7 +12,7 @@ concatenate(
         (str(HERE / "inhale2.wav"), 0.5),
         (str(HERE / "inhale3.wav"), 0.5),
         (str(HERE / "sneeze.wav"), 0.5),
-        (str(HERE / "relief.wav"),0),
+        (str(HERE / "relief.wav"), 0),
     ],
     str(HERE / "sneezing.wav"),
 )

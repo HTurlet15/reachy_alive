@@ -96,3 +96,7 @@ uv run python reachy_alive/main.py
 ```
 
 While the app runs, its page is at `http://localhost:8042`.
+
+## License
+
+[Apache-2.0](./LICENSE).

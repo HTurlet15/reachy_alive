@@ -62,7 +62,7 @@ def test_antennas_end_where_go_neutral_expects_them(fake_library):
 
     antenna = _antenna(sneezing, "relief", 1.0, sneezing.duration_s)
 
-    assert antenna == pytest.approx(Sneezing.ANTENNA_START_RAD)
+    assert antenna == pytest.approx(Sneezing.ANTENNA_AT_NEUTRAL_RAD)
 
 
 def test_antennas_drop_to_the_sneeze_angle_in_a_few_ticks(fake_library):

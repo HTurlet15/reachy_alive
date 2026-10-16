@@ -74,11 +74,7 @@ class ReachyAlive(ReachyMiniApp):
             sense_manager.join()
 
     def _build_idle_moves(self) -> list[Move]:
-        """Build the moves the idle manager picks from.
-
-        Raises:
-            ValueError: If a configured library move doesn't exist.
-        """
+        """Build the moves the idle manager picks from."""
         pollen_emotions = RecordedMoves("pollen-robotics/reachy-mini-emotions-library")
         reachy_alive_recordings = RecordedMoves("HTurlet15/reachy-alive")
 
@@ -102,18 +98,7 @@ class ReachyAlive(ReachyMiniApp):
         return pollen_moves + marionette_moves + coded_moves + mixed_moves
 
     def _library_moves(self, library: RecordedMoves, names: list[str]) -> list[Move]:
-        """Wrap named moves from a library, checking they all exist.
-
-        Args:
-            library: The recorded-moves library to load from.
-            names: Move names to wrap.
-
-        Returns:
-            One LibraryMove per name.
-
-        Raises:
-            ValueError: If a name isn't in the library.
-        """
+        """Wrap named moves from a library, checking they all exist."""
         available = library.list_moves()
         missing = [name for name in names if name not in available]
         if missing:

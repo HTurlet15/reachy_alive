@@ -85,11 +85,11 @@ reference:
 ```python
 concatenate(
     [
-        (str(HERE / "hiccup.wav"), 0.6),
-        (str(HERE / "hiccup.wav"), 0.6),
-        (str(HERE / "hiccup.wav"), 0.9),
-        (str(HERE / "complaining.wav"), 0.7),
-        (str(HERE / "hiccup.wav"), 0.0),
+        (str(HERE / "hiccup.wav"), 2),
+        (str(HERE / "hiccup.wav"), 2),
+        (str(HERE / "hiccup.wav"), 0.5),
+        (str(HERE / "complaining.wav"), 2),
+        (str(HERE / "hiccup.wav"), 1.5),
     ],
     str(HERE / "hiccup_full.wav"),
 )

@@ -2,6 +2,9 @@
 
 Samples each phase without running the motion loop, so it's fast. Add your
 move to MOVES.
+
+Recorded heads, like Sneezing's Marionette recording, are faked here: their
+height isn't checked. Check them on the robot with `try-move`.
 """
 
 import importlib

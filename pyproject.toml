@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=77.0"]
 build-backend = "setuptools.build_meta"
 
 
@@ -8,6 +8,8 @@ name = "reachy_alive"
 version = "1.0.1"
 description = "Turns a Reachy Mini into a desk companion that feels alive."
 readme = "README.md"
+license = "Apache-2.0"
+authors = [{name = "Hugo Turlet", email = "hugo.turlet@gmail.com"}]
 requires-python = ">=3.11"
 dependencies = [
     "fastapi",
@@ -20,6 +22,9 @@ dependencies = [
     "soundfile",
 ]
 keywords = ["reachy-mini-app"]
+
+[project.urls]
+Repository = "https://github.com/HTurlet15/reachy_alive"
 
 [dependency-groups]
 dev = [

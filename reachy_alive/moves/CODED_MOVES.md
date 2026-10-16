@@ -109,8 +109,8 @@ amplitude — draw it in `_on_start()`, store it on `self`, and read it in
 `_pose_at`:
 
 ```python
-def __init__(self, tick_hz: float = 50.0) -> None:
-    super().__init__(tick_hz)
+def __init__(self) -> None:
+    super().__init__()
     self._drop_angle_rad = self.DROP_ANGLE_RAD
 
 def _on_start(self) -> None:

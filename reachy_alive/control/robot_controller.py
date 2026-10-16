@@ -18,21 +18,17 @@ class RobotController:
     for it, waking up and going to sleep included. Decision-makers never
     drive the robot. Moves do talk to the robot, but only while
     RobotController executes a PlayMove, from this loop's thread.
-
-    Attributes:
-        action_selector: Chooses the command for each tick.
-        tick_period_s: Time, in seconds, between control loop ticks.
     """
 
-    def __init__(self, action_selector: ActionSelector, tick_hz: float = 50.0) -> None:
-        """Keep the selector, and set the loop's pace.
+    TICK_HZ = 50.0
+
+    def __init__(self, action_selector: ActionSelector) -> None:
+        """Keep the selector.
 
         Args:
             action_selector: Chooses the command for each tick.
-            tick_hz: Control loop frequency, in Hz.
         """
         self.action_selector = action_selector
-        self.tick_period_s = 1.0 / tick_hz
 
     def run(self, reachy_mini: ReachyMini, shared_state: SharedState, stop_event) -> None:
         """Run the control loop until stop_event is set.
@@ -56,7 +52,7 @@ class RobotController:
                 t = time.monotonic() - t0
                 command = self.action_selector.decide(t, shared_state, reachy_mini)
                 self._execute(command, reachy_mini, shared_state)
-                time.sleep(self.tick_period_s)
+                time.sleep(1.0 / self.TICK_HZ)
         finally:
             shared_state.set_move_playing(True)
             reachy_mini.goto_sleep()
@@ -65,17 +61,7 @@ class RobotController:
     def _execute(
         self, command: Command, reachy_mini: ReachyMini, shared_state: SharedState
     ) -> None:
-        """Carry out one command on the robot, recording what it sends.
-
-        Args:
-            command: The command to execute.
-            reachy_mini: Connected robot instance.
-            shared_state: Shared blackboard, updated with what the robot is
-                sent and when a move plays and ends.
-
-        Raises:
-            TypeError: If the command type is unknown.
-        """
+        """Carry out one command on the robot, recording what it sends."""
         if isinstance(command, HoldPose):
             reachy_mini.set_target(head=command.head, antennas=command.antennas)
             shared_state.record_commanded_pose(
