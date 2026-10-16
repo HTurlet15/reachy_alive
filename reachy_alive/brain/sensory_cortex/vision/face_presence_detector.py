@@ -41,11 +41,14 @@ class FacePresenceDetector(Detector):
             self._follow_absence(features.perceived_at)
 
     def _while_robot_moves(self, features: VisionFeatures) -> None:
-        """Count absence again from scratch once the move is over.
+        """Count absence, and a face not yet in view, again from scratch once the move is over.
 
         The robot's own move blurs or turns the camera: no evidence either way.
+        A face seen too briefly to count yet must then be seen anew, without a break.
         """
         self._unseen_since = None
+        if not self._in_view:
+            self._first_seen_at = None
 
     def _follow_face(self, t: float, face: SeenFace) -> None:
         """Note a face seen at `t`: it appears once seen long enough, then is followed."""

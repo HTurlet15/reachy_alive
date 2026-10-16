@@ -104,6 +104,14 @@ def test_a_face_still_there_after_a_move_is_not_lost_at_once():
     assert facts.last_face_lost_at() is None
 
 
+def test_glimpses_on_either_side_of_a_move_do_not_add_up():
+    detector, facts = make_detector()
+    t = show(detector, 0.0, 0.2, NEAR)  # one stray image before the move
+    t = show(detector, t, 10.0, robot_moving_itself=True)
+    show(detector, t, 0.2, NEAR)  # one image after it
+    assert facts.face_seen_since() is None
+
+
 def test_a_face_gone_during_a_move_is_lost_a_while_after_it():
     detector, facts = make_detector()
     t = show(detector, 0.0, 1.0, NEAR)
