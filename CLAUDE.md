@@ -44,14 +44,17 @@ If you notice this and want to fix it, don't — say so and move on.
 
 ## Internals the docs don't cover
 
-- **Sound upload.** On Wireless, playing a local file uploads it over HTTP
-  first, freezing the move. `Move.prepare()` uploads a move's sounds ahead
+- **Sound upload.** When the app runs on a laptop against the Wireless robot
+  (WebRTC backend), playing a local file uploads it over HTTP first, freezing
+  the move. On the robot itself, the local backend's `upload_sound` does
+  nothing. `Move.prepare()` uploads a move's sounds ahead
   and maps each local path to its copy on the robot; `Move.play_sound()`
   plays that copy. Moves must use `self.play_sound()`, never
   `reachy_mini.media.play_sound()`. `IdleManager` prepares the next idle move
   in a background thread while the robot breathes. Uploads are keyed by file
-  name, so every play re-uploads. A move requested from the app's page isn't
-  prepared ahead: short pause on Wireless.
+  name alone, across every move: no two moves may share a sound file name
+  (a test checks it), and every play re-uploads. A move requested from the
+  app's page isn't prepared ahead: short pause from a laptop.
 - **Startup order.** The SDK starts the web server, then connects to the
   robot, then calls `run()`, where the routes are registered. The app's page
   is served before its routes exist, so it retries `GET /moves` (like

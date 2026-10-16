@@ -113,8 +113,9 @@ class Move(ABC):
             self._perform(reachy_mini)
             self.go_neutral(reachy_mini)
         finally:
-            # Uploads are keyed by file name, and another move may overwrite
-            # ours before this one plays again -- so the next play re-uploads.
+            # When the app runs on a laptop against a Wireless robot, the
+            # robot keeps uploads in one folder, by file name alone: any move
+            # or app may overwrite ours before the next play, which re-uploads.
             self._remote_sounds = None
 
     def prepare(self, reachy_mini: ReachyMini) -> None:
