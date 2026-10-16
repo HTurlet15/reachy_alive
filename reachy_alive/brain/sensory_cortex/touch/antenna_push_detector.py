@@ -4,7 +4,7 @@ import logging
 import math
 from collections import deque
 
-from reachy_alive.brain.sensory_cortex.detector import Detector
+from reachy_alive.brain.sensory_cortex.detector import Detector, SchmittTrigger
 from reachy_alive.brain.sensory_cortex.touch.touch_features import ANTENNA_SIDES, TouchFeatures
 from reachy_alive.shared_state import TouchFacts
 
@@ -20,7 +20,7 @@ class AntennaPush:
     is the gap outside that range; inside it, the gap is zero.
 
     A push starts when the gap reaches PUSH_THRESHOLD_DEG, and ends under
-    RELEASE_THRESHOLD_DEG: two thresholds, so it doesn't flicker. A push in
+    RELEASE_THRESHOLD_DEG: a SchmittTrigger, so it doesn't flicker. A push in
     the direction the antenna already moves can hide in the range, up to
     about 5° while breathing.
     """
@@ -36,7 +36,9 @@ class AntennaPush:
         # and where it sent the antenna.
         self._target_times: deque[float] = deque()
         self._target_positions_rad: deque[float] = deque()
-        self._pushed_since: float | None = None
+        self._push_trigger = SchmittTrigger(
+            on_threshold=self.PUSH_THRESHOLD_DEG, off_threshold=self.RELEASE_THRESHOLD_DEG
+        )
 
     def update(self, t: float, target_rad: float, measured_rad: float) -> float | None:
         """Read one sample of the antenna.
@@ -53,7 +55,7 @@ class AntennaPush:
         self._forget_targets_before(t - self.MAX_DELAY_S)
         expected_positions_rad = self._targets_sent_before(t - self.MIN_DELAY_S)
         if not expected_positions_rad:
-            return self._pushed_since  # not enough history yet to judge
+            return self._push_trigger.on_since  # not enough history yet to judge
 
         gap_outside_expected_rad = max(
             min(expected_positions_rad) - measured_rad,  # below the expected range
@@ -62,14 +64,8 @@ class AntennaPush:
         )
         gap_outside_expected_deg = math.degrees(gap_outside_expected_rad)
 
-        was_pushed = self._pushed_since is not None
-        push_is_starting = not was_pushed and gap_outside_expected_deg >= self.PUSH_THRESHOLD_DEG
-        push_is_ending = was_pushed and gap_outside_expected_deg < self.RELEASE_THRESHOLD_DEG
-        if push_is_starting:
-            self._pushed_since = t
-        elif push_is_ending:
-            self._pushed_since = None
-        return self._pushed_since
+        self._push_trigger.update(t, gap_outside_expected_deg)
+        return self._push_trigger.on_since
 
     def _add_target(self, t: float, target_rad: float) -> None:
         """Remember where the antenna was sent at time t."""
