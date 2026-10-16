@@ -1,12 +1,15 @@
 """Unit tests for HearingSense, with fake microphones that give chosen chunks of sound."""
 
+import itertools
 import math
+import threading
 from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
 
 from reachy_alive.brain.sensory_cortex.hearing.hearing_sense import SILENCE_DBFS, HearingSense
+from reachy_alive.brain.sensory_cortex.sense_manager import SenseManager
 from reachy_alive.shared_state import SharedState
 
 SAMPLE_RATE_HZ = 16_000
@@ -143,3 +146,15 @@ def test_opening_and_closing_start_and_stop_the_recording():
 
     reachy_mini.media.start_recording.assert_called_once()
     reachy_mini.media.stop_recording.assert_called_once()
+
+
+def test_microphones_that_give_nothing_at_once_do_not_make_the_sense_spin():
+    sense, _, reachy_mini = make_sense([])
+    reachy_mini.media.get_audio_sample.side_effect = itertools.repeat(None)  # no wait, ever
+    stop_event = threading.Event()
+    threading.Timer(0.2, stop_event.set).start()
+
+    SenseManager.watch(sense, [], stop_event)
+
+    # Paced by PERIOD_S, 0.2 s holds about 40 reads; spinning would make thousands.
+    assert reachy_mini.media.get_audio_sample.call_count < 100

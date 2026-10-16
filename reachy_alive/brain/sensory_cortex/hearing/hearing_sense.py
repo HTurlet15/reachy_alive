@@ -24,8 +24,9 @@ class HearingSense(Sense):
     and times them by how long it has listened.
     """
 
-    # As fast as sound comes: waiting for the next chunk paces the sense.
-    PERIOD_S = 0.0
+    # Waiting for the next chunk paces the sense; this floor stops it spinning when the
+    # microphones give nothing at once, and still drains a backlog at 200 stretches a second.
+    PERIOD_S = 0.005
     STRETCH_S = 0.02
 
     def __init__(self, reachy_mini: ReachyMini, shared_state: SharedState) -> None:
