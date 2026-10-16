@@ -1,3 +1,5 @@
+"""RobotController: the control loop, the only part of the app that drives the robot."""
+
 import time
 
 from reachy_mini import ReachyMini
@@ -23,9 +25,11 @@ class RobotController:
     """
 
     def __init__(self, action_selector: ActionSelector, tick_hz: float = 50.0) -> None:
-        """Args:
-        action_selector: Chooses the command for each tick.
-        tick_hz: Control loop frequency, in Hz.
+        """Keep the selector, and set the loop's pace.
+
+        Args:
+            action_selector: Chooses the command for each tick.
+            tick_hz: Control loop frequency, in Hz.
         """
         self.action_selector = action_selector
         self.tick_period_s = 1.0 / tick_hz

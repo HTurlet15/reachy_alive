@@ -34,6 +34,7 @@ class VisionFacts:
     """
 
     def __init__(self) -> None:
+        """Start with no face seen."""
         self._lock = threading.Lock()
         self._face_seen_since: float | None = None
         self._last_face_lost_at: float | None = None
@@ -76,9 +77,13 @@ class VisionFacts:
 
 
 class InertialFacts:
-    """What the robot feels through its inertial unit, as facts. Read it as `shared_state.inertial`."""
+    """What the robot feels through its inertial unit, as facts.
+
+    Read it as `shared_state.inertial`.
+    """
 
     def __init__(self) -> None:
+        """Start with no bump felt."""
         self._lock = threading.Lock()
         self._last_bump_at: float | None = None
 
@@ -99,6 +104,7 @@ class TouchFacts:
     """What the robot feels through its antennas, as facts. Read it as `shared_state.touch`."""
 
     def __init__(self) -> None:
+        """Start with neither antenna pushed."""
         self._lock = threading.Lock()
         self._antenna_pushed_since: dict[str, float | None] = {"right": None, "left": None}
 
@@ -128,6 +134,7 @@ class HearingFacts:
     """What the robot hears, as facts. Read it as `shared_state.hearing`."""
 
     def __init__(self) -> None:
+        """Start with no sudden noise heard."""
         self._lock = threading.Lock()
         self._last_sudden_noise_at: float | None = None
 
@@ -167,6 +174,7 @@ class SharedState:
     """
 
     def __init__(self) -> None:
+        """Start with nothing known yet: no move, no pose sent, default settings."""
         self.lock = threading.Lock()
         self.last_activity_at: float = time.monotonic()
         self.vision = VisionFacts()
@@ -198,8 +206,9 @@ class SharedState:
     # RobotController.
 
     def set_move_playing(self, playing: bool) -> None:
-        """Record whether RobotController is playing a move right now, waking
-        the robot up included, and when the last one ended.
+        """Record whether RobotController is playing a move, and when the last one ended.
+
+        Waking the robot up counts as a move.
 
         Args:
             playing: True when a move starts, False once it has ended.

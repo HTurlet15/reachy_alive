@@ -63,7 +63,8 @@ def made_up_sense(tmp_path, monkeypatch):
 def test_only_detectors_written_in_detector_files_are_found_once(made_up_sense):
     detectors = SenseManager.find_detectors(made_up_sense, facts="the facts")
 
-    assert sorted(type(detector).__name__ for detector in detectors) == ["ClapDetector", "SnapDetector"]
+    names = sorted(type(detector).__name__ for detector in detectors)
+    assert names == ["ClapDetector", "SnapDetector"]
 
 
 def test_a_detector_file_that_fails_to_load_is_skipped(made_up_sense, caplog):

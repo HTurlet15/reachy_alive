@@ -25,6 +25,7 @@ class BumpDetector(Detector):
     REFRACTORY_S = 0.3
 
     def __init__(self, facts: InertialFacts) -> None:
+        """Start with no bump to wait out."""
         super().__init__(facts)
         self._ignore_until = -math.inf
 

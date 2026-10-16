@@ -1,3 +1,5 @@
+"""Reachy Alive: the app that makes a Reachy Mini feel alive, and its entry point."""
+
 import logging
 import queue
 import threading
@@ -18,6 +20,8 @@ from reachy_alive.shared_state import SharedState
 
 
 class ReachyAlive(ReachyMiniApp):
+    """The app as the SDK runs it: it builds every part, wires them, and runs the loop."""
+
     custom_app_url: str | None = "http://0.0.0.0:8042"
     request_media_backend: str | None = None
 

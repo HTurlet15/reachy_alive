@@ -28,6 +28,7 @@ class AntennaPushDetector(Detector):
     MAX_DELAY_S = 0.25
 
     def __init__(self, facts: TouchFacts) -> None:
+        """Start following both antennas, with nothing remembered yet."""
         super().__init__(facts)
         self._start_afresh()
 
@@ -47,17 +48,16 @@ class AntennaPushDetector(Detector):
     def _detect(self, features: TouchFeatures) -> None:
         """Follow both antennas through one reading, and record whether each is pushed."""
         for side, target_rad, measured_rad in zip(
-            ANTENNA_SIDES, features.targets_rad, features.measured_rad
+            ANTENNA_SIDES, features.targets_rad, features.measured_rad, strict=True
         ):
             expected_range = self._expected_ranges[side]
             push_trigger = self._push_triggers[side]
-            # Remember where the antenna was sent, and measure how far outside that range it is.
+
             expected_range.remember_target(features.perceived_at, target_rad)
             gap_deg = expected_range.gap_outside_deg(features.perceived_at, measured_rad)
-            # Turn that gap into a push, and record it.
             push_starts = push_trigger.would_turn_on(gap_deg)
             push_trigger.update(features.perceived_at, gap_deg)
-            # Record the push's start time, or None if it ended.
+
             self._facts.record_antenna_pushed_since(side, push_trigger.on_since)
             if push_starts:
                 logger.info("%s antenna pushed", side.capitalize())

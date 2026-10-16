@@ -8,6 +8,7 @@ from the robot.
 """
 
 import csv
+import itertools
 import math
 from pathlib import Path
 
@@ -74,7 +75,7 @@ def stretches_between_moves(samples) -> list[list[tuple[float, float, float]]]:
     The detector forgets its pushes during each move, as these tests do.
     """
     stretches = [[samples[0]]]
-    for previous, sample in zip(samples, samples[1:]):
+    for previous, sample in itertools.pairwise(samples):
         if sample[0] - previous[0] > 0.1:
             stretches.append([])
         stretches[-1].append(sample)

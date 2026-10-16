@@ -25,6 +25,7 @@ class FacePresenceDetector(Detector):
     MAX_FACE_DISTANCE_M = 2.0
 
     def __init__(self, facts: VisionFacts) -> None:
+        """Start with no face in view."""
         super().__init__(facts)
         self._in_view = False
         self._first_seen_at: float | None = None

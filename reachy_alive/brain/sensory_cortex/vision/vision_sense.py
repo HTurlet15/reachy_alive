@@ -71,7 +71,9 @@ class VisionSense(Sense):
         return tuple(sorted(faces, key=lambda face: face.distance_m))
 
     @staticmethod
-    def seen_face(face: Face, image_width_px: int, image_height_px: int, focal_px: float) -> SeenFace:
+    def seen_face(
+        face: Face, image_width_px: int, image_height_px: int, focal_px: float
+    ) -> SeenFace:
         """Describe a face found by the face finder: where it is, and how far.
 
         Args:

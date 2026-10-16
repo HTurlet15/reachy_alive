@@ -23,6 +23,7 @@ class InertialSense(Sense):
     PERIOD_S = 0.02
 
     def __init__(self, reachy_mini: ReachyMini, shared_state: SharedState) -> None:
+        """Keep what the sense reads from, with no missing data reported yet."""
         super().__init__(reachy_mini, shared_state)
         self._reported_missing_data = False
 

@@ -259,7 +259,8 @@ class PhasedMove(Move):
         self.step_s = 1.0 / tick_hz
 
         durations = [self._phase_duration(phase) for phase in self.PHASE_SOUNDS]
-        self.phase_ends_s = dict(zip(self.PHASE_SOUNDS, itertools.accumulate(durations)))
+        phase_ends_s = itertools.accumulate(durations)
+        self.phase_ends_s = dict(zip(self.PHASE_SOUNDS, phase_ends_s, strict=True))
         self.duration_s = sum(durations)
 
     def sound_paths(self) -> list[Path]:
@@ -374,9 +375,11 @@ class LibraryMove(Move):
     """
 
     def __init__(self, move_name: str, library: RecordedMoves) -> None:
-        """Args:
-        move_name: Name of the move in the library.
-        library: The library to load it from.
+        """Keep which recording to play, and where to find it.
+
+        Args:
+            move_name: Name of the move in the library.
+            library: The library to load it from.
         """
         self.move_name = move_name
         self._library = library
@@ -387,7 +390,7 @@ class LibraryMove(Move):
         return self.move_name
 
     def sound_paths(self) -> list[Path]:
-        # The recording carries its own sound, played by the SDK itself.
+        """List no sound: the recording carries its own, played by the SDK itself."""
         return []
 
     def _perform(self, reachy_mini: ReachyMini) -> None:

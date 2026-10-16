@@ -18,7 +18,7 @@ def make_detector() -> tuple[FacePresenceDetector, VisionFacts]:
 
 def show(detector: FacePresenceDetector, start_s: float, duration_s: float, *faces: SeenFace,
          robot_moving_itself: bool = False) -> float:
-    """Feed one image's features every FRAME_PERIOD_S for `duration_s`, and return when it stopped."""
+    """Feed one image's features every FRAME_PERIOD_S for `duration_s`; return when it stopped."""
     t = start_s
     while t < start_s + duration_s - 1e-9:
         detector.update(
