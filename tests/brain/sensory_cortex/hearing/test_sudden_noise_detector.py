@@ -126,6 +126,24 @@ def test_a_sound_rising_over_seconds_is_not_sudden():
     assert noise_starts(levels) == []
 
 
+def test_a_sound_rising_over_seconds_is_not_sudden_even_in_bunches():
+    # The sense fell behind: stretches arrive 5 s at a time, all perceived at
+    # once. On the sound's own clock, they are still 20 ms apart.
+    rising_over_5_s = list(np.linspace(-60.0, -20.0, 250))
+    levels = steady(QUIET_ROOM_DBFS, 5.0) + rising_over_5_s + steady(-20.0, 5.0)
+    stretches = [
+        HearingFeatures(
+            perceived_at=(i // 250 + 1) * 5.0,
+            time_listened_s=i * STRETCH_S,
+            level_dbfs=level_dbfs,
+            robot_moving_itself=False,
+        )
+        for i, level_dbfs in enumerate(levels)
+    ]
+
+    assert recorded_noises(stretches) == []
+
+
 def test_the_background_follows_a_room_that_got_louder():
     # After 10 s at -30 dBFS, a jump to -15 is only 15 dB above the background.
     levels = steady(QUIET_ROOM_DBFS, 2.0) + list(np.linspace(-60.0, -30.0, 250))
