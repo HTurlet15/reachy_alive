@@ -12,6 +12,7 @@ TOO_FAR = SeenFace(x=0.0, y=0.0, distance_m=FacePresenceDetector.MAX_FACE_DISTAN
 
 
 def make_detector() -> tuple[FacePresenceDetector, VisionFacts]:
+    """Build a detector, and the facts it records into."""
     facts = VisionFacts()
     return FacePresenceDetector(facts), facts
 

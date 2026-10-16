@@ -86,6 +86,7 @@ def stretches_between_moves(samples) -> list[list[tuple[float, float, float]]]:
 
 
 def expected_range_sent_to_0_rad_from_0_to_1_s() -> ExpectedRange:
+    """Return a range whose antenna was sent to 0 rad, from 0 to 1 s."""
     expected_range = ExpectedRange(min_delay_s=0.05, max_delay_s=0.25)
     for t in times_at_50_hz(1.0):
         expected_range.remember_target(t, 0.0)
