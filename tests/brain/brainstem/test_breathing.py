@@ -18,4 +18,5 @@ def test_antennas_sway_around_neutral_not_vertical():
     _, antennas = get_breathing_pose(1.0)  # a quarter period in: full sway
 
     sway = np.deg2rad(15.0)
-    np.testing.assert_allclose(antennas, [NEUTRAL_ANTENNAS_RAD[0] + sway, NEUTRAL_ANTENNAS_RAD[1] - sway])
+    expected = [NEUTRAL_ANTENNAS_RAD[0] + sway, NEUTRAL_ANTENNAS_RAD[1] - sway]
+    np.testing.assert_allclose(antennas, expected)

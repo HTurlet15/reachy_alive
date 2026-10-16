@@ -1,6 +1,7 @@
-"""Mixed sneeze move: the head comes from a Marionette recording, the
-antennas are coded on top -- they climb with each inhale, then drop on the
-sneeze.
+"""Mixed sneeze move: a recorded head, with coded antennas on top.
+
+The head comes from a Marionette recording. The antennas climb with each
+inhale, then drop on the sneeze.
 
 This is the reference mixed move. See moves/README.md for how to write one.
 """

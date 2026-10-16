@@ -3,7 +3,6 @@
 import logging
 import random
 import threading
-from typing import List, Optional
 
 from reachy_mini import ReachyMini
 
@@ -27,7 +26,7 @@ class IdleManager:
     whenever a move ends.
     """
 
-    def __init__(self, idle_moves: List[Move]) -> None:
+    def __init__(self, idle_moves: list[Move]) -> None:
         """Set up the idle move pool.
 
         Args:
@@ -35,11 +34,11 @@ class IdleManager:
         """
         self._idle_moves = idle_moves
         # Chosen on the first tick, once a robot connection is available.
-        self._next_idle_move: Optional[Move] = None
+        self._next_idle_move: Move | None = None
         self._next_interval_s = 0.0
-        self._preparing: Optional[threading.Thread] = None
+        self._preparing: threading.Thread | None = None
         # When the current stretch of breathing began; None until the next tick.
-        self._breathing_started_at_s: Optional[float] = None
+        self._breathing_started_at_s: float | None = None
 
     def decide(
         self, t: float, shared_state: SharedState, reachy_mini: ReachyMini

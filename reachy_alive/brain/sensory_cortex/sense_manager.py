@@ -42,7 +42,10 @@ class SenseManager:
         """
         # Each sense with its detectors, found in the sense's folder.
         self._senses = [
-            (VisionSense(reachy_mini, shared_state), self.find_detectors(vision, shared_state.vision)),
+            (
+                VisionSense(reachy_mini, shared_state),
+                self.find_detectors(vision, shared_state.vision),
+            ),
             (
                 InertialSense(reachy_mini, shared_state),
                 self.find_detectors(inertial, shared_state.inertial),
@@ -83,7 +86,8 @@ class SenseManager:
             if not file.name.endswith("_detector"):
                 continue
             try:
-                detectors += SenseManager._build_detectors(f"{sense_folder.__name__}.{file.name}", facts)
+                module_name = f"{sense_folder.__name__}.{file.name}"
+                detectors += SenseManager._build_detectors(module_name, facts)
             except Exception:
                 logger.exception("%s can't be loaded: skipped", file.name)
         return detectors

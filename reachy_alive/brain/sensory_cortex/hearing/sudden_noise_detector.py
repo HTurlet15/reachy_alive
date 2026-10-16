@@ -39,6 +39,7 @@ class SuddenNoiseDetector(Detector):
     MUCH_LOUDER_DB = 10.0
 
     def __init__(self, facts: HearingFacts) -> None:
+        """Build the detector's mechanisms, from its settings."""
         super().__init__(facts)
         # Every mechanism below follows the sound's own clock: features.time_listened_s.
         self._background = Background(time_constant_s=self.BACKGROUND_TIME_CONSTANT_S)

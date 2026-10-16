@@ -21,7 +21,8 @@ class ActionSelector:
     """
 
     def __init__(self, idle_manager: IdleManager, move_requests: queue.Queue) -> None:
-        """
+        """Keep where commands come from.
+
         Args:
             idle_manager: Proposes breathing and idle moves.
             move_requests: Moves requested from the settings page.
