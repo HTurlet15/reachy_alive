@@ -164,7 +164,7 @@ def test_a_push_lasts_until_the_gap_falls_under_the_release_threshold():
 #   left, three on the right, then the left held pushed twice.
 # - antennas_sway_check.csv: both antennas swaying like breathing, untouched.
 # - antennas_sway.csv: the same, untouched for the first 20 s.
-# - antennas_in_app.csv: recorded by AntennasSense in the app, run from a
+# - antennas_in_app.csv: recorded by TouchSense in the app, run from a
 #   laptop, untouched, with moves in between.
 # The right antenna of that robot catches in its gearbox: it moves in jerks.
 

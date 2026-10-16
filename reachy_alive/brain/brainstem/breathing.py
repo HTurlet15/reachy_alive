@@ -26,7 +26,8 @@ def get_breathing_pose(
         antenna_frequency_hz: Antenna sway rate.
 
     Returns:
-        (head pose, [left antenna, right antenna] in radians).
+        (head pose, antennas in ANTENNA_SIDES order (right, left), in
+        radians).
     """
     z = amplitude_mm * np.sin(2 * np.pi * frequency_hz * t)
     head_pose = create_head_pose(z=z, mm=True)

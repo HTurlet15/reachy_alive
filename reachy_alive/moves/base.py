@@ -285,9 +285,9 @@ class PhasedMove(Move):
                 that alternates, through ``alternating_sign``.
 
         Returns:
-            (head pose, [left antenna, right antenna], body yaw), angles in
-            radians. Return NEUTRAL_BODY_YAW_RAD if the move doesn't turn
-            the body.
+            (head pose, antennas in ANTENNA_SIDES order (right, left), body
+            yaw), angles in radians. Return NEUTRAL_BODY_YAW_RAD if the move
+            doesn't turn the body.
         """
 
     def _on_start(self) -> None:
