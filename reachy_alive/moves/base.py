@@ -374,10 +374,9 @@ class LibraryMove(Move):
     """
 
     def __init__(self, move_name: str, library: RecordedMoves) -> None:
-        """
-        Args:
-            move_name: Name of the move in the library.
-            library: The library to load it from.
+        """Args:
+        move_name: Name of the move in the library.
+        library: The library to load it from.
         """
         self.move_name = move_name
         self._library = library

@@ -116,7 +116,6 @@ class ExpectedRange:
             t: When the antenna was measured, in seconds, on a monotonic clock.
             measured_rad: Where it was measured.
         """
-        
         expected_positions_rad = [
             position_rad
             for sent_at, position_rad in self._sent_targets

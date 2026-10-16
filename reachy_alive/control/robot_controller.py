@@ -23,10 +23,9 @@ class RobotController:
     """
 
     def __init__(self, action_selector: ActionSelector, tick_hz: float = 50.0) -> None:
-        """
-        Args:
-            action_selector: Chooses the command for each tick.
-            tick_hz: Control loop frequency, in Hz.
+        """Args:
+        action_selector: Chooses the command for each tick.
+        tick_hz: Control loop frequency, in Hz.
         """
         self.action_selector = action_selector
         self.tick_period_s = 1.0 / tick_hz

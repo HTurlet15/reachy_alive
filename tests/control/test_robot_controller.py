@@ -1,11 +1,11 @@
 """Unit tests for RobotController."""
 
 import threading
+import time
 from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
-import time
 
 from reachy_alive.control.commands import HoldPose, PlayMove
 from reachy_alive.control.robot_controller import RobotController

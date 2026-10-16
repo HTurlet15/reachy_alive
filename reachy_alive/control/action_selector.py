@@ -21,10 +21,9 @@ class ActionSelector:
     """
 
     def __init__(self, idle_manager: IdleManager, move_requests: queue.Queue) -> None:
-        """
-        Args:
-            idle_manager: Proposes breathing and idle moves.
-            move_requests: Moves requested from the settings page.
+        """Args:
+        idle_manager: Proposes breathing and idle moves.
+        move_requests: Moves requested from the settings page.
         """
         self._idle_manager = idle_manager
         self._move_requests = move_requests

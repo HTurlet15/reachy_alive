@@ -133,4 +133,3 @@ class Background:
             smoothing_factor = 1.0 - math.exp(-elapsed_s / self._time_constant_s)
             self._level += smoothing_factor * (value - self._level)
         self._updated_at = t
-        
