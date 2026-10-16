@@ -41,6 +41,7 @@ def test_head_is_never_read_at_or_past_the_recording_end(fake_library, fake_reco
 
 
 def _antenna(sneezing, phase, p, elapsed_s):
+    """Return the first antenna's angle in the sneeze's pose, at that moment."""
     _, antennas, _ = sneezing._pose_at(phase, p, elapsed_s)
     return antennas[0]
 

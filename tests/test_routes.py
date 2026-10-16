@@ -15,16 +15,19 @@ INTERVAL_URL = "/settings/idle-move-interval"
 
 @pytest.fixture
 def sneezing():
+    """A mock standing in for the sneeze move."""
     return MagicMock()
 
 
 @pytest.fixture
 def move_requests():
+    """The queue the page puts the moves to play in."""
     return queue.Queue()
 
 
 @pytest.fixture
 def shared_state():
+    """A fresh SharedState, shared by the app and the test."""
     return SharedState()
 
 

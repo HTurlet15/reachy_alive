@@ -9,6 +9,7 @@ from reachy_alive.shared_state import SharedState
 
 
 def decide(selector, fake_reachy_mini):
+    """Let the selector decide once, at 1 s, with a fresh SharedState."""
     return selector.decide(t=1.0, shared_state=SharedState(), reachy_mini=fake_reachy_mini)
 
 

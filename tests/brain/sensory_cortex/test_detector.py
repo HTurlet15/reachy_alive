@@ -72,6 +72,7 @@ def test_a_detector_without_detect_cannot_be_built():
 
 
 def make_trigger() -> SchmittTrigger:
+    """Return a trigger that turns on at 5 and off under 3."""
     return SchmittTrigger(on_threshold=5.0, off_threshold=3.0)
 
 

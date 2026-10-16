@@ -201,6 +201,7 @@ def test_a_much_louder_bang_right_after_claps_is_sudden():
 
 
 def habituated_to_a_40_db_clap_at_0_s() -> Habituation:
+    """Return a habituation that remembers one 40 dB clap, at 0 s."""
     habituation = Habituation(lasts_s=10.0, much_louder_db=10.0)
     habituation.remember(0.0, 40.0)
     return habituation
