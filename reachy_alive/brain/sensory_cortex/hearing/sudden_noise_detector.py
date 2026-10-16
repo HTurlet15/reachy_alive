@@ -3,7 +3,7 @@
 import logging
 import math
 
-from reachy_alive.brain.sensory_cortex.detector import Detector, SchmittTrigger
+from reachy_alive.brain.sensory_cortex.detector import Background, Detector, SchmittTrigger
 from reachy_alive.brain.sensory_cortex.hearing.hearing_features import HearingFeatures
 from reachy_alive.shared_state import HearingFacts
 
@@ -22,8 +22,8 @@ class SuddenNoiseDetector(Detector):
     records no noise.
     """
 
-    # The background trails the sound like a capacitor charging through a
-    # resistor: after one time constant, it has covered 63% of the way.
+    # Short enough for the background to follow a room that gets louder,
+    # long enough for a clap to stand out from it.
     BACKGROUND_TIME_CONSTANT_S = 2.0
 
     # A loud sound starts above the higher threshold and ends under the lower
@@ -41,8 +41,7 @@ class SuddenNoiseDetector(Detector):
     def __init__(self, facts: HearingFacts) -> None:
         super().__init__(facts)
         # Times below are on the sound's own clock: features.time_listened_s.
-        self._background_dbfs: float | None = None
-        self._background_updated_at = -math.inf
+        self._background = Background(time_constant_s=self.BACKGROUND_TIME_CONSTANT_S)
         self._loud_sound_trigger = SchmittTrigger(
             on_threshold=self.START_THRESHOLD_DB, off_threshold=self.END_THRESHOLD_DB
         )
@@ -68,41 +67,20 @@ class SuddenNoiseDetector(Detector):
 
     def _is_sudden_noise(self, features: HearingFeatures) -> bool:
         """Whether a sudden noise starts on this stretch: a loud sound nobody expected."""
-        if self._background_dbfs is None:
-            return False  # nothing heard yet to compare with
-        height_db = self._height_above_background_db(features.level_dbfs)
+        height_db = self._background.height_of(features.level_dbfs)
         loud_sound_starts = self._loud_sound_trigger.would_turn_on(height_db)
-        is_expected = self._expects(features.time_listened_s, height_db)
-        return loud_sound_starts and not is_expected
+        sound_is_expected = self._expects(features.time_listened_s, height_db)
+        return loud_sound_starts and not sound_is_expected
 
     def _follow_sound(self, features: HearingFeatures) -> None:
         """Update the background, the loud sound going on, and the last loud sound heard."""
-        if self._background_dbfs is None:
-            self._start_background(features.time_listened_s, features.level_dbfs)
-            return
         # Measured before the background moves, so a sound doesn't shrink its own jump.
-        height_db = self._height_above_background_db(features.level_dbfs)
+        height_db = self._background.height_of(features.level_dbfs)
         loud_sound_starts = self._loud_sound_trigger.would_turn_on(height_db)
-        self._follow_background(features.time_listened_s, features.level_dbfs)
+        self._background.follow(features.time_listened_s, features.level_dbfs)
         self._loud_sound_trigger.update(features.time_listened_s, height_db)
         if loud_sound_starts:
             self._remember_loud_sound(features.time_listened_s, height_db)
-
-    def _height_above_background_db(self, level_dbfs: float) -> float:
-        """How far a level stands above the background, in dB."""
-        return level_dbfs - self._background_dbfs
-
-    def _start_background(self, time_listened_s: float, level_dbfs: float) -> None:
-        """Take the first level heard as the background."""
-        self._background_dbfs = level_dbfs
-        self._background_updated_at = time_listened_s
-
-    def _follow_background(self, time_listened_s: float, level_dbfs: float) -> None:
-        """Move the background a step toward the level just heard."""
-        elapsed_s = time_listened_s - self._background_updated_at
-        self._background_updated_at = time_listened_s
-        smoothing_factor = 1.0 - math.exp(-elapsed_s / self.BACKGROUND_TIME_CONSTANT_S)
-        self._background_dbfs += smoothing_factor * (level_dbfs - self._background_dbfs)
 
     def _expects(self, time_listened_s: float, height_above_background_db: float) -> bool:
         """Whether a loud sound starting now is expected: like one heard moments ago."""

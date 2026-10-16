@@ -1,10 +1,11 @@
-"""Unit tests for Detector, the contract every detector follows, and for SchmittTrigger."""
+"""Unit tests for Detector, the contract every detector follows, and the tools detectors share."""
 
+import math
 from dataclasses import dataclass
 
 import pytest
 
-from reachy_alive.brain.sensory_cortex.detector import Detector, SchmittTrigger
+from reachy_alive.brain.sensory_cortex.detector import Background, Detector, SchmittTrigger
 
 
 @dataclass(frozen=True)
@@ -135,3 +136,51 @@ def test_asking_does_not_change_it():
 def test_the_off_threshold_cannot_be_above_the_on_threshold():
     with pytest.raises(ValueError):
         SchmittTrigger(on_threshold=3.0, off_threshold=5.0)
+
+
+# Background, with a time constant of 2 s
+
+
+def test_a_background_has_no_level_until_it_follows_a_value():
+    assert Background(time_constant_s=2.0).level is None
+
+
+def test_the_first_value_followed_is_the_background():
+    background = Background(time_constant_s=2.0)
+
+    background.follow(0.0, -60.0)
+
+    assert background.level == -60.0
+
+
+def test_after_one_time_constant_it_has_covered_63_percent_of_the_way():
+    background = Background(time_constant_s=2.0)
+    background.follow(0.0, 0.0)
+
+    background.follow(2.0, 100.0)
+
+    assert math.isclose(background.level, 100.0 * (1 - math.exp(-1)))  # about 63
+
+
+def test_two_steps_of_1_s_cover_as_much_as_one_step_of_2_s():
+    # What counts is the time elapsed, not how many values it was given.
+    in_two_steps = Background(time_constant_s=2.0)
+    in_two_steps.follow(0.0, 0.0)
+    in_two_steps.follow(1.0, 100.0)
+    in_two_steps.follow(2.0, 100.0)
+    in_one_step = Background(time_constant_s=2.0)
+    in_one_step.follow(0.0, 0.0)
+    in_one_step.follow(2.0, 100.0)
+
+    assert math.isclose(in_two_steps.level, in_one_step.level)
+
+
+def test_nothing_stands_out_before_the_background_has_a_level():
+    assert Background(time_constant_s=2.0).height_of(-20.0) == 0.0
+
+
+def test_the_height_of_a_value_is_measured_from_the_background():
+    background = Background(time_constant_s=2.0)
+    background.follow(0.0, -60.0)
+
+    assert background.height_of(-20.0) == 40.0

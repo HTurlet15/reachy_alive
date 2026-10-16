@@ -1,9 +1,11 @@
 """Detector: the contract every detector follows, and the tools detectors share.
 
 SenseManager can feed any Detector. SchmittTrigger is an on/off state that
-doesn't flicker, for detectors that follow one.
+doesn't flicker. Background is the level a signal has held lately, for
+detectors that spot what stands out from it.
 """
 
+import math
 from abc import ABC, abstractmethod
 
 
@@ -89,4 +91,46 @@ class SchmittTrigger:
             self.on_since = t
         elif self.is_on() and value < self._off_threshold:
             self.on_since = None
-            
+
+
+class Background:
+    """The level a signal has held lately: what a sudden change stands out from.
+
+    It follows the signal like a capacitor charging through a resistor: after
+    one time constant, it has covered 63% of the way to a new level. The
+    first value followed is taken as the background.
+
+    Attributes:
+        level: The background's level, or None until a first value is followed.
+    """
+
+    def __init__(self, time_constant_s: float) -> None:
+        """Set how fast the background follows the signal.
+
+        Args:
+            time_constant_s: Short to follow quickly, long to follow slowly.
+        """
+        self._time_constant_s = time_constant_s
+        self.level: float | None = None
+        self._updated_at = -math.inf
+
+    def height_of(self, value: float) -> float:
+        """Return how far a value stands above the background: 0 until it has a level."""
+        if self.level is None:
+            return 0.0  # nothing to stand out from yet
+        return value - self.level
+
+    def follow(self, t: float, value: float) -> None:
+        """Move a step toward a value, as far as the time since the last step allows.
+
+        Args:
+            t: Time of the value, in seconds, on a clock that only goes forward.
+            value: The value followed.
+        """
+        if self.level is None:
+            self.level = value
+        else:
+            elapsed_s = t - self._updated_at
+            smoothing_factor = 1.0 - math.exp(-elapsed_s / self._time_constant_s)
+            self.level += smoothing_factor * (value - self.level)
+        self._updated_at = t
