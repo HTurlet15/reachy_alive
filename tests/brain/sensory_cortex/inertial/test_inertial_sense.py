@@ -22,7 +22,7 @@ def test_the_features_hold_the_reading_and_its_time():
 
     features = sense.read_once(12.0)
 
-    assert features.t == 12.0
+    assert features.perceived_at == 12.0
     assert features.accelerometer == (0.0, 0.0, 15.0)
     assert features.robot_moving_itself is False
 

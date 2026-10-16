@@ -14,13 +14,13 @@ class TouchSense(Sense):
     # RobotController sends new targets 50 times a second.
     PERIOD_S = 0.02
 
-    def _perceive(self, t: float, robot_moving_itself: bool) -> TouchFeatures | None:
+    def _perceive(self, perceived_at: float, robot_moving_itself: bool) -> TouchFeatures | None:
         """Describe where the antennas are, or return None if none was sent anywhere yet."""
         commanded_pose = self._shared_state.last_commanded_pose()
         if commanded_pose is None:
             return None  # nothing sent yet: where the antennas should be is unknown
         return TouchFeatures(
-            t=t,
+            perceived_at=perceived_at,
             targets_rad=tuple(commanded_pose.antennas),
             measured_rad=tuple(self._reachy_mini.get_present_antenna_joint_positions()),
             robot_moving_itself=robot_moving_itself,

@@ -11,7 +11,10 @@ from unittest.mock import MagicMock
 import numpy as np
 
 from reachy_alive.brain.sensory_cortex.hearing.hearing_features import HearingFeatures
-from reachy_alive.brain.sensory_cortex.hearing.sudden_noise_detector import SuddenNoiseDetector
+from reachy_alive.brain.sensory_cortex.hearing.sudden_noise_detector import (
+    Habituation,
+    SuddenNoiseDetector,
+)
 from reachy_alive.shared_state import HearingFacts
 
 DATA = Path(__file__).parent.parent / "data"
@@ -38,7 +41,7 @@ def noise_starts(levels_dbfs: list[float], robot_moving_itself: bool = False) ->
     return recorded_noises(
         [
             HearingFeatures(
-                t=round(i * STRETCH_S, 2),
+                perceived_at=round(i * STRETCH_S, 2),
                 time_listened_s=i * STRETCH_S,
                 level_dbfs=level_dbfs,
                 robot_moving_itself=robot_moving_itself,
@@ -80,14 +83,20 @@ def test_a_clap_in_a_quiet_room_is_a_sudden_noise():
     assert noise_starts(quiet_room_with(3.0, {2.0: CLAP_DBFS})) == [2.0]
 
 
-def test_a_sudden_noise_is_recorded_when_its_stretch_was_read():
+def test_a_sudden_noise_is_dated_when_its_stretch_was_perceived():
     facts = HearingFacts()
     detector = SuddenNoiseDetector(facts)
     quiet = HearingFeatures(
-        t=10.0, time_listened_s=0.02, level_dbfs=QUIET_ROOM_DBFS, robot_moving_itself=False
+        perceived_at=10.0,
+        time_listened_s=0.02,
+        level_dbfs=QUIET_ROOM_DBFS,
+        robot_moving_itself=False,
     )
     clap = HearingFeatures(
-        t=10.02, time_listened_s=0.04, level_dbfs=CLAP_DBFS, robot_moving_itself=False
+        perceived_at=10.02,
+        time_listened_s=0.04,
+        level_dbfs=CLAP_DBFS,
+        robot_moving_itself=False,
     )
 
     detector.update(quiet)
@@ -143,7 +152,7 @@ def test_the_background_keeps_following_the_room_while_the_robot_moves():
     levels = steady(QUIET_ROOM_DBFS, 2.0) + steady(-30.0, 10.0) + [-15.0]
     stretches = [
         HearingFeatures(
-            t=round(i * STRETCH_S, 2),
+            perceived_at=round(i * STRETCH_S, 2),
             time_listened_s=i * STRETCH_S,
             level_dbfs=level_dbfs,
             robot_moving_itself=2.0 <= i * STRETCH_S < 12.0,
@@ -188,6 +197,31 @@ def test_a_much_louder_bang_right_after_claps_is_sudden():
     assert noise_starts(quiet_room_with(10.0, claps_then_a_bang)) == [2.0, 8.0]
 
 
+# Habituation, on its own: used to loud sounds for 10 s, unless 10 dB louder
+
+
+def habituated_to_a_40_db_clap_at_0_s() -> Habituation:
+    habituation = Habituation(lasts_s=10.0, much_louder_db=10.0)
+    habituation.remember(0.0, 40.0)
+    return habituation
+
+
+def test_nothing_is_expected_before_any_loud_sound():
+    assert Habituation(lasts_s=10.0, much_louder_db=10.0).is_expected(0.0, 40.0) is False
+
+
+def test_a_like_sound_moments_later_is_expected():
+    assert habituated_to_a_40_db_clap_at_0_s().is_expected(3.0, 40.0) is True
+
+
+def test_a_like_sound_once_the_habit_has_faded_is_not_expected():
+    assert habituated_to_a_40_db_clap_at_0_s().is_expected(10.0, 40.0) is False
+
+
+def test_a_much_louder_sound_moments_later_is_not_expected():
+    assert habituated_to_a_40_db_clap_at_0_s().is_expected(3.0, 50.0) is False
+
+
 # A recording from the robot's microphones (sprint B, through WebRTC from a
 # laptop): one loudness level per 20 ms, no sound kept. hearing_levels.csv
 # follows a script, timed by the clock printed on screen: silence until 10 s;
@@ -205,7 +239,7 @@ def recorded_noise_starts(name: str) -> list[float]:
     with open(DATA / name) as f:
         stretches = [
             HearingFeatures(
-                t=float(row["clock_s"]),
+                perceived_at=float(row["clock_s"]),
                 time_listened_s=float(row["time_listened_s"]),
                 level_dbfs=float(row["level_dbfs"]),
                 robot_moving_itself=False,

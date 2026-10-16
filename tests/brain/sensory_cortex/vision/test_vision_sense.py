@@ -124,7 +124,7 @@ def test_the_features_are_timed_by_the_reading():
 
     features = sense.read_once(now=12.0)
 
-    assert features.t == 12.0
+    assert features.perceived_at == 12.0
 
 
 def test_faces_are_found_in_a_shrunk_image():

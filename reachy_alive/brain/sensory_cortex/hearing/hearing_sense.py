@@ -50,25 +50,44 @@ class HearingSense(Sense):
         """Start recording."""
         self._reachy_mini.media.start_recording()
 
-    def close(self) -> None:
-        """Stop recording."""
-        self._reachy_mini.media.stop_recording()
-
-    def _perceive(self, t: float, robot_moving_itself: bool) -> HearingFeatures | None:
+    def _perceive(self, perceived_at: float, robot_moving_itself: bool) -> HearingFeatures | None:
         """Describe the next stretch of sound, or return None if no full stretch came yet."""
-        if len(self._samples_not_read_yet) < self._samples_per_stretch:
+        if not self._has_full_stretch():
             self._add_next_chunk()
-        if len(self._samples_not_read_yet) < self._samples_per_stretch:
-            return None  # not enough sound yet for a full stretch
+        if not self._has_full_stretch():
+            return None  # not enough sound yet
 
         stretch = self._take_stretch()
         self._time_listened_s += self.STRETCH_S
         return HearingFeatures(
-            t=t,
+            perceived_at=perceived_at,
             time_listened_s=self._time_listened_s,
             level_dbfs=self.loudness_dbfs(stretch),
             robot_moving_itself=robot_moving_itself,
         )
+
+    def close(self) -> None:
+        """Stop recording."""
+        self._reachy_mini.media.stop_recording()
+
+    def _has_full_stretch(self) -> bool:
+        """Return whether the samples not read yet hold a full stretch."""
+        return len(self._samples_not_read_yet) >= self._samples_per_stretch
+
+    def _add_next_chunk(self) -> None:
+        """Add the microphones' next chunk of sound, if any, to the samples not read yet."""
+        chunk = self._reachy_mini.media.get_audio_sample()  # waits up to 20 ms for sound
+        if chunk is None:
+            return
+        # Loudness doesn't need stereo: the two microphones are averaged.
+        mono_samples = chunk.mean(axis=1) if chunk.ndim == 2 else chunk
+        self._samples_not_read_yet = np.concatenate([self._samples_not_read_yet, mono_samples])
+
+    def _take_stretch(self) -> np.ndarray:
+        """Take the oldest full stretch out of the samples not read yet."""
+        stretch = self._samples_not_read_yet[: self._samples_per_stretch]
+        self._samples_not_read_yet = self._samples_not_read_yet[self._samples_per_stretch :]
+        return stretch
 
     @staticmethod
     def loudness_dbfs(samples: np.ndarray) -> float:
@@ -89,19 +108,3 @@ class HearingSense(Sense):
             return SILENCE_DBFS
         level_dbfs = 20 * math.log10(root_mean_square)
         return max(level_dbfs, SILENCE_DBFS)
-
-    def _add_next_chunk(self) -> None:
-        """Add the microphones' next chunk of sound, if any, to the samples not read yet."""
-        chunk = self._reachy_mini.media.get_audio_sample()  # waits up to 20 ms for sound
-        if chunk is None:
-            return
-        # Loudness doesn't need stereo: the two microphones are averaged.
-        mono_samples = chunk.mean(axis=1) if chunk.ndim == 2 else chunk
-        self._samples_not_read_yet = np.concatenate([self._samples_not_read_yet, mono_samples])
-
-    def _take_stretch(self) -> np.ndarray:
-        """Take the oldest full stretch out of the samples not read yet."""
-        stretch = self._samples_not_read_yet[: self._samples_per_stretch]
-        self._samples_not_read_yet = self._samples_not_read_yet[self._samples_per_stretch :]
-        return stretch
-    

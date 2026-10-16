@@ -24,21 +24,18 @@ class InertialSense(Sense):
 
     def __init__(self, reachy_mini: ReachyMini, shared_state: SharedState) -> None:
         super().__init__(reachy_mini, shared_state)
-        self._said_no_data = False
+        self._reported_missing_data = False
 
-    def _perceive(self, t: float, robot_moving_itself: bool) -> InertialFeatures | None:
+    def _perceive(self, perceived_at: float, robot_moving_itself: bool) -> InertialFeatures | None:
         """Describe the latest reading, or return None if the inertial unit gives none."""
         reading = self._reachy_mini.imu
         if reading is None:
-            self._say_once_there_is_no_data()
+            if not self._reported_missing_data:
+                logger.info("No inertial unit data: nothing will be felt")
+                self._reported_missing_data = True
             return None
         return InertialFeatures(
-            t=t,
+            perceived_at=perceived_at,
             accelerometer=tuple(reading["accelerometer"]),
             robot_moving_itself=robot_moving_itself,
         )
-
-    def _say_once_there_is_no_data(self) -> None:
-        if not self._said_no_data:
-            logger.info("No inertial unit data: nothing will be felt")
-            self._said_no_data = True

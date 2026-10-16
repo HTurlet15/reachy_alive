@@ -13,7 +13,7 @@ from reachy_alive.shared_state import SharedState
 class MadeUpFeatures:
     """The least features a sense can give."""
 
-    t: float
+    perceived_at: float
     robot_moving_itself: bool
 
 
@@ -24,10 +24,10 @@ class MinimalSense(Sense):
         super().__init__(MagicMock(), shared_state)
         self.gives_nothing = gives_nothing
 
-    def _perceive(self, t: float, robot_moving_itself: bool) -> MadeUpFeatures | None:
+    def _perceive(self, perceived_at: float, robot_moving_itself: bool) -> MadeUpFeatures | None:
         if self.gives_nothing:
             return None
-        return MadeUpFeatures(t=t, robot_moving_itself=robot_moving_itself)
+        return MadeUpFeatures(perceived_at=perceived_at, robot_moving_itself=robot_moving_itself)
 
 
 def test_a_sense_is_available_and_reads_as_fast_as_it_can_by_default():
@@ -49,7 +49,7 @@ def test_opening_and_closing_do_nothing_by_default():
 def test_a_reading_gives_the_features_dated_by_the_reading():
     features = MinimalSense(SharedState()).read_once(12.0)
 
-    assert features == MadeUpFeatures(t=12.0, robot_moving_itself=False)
+    assert features == MadeUpFeatures(perceived_at=12.0, robot_moving_itself=False)
 
 
 def test_no_features_when_the_sensor_gave_nothing():

@@ -32,12 +32,12 @@ class FacePresenceDetector(Detector):
         self._unseen_since: float | None = None
 
     def _detect(self, features: VisionFeatures) -> None:
-        """Follow the main face through one image, and record what changed."""
-        face = self._main_face(features)
-        if face is None:
-            self._follow_absence(features.t)
+        """Follow the nearest face through one image, and record what changed."""
+        nearest = features.faces[0] if features.faces else None  # the sense sorts them
+        if nearest is not None and nearest.distance_m <= self.MAX_FACE_DISTANCE_M:
+            self._follow_face(features.perceived_at, nearest)
         else:
-            self._follow_face(features.t, face)
+            self._follow_absence(features.perceived_at)
 
     def _while_robot_moves(self, features: VisionFeatures) -> None:
         """Count absence again from scratch once the move is over.
@@ -46,22 +46,16 @@ class FacePresenceDetector(Detector):
         """
         self._unseen_since = None
 
-    def _main_face(self, features: VisionFeatures) -> SeenFace | None:
-        """Return the nearest face if it is close enough to count, or None."""
-        if not features.faces:
-            return None
-        nearest = features.faces[0]
-        return nearest if nearest.distance_m <= self.MAX_FACE_DISTANCE_M else None
-
     def _follow_face(self, t: float, face: SeenFace) -> None:
         """Note a face seen at `t`: it appears once seen long enough, then is followed."""
         if self._first_seen_at is None:
             self._first_seen_at = t
         self._last_seen_at = t
         self._unseen_since = None
+        seen_long_enough = t - self._first_seen_at >= self.APPEAR_AFTER_S
         if self._in_view:
             self._facts.record_main_face(face)
-        elif self._seen_long_enough(t):
+        elif seen_long_enough:
             self._in_view = True
             self._facts.record_face_appeared(self._first_seen_at, face)
             logger.info("Face appeared, %.1f m away", face.distance_m)
@@ -77,15 +71,10 @@ class FacePresenceDetector(Detector):
             return
         if self._unseen_since is None:
             self._unseen_since = t
-        if self._unseen_long_enough(t):
+        unseen_long_enough = t - self._unseen_since >= self.DISAPPEAR_AFTER_S
+        if unseen_long_enough:
             self._in_view = False
             self._first_seen_at = None
             self._unseen_since = None
             self._facts.record_face_lost(self._last_seen_at)
             logger.info("Face lost")
-
-    def _seen_long_enough(self, t: float) -> bool:
-        return t - self._first_seen_at >= self.APPEAR_AFTER_S
-
-    def _unseen_long_enough(self, t: float) -> bool:
-        return t - self._unseen_since >= self.DISAPPEAR_AFTER_S

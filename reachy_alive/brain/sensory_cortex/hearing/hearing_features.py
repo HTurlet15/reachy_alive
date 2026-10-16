@@ -8,8 +8,9 @@ class HearingFeatures:
     """How loud one 20 ms stretch of sound is: what every hearing detector reads.
 
     Attributes:
-        t: When the stretch was read, in seconds, on time.monotonic()'s clock:
-            facts are dated with it.
+        perceived_at: When the sense perceived this, in seconds, on
+            time.monotonic()'s clock: every fact a detector records from it
+            is dated with it.
         time_listened_s: How long the sense has listened, by the end of the
             stretch, in seconds: the sound's own clock. It starts at 0 and
             only goes up, 20 ms per stretch, even when chunks of sound arrive
@@ -21,8 +22,7 @@ class HearingFeatures:
             the robot then hears its own motors.
     """
 
-    t: float
+    perceived_at: float
     time_listened_s: float
     level_dbfs: float
     robot_moving_itself: bool
-    

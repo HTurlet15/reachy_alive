@@ -104,7 +104,7 @@ class TouchFacts:
 
     # Antenna pushes. Written by AntennaPushDetector.
 
-    def set_antenna_pushed_since(self, side: str, since: float | None) -> None:
+    def record_antenna_pushed_since(self, side: str, since: float | None) -> None:
         """Record since when an antenna is pushed (time.monotonic()), or None once it isn't.
 
         Args:

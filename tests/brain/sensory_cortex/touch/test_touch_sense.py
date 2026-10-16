@@ -26,7 +26,7 @@ def test_the_features_hold_where_the_antennas_were_sent_and_where_they_are():
 
     features = sense.read_once(12.0)
 
-    assert features.t == 12.0
+    assert features.perceived_at == 12.0
     assert features.targets_rad == (-0.17, 0.17)
     assert features.measured_rad == (-0.15, 0.20)
     assert features.robot_moving_itself is False

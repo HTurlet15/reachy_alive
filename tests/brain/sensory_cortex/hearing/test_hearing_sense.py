@@ -75,7 +75,7 @@ def test_the_features_are_dated_by_the_reading_and_timed_by_the_sound():
 
     stretches = [sense.read_once(5.0), sense.read_once(5.5)]
 
-    assert [features.t for features in stretches] == [5.0, 5.5]
+    assert [features.perceived_at for features in stretches] == [5.0, 5.5]
     assert [features.time_listened_s for features in stretches] == pytest.approx([0.02, 0.04])
 
 

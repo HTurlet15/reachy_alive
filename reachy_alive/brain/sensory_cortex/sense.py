@@ -39,19 +39,16 @@ class Sense(ABC):
     def open(self) -> None:
         """Get the sensor ready, before the first reading. By default, nothing to do."""
 
-    def close(self) -> None:
-        """Release the sensor, after the last reading. By default, nothing to do."""
-
     def read_once(self, now: float):
         """Read the sensor once, and return its features, or None if it gave nothing new.
 
         Args:
             now: Time of the reading, in seconds, on time.monotonic()'s clock.
         """
-        return self._perceive(t=now, robot_moving_itself=self._robot_moving_itself(now))
+        return self._perceive(perceived_at=now, robot_moving_itself=self._robot_moving_itself(now))
 
     @abstractmethod
-    def _perceive(self, t: float, robot_moving_itself: bool):
+    def _perceive(self, perceived_at: float, robot_moving_itself: bool):
         """Read the sensor, and return its features, or None if it gave nothing new.
 
         Every sense writes it, and defines its features in its own folder:
@@ -59,11 +56,15 @@ class Sense(ABC):
         the sensor gives: what it means is for the detectors to decide.
 
         Args:
-            t: Time of the reading, to give the features: facts are dated with it.
+            perceived_at: Time of the reading, to give the features: every fact a
+                detector records from them is dated with it.
             robot_moving_itself: Whether a move plays, or ended too recently for
                 the robot to be still, to give the features: the sense may
                 perceive the robot itself.
         """
+
+    def close(self) -> None:
+        """Release the sensor, after the last reading. By default, nothing to do."""
 
     def _robot_moving_itself(self, now: float) -> bool:
         """Whether a move plays, or ended less than SETTLE_AFTER_MOVE_S before `now`."""
