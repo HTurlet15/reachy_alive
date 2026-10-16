@@ -145,14 +145,14 @@ def test_the_sense_is_opened_before_reading_and_closed_after():
     assert sense.events == ["open", "read", "read", "close"]
 
 
-def test_the_sense_is_closed_even_if_reading_fails():
+def test_a_sense_that_fails_is_logged_and_closed(caplog):
     stop_event = threading.Event()
     sense = ScriptedSense([], stop_event)  # no features to give: read_once fails
 
-    with pytest.raises(IndexError):
-        SenseManager.watch(sense, [], stop_event)
+    SenseManager.watch(sense, [], stop_event)
 
     assert sense.events == ["open", "read", "close"]
+    assert "ScriptedSense failed: stopped" in caplog.text
 
 
 class FailingDetector:
