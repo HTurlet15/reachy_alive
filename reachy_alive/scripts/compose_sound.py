@@ -1,4 +1,3 @@
-# scripts/compose_sound.py
 """Concatenate several .wav files into one, with silences between them."""
 
 import numpy as np
