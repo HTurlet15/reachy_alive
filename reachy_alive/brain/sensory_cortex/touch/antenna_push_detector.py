@@ -32,10 +32,9 @@ class AntennaPush:
     MAX_DELAY_S = 0.25
 
     def __init__(self) -> None:
-        # The targets of the last moments, oldest first: when each was sent,
-        # and where it sent the antenna.
-        self._target_times: deque[float] = deque()
-        self._target_positions_rad: deque[float] = deque()
+        # The targets of the last moments, oldest first, as (sent_at,
+        # position_rad): when each was sent, and where it sent the antenna.
+        self._sent_targets: deque[tuple[float, float]] = deque()
         self._push_trigger = SchmittTrigger(
             on_threshold=self.PUSH_THRESHOLD_DEG, off_threshold=self.RELEASE_THRESHOLD_DEG
         )
@@ -69,22 +68,22 @@ class AntennaPush:
 
     def _add_target(self, t: float, target_rad: float) -> None:
         """Remember where the antenna was sent at time t."""
-        self._target_times.append(t)
-        self._target_positions_rad.append(target_rad)
+        self._sent_targets.append((t, target_rad))
 
     def _forget_targets_before(self, oldest_worth_keeping: float) -> None:
         """Forget the targets sent before `oldest_worth_keeping`, in seconds."""
-        while self._target_times[0] < oldest_worth_keeping:
-            self._target_times.popleft()
-            self._target_positions_rad.popleft()
+        oldest_sent_at, _ = self._sent_targets[0]
+        while oldest_sent_at < oldest_worth_keeping:
+            self._sent_targets.popleft()
+            oldest_sent_at, _ = self._sent_targets[0]
 
     def _targets_sent_before(self, latest: float) -> list[float]:
         """Return the remembered target positions sent at or before `latest`, in radians."""
         return [
-            position_rad
-            for sent_time, position_rad in zip(self._target_times, self._target_positions_rad)
-            if sent_time <= latest
-        ]
+                position_rad 
+                for sent_at, position_rad in self._sent_targets 
+                if sent_at <= latest
+                ]
 
 
 class AntennaPushDetector(Detector):
