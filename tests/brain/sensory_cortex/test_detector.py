@@ -1,10 +1,10 @@
-"""Unit tests for Detector, the contract every detector follows."""
+"""Unit tests for Detector, the contract every detector follows, and for SchmittTrigger."""
 
 from dataclasses import dataclass
 
 import pytest
 
-from reachy_alive.brain.sensory_cortex.detector import Detector
+from reachy_alive.brain.sensory_cortex.detector import Detector, SchmittTrigger
 
 
 @dataclass(frozen=True)
@@ -65,3 +65,73 @@ def test_a_detector_without_detect_cannot_be_built():
 
     with pytest.raises(TypeError):
         ForgetfulDetector(facts="the facts")
+
+
+# SchmittTrigger, with the antennas' thresholds: on at 5, off under 3
+
+
+def make_trigger() -> SchmittTrigger:
+    return SchmittTrigger(on_threshold=5.0, off_threshold=3.0)
+
+
+def test_it_starts_off():
+    trigger = make_trigger()
+
+    assert trigger.is_on() is False
+    assert trigger.on_since is None
+
+
+def test_it_turns_on_once_the_value_reaches_the_on_threshold():
+    trigger = make_trigger()
+
+    trigger.update(1.0, 5.0)
+
+    assert trigger.on_since == 1.0
+
+
+def test_it_stays_on_between_the_thresholds_since_it_turned_on():
+    trigger = make_trigger()
+    trigger.update(1.0, 6.0)
+
+    trigger.update(2.0, 4.0)
+
+    assert trigger.on_since == 1.0
+
+
+def test_it_turns_off_under_the_off_threshold():
+    trigger = make_trigger()
+    trigger.update(1.0, 6.0)
+
+    trigger.update(2.0, 2.0)
+
+    assert trigger.is_on() is False
+
+
+def test_a_value_between_the_thresholds_does_not_turn_it_on():
+    trigger = make_trigger()
+
+    trigger.update(1.0, 4.0)
+
+    assert trigger.is_on() is False
+
+
+def test_only_a_trigger_that_is_off_would_turn_on():
+    trigger = make_trigger()
+    assert trigger.would_turn_on(6.0) is True
+
+    trigger.update(1.0, 6.0)
+
+    assert trigger.would_turn_on(7.0) is False  # already on: nothing starts
+
+
+def test_asking_does_not_change_it():
+    trigger = make_trigger()
+
+    trigger.would_turn_on(6.0)
+
+    assert trigger.is_on() is False
+
+
+def test_the_off_threshold_cannot_be_above_the_on_threshold():
+    with pytest.raises(ValueError):
+        SchmittTrigger(on_threshold=3.0, off_threshold=5.0)
