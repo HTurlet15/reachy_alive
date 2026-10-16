@@ -11,7 +11,9 @@ class TouchFeatures:
     """Where the antennas were sent, and where they are: what every touch detector reads.
 
     Attributes:
-        t: When the antennas were read, in seconds, on time.monotonic()'s clock.
+        perceived_at: When the sense perceived this, in seconds, on
+            time.monotonic()'s clock: every fact a detector records from it
+            is dated with it.
         targets_rad: Where RobotController last sent each antenna, in
             ANTENNA_SIDES order, in radians.
         measured_rad: Where each antenna is, measured, in the same order.
@@ -19,7 +21,7 @@ class TouchFeatures:
             the antennas then follow targets RobotController didn't send.
     """
 
-    t: float
+    perceived_at: float
     targets_rad: tuple[float, float]
     measured_rad: tuple[float, float]
     robot_moving_itself: bool

@@ -50,7 +50,7 @@ class HearingSense(Sense):
         """Start recording."""
         self._reachy_mini.media.start_recording()
 
-    def _perceive(self, t: float, robot_moving_itself: bool) -> HearingFeatures | None:
+    def _perceive(self, perceived_at: float, robot_moving_itself: bool) -> HearingFeatures | None:
         """Describe the next stretch of sound, or return None if no full stretch came yet."""
         if not self._has_full_stretch():
             self._add_next_chunk()
@@ -60,7 +60,7 @@ class HearingSense(Sense):
         stretch = self._take_stretch()
         self._time_listened_s += self.STRETCH_S
         return HearingFeatures(
-            t=t,
+            perceived_at=perceived_at,
             time_listened_s=self._time_listened_s,
             level_dbfs=self.loudness_dbfs(stretch),
             robot_moving_itself=robot_moving_itself,

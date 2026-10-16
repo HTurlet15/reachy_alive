@@ -12,12 +12,12 @@ from reachy_alive.brain.sensory_cortex.detector import Background, Detector, Sch
 class MadeUpFeatures:
     """The least features a detector can read."""
 
-    t: float
+    perceived_at: float
     robot_moving_itself: bool
 
 
-STILL = MadeUpFeatures(t=1.0, robot_moving_itself=False)
-MOVING = MadeUpFeatures(t=1.0, robot_moving_itself=True)
+STILL = MadeUpFeatures(perceived_at=1.0, robot_moving_itself=False)
+MOVING = MadeUpFeatures(perceived_at=1.0, robot_moving_itself=True)
 
 
 class MinimalDetector(Detector):

@@ -8,12 +8,14 @@ class InertialFeatures:
     """What the inertial unit felt in one reading: what every inertial detector reads.
 
     Attributes:
-        t: When the reading was taken, in seconds, on time.monotonic()'s clock.
+        perceived_at: When the sense perceived this, in seconds, on
+            time.monotonic()'s clock: every fact a detector records from it
+            is dated with it.
         accelerometer: (x, y, z) acceleration, in m/s², gravity included.
         robot_moving_itself: Whether a move was playing or had just ended, so
             the robot felt its own motion.
     """
 
-    t: float
+    perceived_at: float
     accelerometer: tuple[float, float, float]
     robot_moving_itself: bool

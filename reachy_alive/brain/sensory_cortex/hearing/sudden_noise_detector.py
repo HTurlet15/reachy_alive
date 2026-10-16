@@ -58,7 +58,7 @@ class SuddenNoiseDetector(Detector):
         is_expected = self._habituation.is_expected(features.time_listened_s, height_db)
         self._follow_sound(features)
         if loud_sound_starts and not is_expected:
-            self._facts.record_sudden_noise(features.t)
+            self._facts.record_sudden_noise(features.perceived_at)
             logger.info("Sudden noise")
 
     def _while_robot_moves(self, features: HearingFeatures) -> None:

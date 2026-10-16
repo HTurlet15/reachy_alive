@@ -27,9 +27,10 @@ class AntennaPushDetector(Detector):
         for side, target_rad, measured_rad in zip(
             ANTENNA_SIDES, features.targets_rad, features.measured_rad
         ):
-            pushed_since = self._pushes[side].update(features.t, target_rad, measured_rad)
+            push = self._pushes[side]
+            pushed_since = push.update(features.perceived_at, target_rad, measured_rad)
             self._facts.set_antenna_pushed_since(side, pushed_since)
-            if pushed_since == features.t:  # a push that starts on this reading
+            if pushed_since == features.perceived_at:  # a push that starts on this reading
                 logger.info("%s antenna pushed", side.capitalize())
 
     def _while_robot_moves(self, features: TouchFeatures) -> None:
@@ -78,13 +79,12 @@ class AntennaPush:
         Returns:
             When the current push started, or None if the antenna isn't pushed.
         """
-        #Add the target just sent, and forget the ones too old to matter.
         self._sent_targets.append((t, target_rad))
-        self._forget_targets_before(t - self.MAX_DELAY_S) #remove targets sent before the maximum delay
+        self._forget_targets_before(t - self.MAX_DELAY_S)
         expected_positions_rad = [
             position_rad
             for sent_at, position_rad in self._sent_targets
-            if sent_at <= t - self.MIN_DELAY_S  #filter targets sent after the minimum delay
+            if sent_at <= t - self.MIN_DELAY_S
         ]
         if not expected_positions_rad:
             return self._push_trigger.on_since  # not enough history yet to judge

@@ -27,12 +27,14 @@ class VisionFeatures:
     """What the camera saw in one image: what every vision detector reads.
 
     Attributes:
-        t: When the image was taken, in seconds, on time.monotonic()'s clock.
+        perceived_at: When the sense perceived this, in seconds, on
+            time.monotonic()'s clock: every fact a detector records from it
+            is dated with it.
         faces: Every face in view, nearest first.
         robot_moving_itself: Whether a move was playing or had just ended, so
             the view itself may have been moving.
     """
 
-    t: float
+    perceived_at: float
     faces: tuple[SeenFace, ...]
     robot_moving_itself: bool

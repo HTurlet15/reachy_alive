@@ -35,9 +35,9 @@ class FacePresenceDetector(Detector):
         """Follow the nearest face through one image, and record what changed."""
         nearest = features.faces[0] if features.faces else None  # the sense sorts them
         if nearest is not None and nearest.distance_m <= self.MAX_FACE_DISTANCE_M:
-            self._follow_face(features.t, nearest)
+            self._follow_face(features.perceived_at, nearest)
         else:
-            self._follow_absence(features.t)
+            self._follow_absence(features.perceived_at)
 
     def _while_robot_moves(self, features: VisionFeatures) -> None:
         """Count absence again from scratch once the move is over.

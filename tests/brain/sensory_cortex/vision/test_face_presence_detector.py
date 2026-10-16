@@ -21,7 +21,9 @@ def show(detector: FacePresenceDetector, start_s: float, duration_s: float, *fac
     """Feed one image's features every FRAME_PERIOD_S for `duration_s`, and return when it stopped."""
     t = start_s
     while t < start_s + duration_s - 1e-9:
-        detector.update(VisionFeatures(t=t, faces=faces, robot_moving_itself=robot_moving_itself))
+        detector.update(
+            VisionFeatures(perceived_at=t, faces=faces, robot_moving_itself=robot_moving_itself)
+        )
         t = round(t + FRAME_PERIOD_S, 6)
     return t
 

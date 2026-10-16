@@ -41,7 +41,7 @@ def noise_starts(levels_dbfs: list[float], robot_moving_itself: bool = False) ->
     return recorded_noises(
         [
             HearingFeatures(
-                t=round(i * STRETCH_S, 2),
+                perceived_at=round(i * STRETCH_S, 2),
                 time_listened_s=i * STRETCH_S,
                 level_dbfs=level_dbfs,
                 robot_moving_itself=robot_moving_itself,
@@ -83,14 +83,20 @@ def test_a_clap_in_a_quiet_room_is_a_sudden_noise():
     assert noise_starts(quiet_room_with(3.0, {2.0: CLAP_DBFS})) == [2.0]
 
 
-def test_a_sudden_noise_is_recorded_when_its_stretch_was_read():
+def test_a_sudden_noise_is_dated_when_its_stretch_was_perceived():
     facts = HearingFacts()
     detector = SuddenNoiseDetector(facts)
     quiet = HearingFeatures(
-        t=10.0, time_listened_s=0.02, level_dbfs=QUIET_ROOM_DBFS, robot_moving_itself=False
+        perceived_at=10.0,
+        time_listened_s=0.02,
+        level_dbfs=QUIET_ROOM_DBFS,
+        robot_moving_itself=False,
     )
     clap = HearingFeatures(
-        t=10.02, time_listened_s=0.04, level_dbfs=CLAP_DBFS, robot_moving_itself=False
+        perceived_at=10.02,
+        time_listened_s=0.04,
+        level_dbfs=CLAP_DBFS,
+        robot_moving_itself=False,
     )
 
     detector.update(quiet)
@@ -146,7 +152,7 @@ def test_the_background_keeps_following_the_room_while_the_robot_moves():
     levels = steady(QUIET_ROOM_DBFS, 2.0) + steady(-30.0, 10.0) + [-15.0]
     stretches = [
         HearingFeatures(
-            t=round(i * STRETCH_S, 2),
+            perceived_at=round(i * STRETCH_S, 2),
             time_listened_s=i * STRETCH_S,
             level_dbfs=level_dbfs,
             robot_moving_itself=2.0 <= i * STRETCH_S < 12.0,
@@ -233,7 +239,7 @@ def recorded_noise_starts(name: str) -> list[float]:
     with open(DATA / name) as f:
         stretches = [
             HearingFeatures(
-                t=float(row["clock_s"]),
+                perceived_at=float(row["clock_s"]),
                 time_listened_s=float(row["time_listened_s"]),
                 level_dbfs=float(row["level_dbfs"]),
                 robot_moving_itself=False,

@@ -97,7 +97,7 @@ class ScriptedSense(Sense):
     def close(self) -> None:
         self.events.append("close")
 
-    def _perceive(self, t: float, robot_moving_itself: bool):
+    def _perceive(self, perceived_at: float, robot_moving_itself: bool):
         self.events.append("read")
         features = self._features.pop(0)
         if not self._features:

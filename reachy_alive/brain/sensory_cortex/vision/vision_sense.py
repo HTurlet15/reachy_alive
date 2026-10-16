@@ -43,14 +43,14 @@ class VisionSense(Sense):
         """Return whether the robot has a camera to look through."""
         return self._reachy_mini.media.camera is not None
 
-    def _perceive(self, t: float, robot_moving_itself: bool) -> VisionFeatures | None:
+    def _perceive(self, perceived_at: float, robot_moving_itself: bool) -> VisionFeatures | None:
         """Describe the faces in the latest image, or return None if the camera isn't ready yet."""
         image = self._reachy_mini.media.get_frame()
         camera_matrix = self._reachy_mini.media.camera.K
         if image is None or camera_matrix is None:
             return None
         return VisionFeatures(
-            t=t,
+            perceived_at=perceived_at,
             faces=self._find_faces(image, camera_matrix),
             robot_moving_itself=robot_moving_itself,
         )
