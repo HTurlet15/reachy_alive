@@ -52,12 +52,13 @@ class SuddenNoiseDetector(Detector):
 
     def _detect(self, features: HearingFeatures) -> None:
         """Follow the sound through one stretch, and record a sudden noise if one starts on it."""
-        # Judged before following the sound, which moves everything it is judged
-        # against: the background, the loud sound going on, and the habituation.
+        # Measured and judged before following the sound, which moves everything
+        # it is judged against: the background, so a sound doesn't shrink its
+        # own jump, the loud sound going on, and the habituation.
         height_db = self._background.height_of(features.level_dbfs)
         loud_sound_starts = self._loud_sound_trigger.would_turn_on(height_db)
         is_expected = self._habituation.is_expected(features.time_listened_s, height_db)
-        self._follow_sound(features)
+        self._follow_sound(features, height_db, loud_sound_starts)
         if loud_sound_starts and not is_expected:
             self._facts.record_sudden_noise(features.perceived_at)
             logger.info("Sudden noise")
@@ -67,13 +68,14 @@ class SuddenNoiseDetector(Detector):
 
         Every mechanism stays up to date for when the move is over.
         """
-        self._follow_sound(features)
-
-    def _follow_sound(self, features: HearingFeatures) -> None:
-        """Update the background, the loud sound going on, and the last loud sound heard."""
-        # Measured before the background moves, so a sound doesn't shrink its own jump.
         height_db = self._background.height_of(features.level_dbfs)
         loud_sound_starts = self._loud_sound_trigger.would_turn_on(height_db)
+        self._follow_sound(features, height_db, loud_sound_starts)
+
+    def _follow_sound(
+        self, features: HearingFeatures, height_db: float, loud_sound_starts: bool
+    ) -> None:
+        """Update the background, the loud sound going on, and the last loud sound heard."""
         self._background.follow(features.time_listened_s, features.level_dbfs)
         self._loud_sound_trigger.update(features.time_listened_s, height_db)
         if loud_sound_starts:
