@@ -10,6 +10,43 @@ from reachy_alive.shared_state import HearingFacts
 logger = logging.getLogger(__name__)
 
 
+class Habituation:
+    """Gets used to loud sounds: one is expected for a while after another, unless much louder.
+
+    Every loud sound keeps the habit going: of three claps in
+    a row, only the first is a surprise.
+    """
+
+    def __init__(self, lasts_s: float, much_louder_db: float) -> None:
+        """Set how long the habit lasts, and what breaks it.
+
+        Args:
+            lasts_s: How long a loud sound stays expected after the last one.
+            much_louder_db: How much louder than the last one a sound must be
+                to surprise anyway.
+        """
+        self._lasts_s = lasts_s
+        self._much_louder_db = much_louder_db
+        self._last_loud_sound_at = -math.inf
+        self._last_loud_sound_height_db = -math.inf
+
+    def is_expected(self, t: float, height_db: float) -> bool:
+        """Return whether a loud sound starting at t is expected: like one heard moments ago.
+
+        Args:
+t: When the sound starts, in seconds, on a monotonic clock.
+            height_db: How far it stands above the background.
+        """
+        heard_one_moments_ago = t - self._last_loud_sound_at < self._lasts_s
+        much_louder = height_db >= self._last_loud_sound_height_db + self._much_louder_db
+        return heard_one_moments_ago and not much_louder
+
+    def remember(self, t: float, height_db: float) -> None:
+        """Keep a loud sound in mind, expected or not."""
+        self._last_loud_sound_at = t
+        self._last_loud_sound_height_db = height_db
+
+
 class SuddenNoiseDetector(Detector):
     """Spots sudden noises in the loudness of the sound: loud sounds nobody expected.
 
@@ -40,13 +77,14 @@ class SuddenNoiseDetector(Detector):
 
     def __init__(self, facts: HearingFacts) -> None:
         super().__init__(facts)
-        # Times below are on the sound's own clock: features.time_listened_s.
+        # Every mechanism below follows the sound's own clock: features.time_listened_s.
         self._background = Background(time_constant_s=self.BACKGROUND_TIME_CONSTANT_S)
         self._loud_sound_trigger = SchmittTrigger(
             on_threshold=self.START_THRESHOLD_DB, off_threshold=self.END_THRESHOLD_DB
         )
-        self._last_loud_sound_at = -math.inf
-        self._last_loud_sound_height_db = -math.inf
+        self._habituation = Habituation(
+            lasts_s=self.HABITUATION_S, much_louder_db=self.MUCH_LOUDER_DB
+        )
 
     def _detect(self, features: HearingFeatures) -> None:
         """Follow the sound through one stretch, and record a sudden noise if one starts on it."""
@@ -69,8 +107,8 @@ class SuddenNoiseDetector(Detector):
         """Whether a sudden noise starts on this stretch: a loud sound nobody expected."""
         height_db = self._background.height_of(features.level_dbfs)
         loud_sound_starts = self._loud_sound_trigger.would_turn_on(height_db)
-        sound_is_expected = self._expects(features.time_listened_s, height_db)
-        return loud_sound_starts and not sound_is_expected
+        is_expected = self._habituation.is_expected(features.time_listened_s, height_db)
+        return loud_sound_starts and not is_expected
 
     def _follow_sound(self, features: HearingFeatures) -> None:
         """Update the background, the loud sound going on, and the last loud sound heard."""
@@ -80,19 +118,4 @@ class SuddenNoiseDetector(Detector):
         self._background.follow(features.time_listened_s, features.level_dbfs)
         self._loud_sound_trigger.update(features.time_listened_s, height_db)
         if loud_sound_starts:
-            self._remember_loud_sound(features.time_listened_s, height_db)
-
-    def _expects(self, time_listened_s: float, height_above_background_db: float) -> bool:
-        """Whether a loud sound starting now is expected: like one heard moments ago."""
-        heard_one_moments_ago = time_listened_s - self._last_loud_sound_at < self.HABITUATION_S
-        much_louder = (
-            height_above_background_db >= self._last_loud_sound_height_db + self.MUCH_LOUDER_DB
-        )
-        return heard_one_moments_ago and not much_louder
-
-    def _remember_loud_sound(
-        self, time_listened_s: float, height_above_background_db: float
-    ) -> None:
-        """Keep the last loud sound in mind, expected or not: each one keeps us used to them."""
-        self._last_loud_sound_at = time_listened_s
-        self._last_loud_sound_height_db = height_above_background_db
+            self._habituation.remember(features.time_listened_s, height_db)

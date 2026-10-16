@@ -11,7 +11,10 @@ from unittest.mock import MagicMock
 import numpy as np
 
 from reachy_alive.brain.sensory_cortex.hearing.hearing_features import HearingFeatures
-from reachy_alive.brain.sensory_cortex.hearing.sudden_noise_detector import SuddenNoiseDetector
+from reachy_alive.brain.sensory_cortex.hearing.sudden_noise_detector import (
+    Habituation,
+    SuddenNoiseDetector,
+)
 from reachy_alive.shared_state import HearingFacts
 
 DATA = Path(__file__).parent.parent / "data"
@@ -186,6 +189,31 @@ def test_a_much_louder_bang_right_after_claps_is_sudden():
     claps_then_a_bang = {2.0: -20.0, 5.0: -20.0, 8.0: -5.0}
 
     assert noise_starts(quiet_room_with(10.0, claps_then_a_bang)) == [2.0, 8.0]
+
+
+# Habituation, on its own: used to loud sounds for 10 s, unless 10 dB louder
+
+
+def habituated_to_a_40_db_clap_at_0_s() -> Habituation:
+    habituation = Habituation(lasts_s=10.0, much_louder_db=10.0)
+    habituation.remember(0.0, 40.0)
+    return habituation
+
+
+def test_nothing_is_expected_before_any_loud_sound():
+    assert Habituation(lasts_s=10.0, much_louder_db=10.0).is_expected(0.0, 40.0) is False
+
+
+def test_a_like_sound_moments_later_is_expected():
+    assert habituated_to_a_40_db_clap_at_0_s().is_expected(3.0, 40.0) is True
+
+
+def test_a_like_sound_once_the_habit_has_faded_is_not_expected():
+    assert habituated_to_a_40_db_clap_at_0_s().is_expected(10.0, 40.0) is False
+
+
+def test_a_much_louder_sound_moments_later_is_not_expected():
+    assert habituated_to_a_40_db_clap_at_0_s().is_expected(3.0, 50.0) is False
 
 
 # A recording from the robot's microphones (sprint B, through WebRTC from a
