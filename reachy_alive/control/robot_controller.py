@@ -18,9 +18,6 @@ class RobotController:
     for it, waking up and going to sleep included. Decision-makers never
     drive the robot. Moves do talk to the robot, but only while
     RobotController executes a PlayMove, from this loop's thread.
-
-    Attributes:
-        action_selector: Chooses the command for each tick.
     """
 
     TICK_HZ = 50.0
@@ -64,17 +61,7 @@ class RobotController:
     def _execute(
         self, command: Command, reachy_mini: ReachyMini, shared_state: SharedState
     ) -> None:
-        """Carry out one command on the robot, recording what it sends.
-
-        Args:
-            command: The command to execute.
-            reachy_mini: Connected robot instance.
-            shared_state: Shared blackboard, updated with what the robot is
-                sent and when a move plays and ends.
-
-        Raises:
-            TypeError: If the command type is unknown.
-        """
+        """Carry out one command on the robot, recording what it sends."""
         if isinstance(command, HoldPose):
             reachy_mini.set_target(head=command.head, antennas=command.antennas)
             shared_state.record_commanded_pose(

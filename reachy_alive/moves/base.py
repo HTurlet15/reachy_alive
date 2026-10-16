@@ -320,17 +320,7 @@ class PhasedMove(Move):
             time.sleep(self.step_s)
 
     def _phase_duration(self, phase: str) -> float:
-        """Return a phase's duration: its sound's length plus any padding.
-
-        Args:
-            phase: Name of the phase.
-
-        Returns:
-            Duration in seconds.
-
-        Raises:
-            FileNotFoundError: If the phase's sound file is missing.
-        """
+        """Return a phase's duration, in seconds: its sound's length plus any padding."""
         padding = self.PHASE_PADDING_S.get(phase, 0.0)
         sound = self.PHASE_SOUNDS[phase]
         if sound is None:
@@ -343,14 +333,7 @@ class PhasedMove(Move):
         return sf.info(str(path)).duration + padding
 
     def _phase_at(self, elapsed_s: float) -> tuple[str, float]:
-        """Return the running phase and the progress within it.
-
-        Args:
-            elapsed_s: Seconds since the move started.
-
-        Returns:
-            (phase name, local progress from 0 to 1).
-        """
+        """Return the running phase and the progress within it, from 0 to 1."""
         phase_start = 0.0
         for phase, phase_end in self.phase_ends_s.items():
             if elapsed_s < phase_end:
