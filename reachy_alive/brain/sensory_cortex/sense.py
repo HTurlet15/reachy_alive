@@ -39,9 +39,6 @@ class Sense(ABC):
     def open(self) -> None:
         """Get the sensor ready, before the first reading. By default, nothing to do."""
 
-    def close(self) -> None:
-        """Release the sensor, after the last reading. By default, nothing to do."""
-
     def read_once(self, now: float):
         """Read the sensor once, and return its features, or None if it gave nothing new.
 
@@ -64,6 +61,9 @@ class Sense(ABC):
                 the robot to be still, to give the features: the sense may
                 perceive the robot itself.
         """
+
+    def close(self) -> None:
+        """Release the sensor, after the last reading. By default, nothing to do."""
 
     def _robot_moving_itself(self, now: float) -> bool:
         """Whether a move plays, or ended less than SETTLE_AFTER_MOVE_S before `now`."""

@@ -55,6 +55,21 @@ class VisionSense(Sense):
             robot_moving_itself=robot_moving_itself,
         )
 
+    def _find_faces(self, image: np.ndarray, camera_matrix: np.ndarray) -> tuple[SeenFace, ...]:
+        """Find the faces in a shrunk copy of the image, nearest first."""
+        full_width_px = image.shape[1]
+        # Keeps one pixel in `step` each way: fast, and enough for faces.
+        step = max(1, full_width_px // self.ANALYSED_WIDTH_PX)
+        small_image = image[::step, ::step]
+        height_px, width_px = small_image.shape[:2]
+        focal_px = float(camera_matrix[0, 0]) * width_px / full_width_px
+
+        faces = [
+            VisionSense.seen_face(face, width_px, height_px, focal_px)
+            for face in self._face_finder.detect(small_image)
+        ]
+        return tuple(sorted(faces, key=lambda face: face.distance_m))
+
     @staticmethod
     def seen_face(face: Face, image_width_px: int, image_height_px: int, focal_px: float) -> SeenFace:
         """Describe a face found by the face finder: where it is, and how far.
@@ -75,18 +90,3 @@ class VisionSense(Sense):
             # A pinhole camera: an object's size in the image shrinks with its distance.
             distance_m=focal_px * VisionSense.AVERAGE_FACE_WIDTH_M / width_px,
         )
-
-    def _find_faces(self, image: np.ndarray, camera_matrix: np.ndarray) -> tuple[SeenFace, ...]:
-        """Find the faces in a shrunk copy of the image, nearest first."""
-        full_width_px = image.shape[1]
-        # Keeps one pixel in `step` each way: fast, and enough for faces.
-        step = max(1, full_width_px // self.ANALYSED_WIDTH_PX)
-        small_image = image[::step, ::step]
-        height_px, width_px = small_image.shape[:2]
-        focal_px = float(camera_matrix[0, 0]) * width_px / full_width_px
-
-        faces = [
-            VisionSense.seen_face(face, width_px, height_px, focal_px)
-            for face in self._face_finder.detect(small_image)
-        ]
-        return tuple(sorted(faces, key=lambda face: face.distance_m))
