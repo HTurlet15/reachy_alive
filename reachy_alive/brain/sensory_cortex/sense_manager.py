@@ -96,9 +96,9 @@ class SenseManager:
     def watch(sense: Sense, detectors: list, stop_event: threading.Event) -> None:
         """Open the sense, read it every PERIOD_S, and hand the features to every detector.
 
-        The sense is closed once stop_event is set, even after an error. A
-        detector that fails is switched off, so the sense and the other
-        detectors keep going.
+        The sense is closed once stop_event is set. A sense that fails is
+        logged and stopped, and closed all the same. A detector that fails is
+        switched off, so the sense and the other detectors keep going.
 
         Args:
             sense: The sense to read.
@@ -114,6 +114,8 @@ class SenseManager:
                     SenseManager._hand_features(features, detectors)
                 elapsed_s = time.monotonic() - started_at
                 stop_event.wait(max(0.0, sense.PERIOD_S - elapsed_s))  # wakes at once on stop
+        except Exception:
+            logger.exception("%s failed: stopped", type(sense).__name__)
         finally:
             sense.close()
 

@@ -18,9 +18,9 @@ class InertialSense(Sense):
     the first reading, so it can't tell yet.
     """
 
-    # The SDK refreshes the inertial unit 50 times a second: reading faster
-    # would only read each sample twice.
-    PERIOD_S = 0.02
+    # The SDK refreshes the inertial unit 50 times a second, untimed: reading twice as often
+    # misses no sample, and BumpDetector.REFRACTORY_S absorbs a sample read twice.
+    PERIOD_S = 0.01
 
     def __init__(self, reachy_mini: ReachyMini, shared_state: SharedState) -> None:
         """Keep what the sense reads from, with no missing data reported yet."""
