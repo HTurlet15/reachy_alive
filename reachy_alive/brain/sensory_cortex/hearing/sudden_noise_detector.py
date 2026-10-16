@@ -3,7 +3,7 @@
 import logging
 import math
 
-from reachy_alive.brain.sensory_cortex.detector import Detector
+from reachy_alive.brain.sensory_cortex.detector import Detector, SchmittTrigger
 from reachy_alive.brain.sensory_cortex.hearing.hearing_features import HearingFeatures
 from reachy_alive.shared_state import HearingFacts
 
@@ -27,8 +27,9 @@ class SuddenNoiseDetector(Detector):
     BACKGROUND_TIME_CONSTANT_S = 2.0
 
     # A loud sound starts above the higher threshold and ends under the lower
-    # one, so a lasting sound, like a vacuum cleaner, counts once. The start
-    # of a sentence jumps about 26 dB: measured on the robot.
+    # one, through a SchmittTrigger: a lasting sound, like a vacuum cleaner,
+    # counts once. The start of a sentence jumps about 26 dB: measured on the
+    # robot.
     START_THRESHOLD_DB = 30.0
     END_THRESHOLD_DB = 10.0
 
@@ -42,7 +43,9 @@ class SuddenNoiseDetector(Detector):
         # Times below are on the sound's own clock: features.time_listened_s.
         self._background_dbfs: float | None = None
         self._background_updated_at = -math.inf
-        self._hearing_a_loud_sound = False
+        self._loud_sound_trigger = SchmittTrigger(
+            on_threshold=self.START_THRESHOLD_DB, off_threshold=self.END_THRESHOLD_DB
+        )
         self._last_loud_sound_at = -math.inf
         self._last_loud_sound_height_db = -math.inf
 
@@ -68,7 +71,7 @@ class SuddenNoiseDetector(Detector):
         if self._background_dbfs is None:
             return False  # nothing heard yet to compare with
         height_db = self._height_above_background_db(features.level_dbfs)
-        loud_sound_starts = self._is_loud_sound_starting(height_db)
+        loud_sound_starts = self._loud_sound_trigger.would_turn_on(height_db)
         is_expected = self._expects(features.time_listened_s, height_db)
         return loud_sound_starts and not is_expected
 
@@ -79,9 +82,9 @@ class SuddenNoiseDetector(Detector):
             return
         # Measured before the background moves, so a sound doesn't shrink its own jump.
         height_db = self._height_above_background_db(features.level_dbfs)
-        loud_sound_starts = self._is_loud_sound_starting(height_db)
+        loud_sound_starts = self._loud_sound_trigger.would_turn_on(height_db)
         self._follow_background(features.time_listened_s, features.level_dbfs)
-        self._track_loud_sound(height_db)
+        self._loud_sound_trigger.update(features.time_listened_s, height_db)
         if loud_sound_starts:
             self._remember_loud_sound(features.time_listened_s, height_db)
 
@@ -100,19 +103,6 @@ class SuddenNoiseDetector(Detector):
         self._background_updated_at = time_listened_s
         smoothing_factor = 1.0 - math.exp(-elapsed_s / self.BACKGROUND_TIME_CONSTANT_S)
         self._background_dbfs += smoothing_factor * (level_dbfs - self._background_dbfs)
-
-    def _is_loud_sound_starting(self, height_above_background_db: float) -> bool:
-        """Whether a new loud sound starts: none is going on, and the sound jumps high enough."""
-        jumps_high_enough = height_above_background_db >= self.START_THRESHOLD_DB
-        return not self._hearing_a_loud_sound and jumps_high_enough
-
-    def _track_loud_sound(self, height_above_background_db: float) -> None:
-        """Note whether a loud sound is going on, from its start until it fades."""
-        if self._hearing_a_loud_sound:
-            has_faded = height_above_background_db < self.END_THRESHOLD_DB
-            self._hearing_a_loud_sound = not has_faded
-        else:
-            self._hearing_a_loud_sound = self._is_loud_sound_starting(height_above_background_db)
 
     def _expects(self, time_listened_s: float, height_above_background_db: float) -> bool:
         """Whether a loud sound starting now is expected: like one heard moments ago."""
