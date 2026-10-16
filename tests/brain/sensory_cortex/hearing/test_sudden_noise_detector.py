@@ -169,6 +169,22 @@ def test_a_clap_while_the_robot_moves_itself_is_not_recorded():
     assert noise_starts(levels, robot_moving_itself=True) == []
 
 
+def test_the_robots_own_sound_does_not_make_a_clap_after_the_move_expected():
+    # A move from 2 to 4 s makes a sound at 3 s; a clap as loud comes at 6 s.
+    levels = quiet_room_with(8.0, {3.0: -20.0, 6.0: -20.0})
+    stretches = [
+        HearingFeatures(
+            perceived_at=round(i * STRETCH_S, 2),
+            time_listened_s=i * STRETCH_S,
+            level_dbfs=level_dbfs,
+            robot_moving_itself=2.0 <= i * STRETCH_S < 4.0,
+        )
+        for i, level_dbfs in enumerate(levels)
+    ]
+
+    assert recorded_noises(stretches) == [6.0]
+
+
 # Habituation
 
 

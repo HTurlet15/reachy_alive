@@ -19,7 +19,7 @@ class SuddenNoiseDetector(Detector):
     only the first is a sudden noise.
 
     The robot hears its own moves: it keeps following the sound then, but
-    records no noise.
+    records no noise, and doesn't get used to its own sounds.
     """
 
     # Short enough for the background to follow a room that gets louder,
@@ -52,13 +52,15 @@ class SuddenNoiseDetector(Detector):
 
     def _detect(self, features: HearingFeatures) -> None:
         """Follow the sound through one stretch, and record a sudden noise if one starts on it."""
-        # Measured and judged before following the sound, which moves everything
-        # it is judged against: the background, so a sound doesn't shrink its
-        # own jump, the loud sound going on, and the habituation.
+        # Measured and judged before the sound is followed and remembered, which
+        # moves everything it is judged against: the background, so a sound
+        # doesn't shrink its own jump, the loud sound going on, and the habituation.
         height_db = self._background.height_of(features.level_dbfs)
         loud_sound_starts = self._loud_sound_trigger.would_turn_on(height_db)
         is_expected = self._habituation.is_expected(features.time_listened_s, height_db)
-        self._follow_sound(features, height_db, loud_sound_starts)
+        self._follow_sound(features, height_db)
+        if loud_sound_starts:
+            self._habituation.remember(features.time_listened_s, height_db)
         if loud_sound_starts and not is_expected:
             self._facts.record_sudden_noise(features.perceived_at)
             logger.info("Sudden noise")
@@ -66,20 +68,17 @@ class SuddenNoiseDetector(Detector):
     def _while_robot_moves(self, features: HearingFeatures) -> None:
         """Follow the sound through one stretch, without judging it: it is the robot's.
 
-        Every mechanism stays up to date for when the move is over.
+        The background and the loud sound going on stay up to date for when
+        the move is over. The habituation doesn't remember the robot's own
+        sounds: they say nothing about what to expect from the room.
         """
         height_db = self._background.height_of(features.level_dbfs)
-        loud_sound_starts = self._loud_sound_trigger.would_turn_on(height_db)
-        self._follow_sound(features, height_db, loud_sound_starts)
+        self._follow_sound(features, height_db)
 
-    def _follow_sound(
-        self, features: HearingFeatures, height_db: float, loud_sound_starts: bool
-    ) -> None:
-        """Update the background, the loud sound going on, and the last loud sound heard."""
+    def _follow_sound(self, features: HearingFeatures, height_db: float) -> None:
+        """Update the background and the loud sound going on."""
         self._background.follow(features.time_listened_s, features.level_dbfs)
         self._loud_sound_trigger.update(features.time_listened_s, height_db)
-        if loud_sound_starts:
-            self._habituation.remember(features.time_listened_s, height_db)
 
 
 class Habituation:
