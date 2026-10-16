@@ -85,6 +85,9 @@ class Move(ABC):
     RETURN_DURATION_S = 0.5
     SOUNDS_DIR = Path(__file__).resolve().parent.parent / "assets" / "sounds"
 
+    # Built by prepare(), reset after each play: None means not prepared.
+    _remote_sounds: dict[str, str] | None = None
+
     @property
     def name(self) -> str:
         """Identifier of the move, used in logs and by the settings page.
@@ -105,9 +108,7 @@ class Move(ABC):
         Args:
             reachy_mini: Connected robot instance.
         """
-        # None means nobody called prepare() yet -- the attribute doesn't
-        # even exist before the first call -- so upload the sounds now.
-        if getattr(self, "_remote_sounds", None) is None:
+        if self._remote_sounds is None:
             self.prepare(reachy_mini)
         try:
             self._perform(reachy_mini)
