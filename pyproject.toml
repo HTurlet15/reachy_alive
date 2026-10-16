@@ -59,8 +59,9 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-# A test's name is its documentation; test modules and helpers get theirs in a later PR.
-"tests/**" = ["D100", "D101", "D102", "D103", "D104", "D107"]
+# Test names say what they check: no docstring per test.
+# Test packages exist only so pytest can tell same-named files apart.
+"tests/**" = ["D102", "D103", "D104", "D107"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
