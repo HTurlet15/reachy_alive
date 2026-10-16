@@ -60,14 +60,13 @@ class Sneezing(PhasedMove):
     SNEEZE_ANGLE_VARIATION_RAD = np.deg2rad(10.0)
     SNEEZE_DROP_DURATION_S = 0.06  # about 3 ticks at 50 Hz
 
-    def __init__(self, library: RecordedMoves, tick_hz: float = 50.0) -> None:
+    def __init__(self, library: RecordedMoves) -> None:
         """Load the head recording.
 
         Args:
             library: Recorded-moves library holding the head recording.
-            tick_hz: Frequency, in Hz, at which the pose is updated.
         """
-        super().__init__(tick_hz)
+        super().__init__()
         self._recording = library.get(self.RECORDING_NAME)
 
         # Where, in each inhale's progress p, its sound ends and its
