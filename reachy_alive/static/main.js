@@ -5,6 +5,13 @@ const STARTUP_DEADLINE_MS = 90000;
 
 const INTERVAL_URL = "/settings/idle-move-interval";
 
+const SENSES_URL = "/senses";
+// Facts stay in place until the next one, so polling misses no event: it only
+// shows it up to SENSES_POLL_MS late. 200 ms is about what the eye notices.
+const SENSES_POLL_MS = 200;
+// After a bump or a sudden noise, its tile stays lit this long.
+const RECENT_EVENT_S = 2;
+
 // "hiccup-full" -> "Hiccup full"
 function labelFor(name) {
     const words = name.replaceAll("-", " ");
@@ -125,12 +132,107 @@ async function saveIdleMoveInterval(event) {
     }
 }
 
+// 3.24 -> "3.2 s", 150 -> "3 min"
+function duration(seconds) {
+    if (seconds < 60) {
+        return `${seconds.toFixed(1)} s`;
+    }
+    return `${Math.round(seconds / 60)} min`;
+}
+
+// Each *Tile function turns one sense's facts into what its tile shows:
+// its lines of text, and whether it is lit.
+
+function inertialTile(inertial) {
+    const ago = inertial.last_bump_s_ago;
+    if (ago === null) {
+        return { lines: ["No bump yet"], active: false };
+    }
+    const recent = ago < RECENT_EVENT_S;
+    return { lines: [recent ? "Bump" : "Last bump", `${duration(ago)} ago`], active: recent };
+}
+
+function antennaLine(side, pushedFor) {
+    if (pushedFor === null) {
+        return `${side}: not pushed`;
+    }
+    return `${side}: pushed ${duration(pushedFor)}`;
+}
+
+function touchTile(touch) {
+    return {
+        lines: [
+            antennaLine("Right", touch.right_pushed_for_s),
+            antennaLine("Left", touch.left_pushed_for_s),
+        ],
+        active: touch.right_pushed_for_s !== null || touch.left_pushed_for_s !== null,
+    };
+}
+
+function hearingTile(hearing) {
+    const ago = hearing.last_sudden_noise_s_ago;
+    if (ago === null) {
+        return { lines: ["No sudden noise yet"], active: false };
+    }
+    const recent = ago < RECENT_EVENT_S;
+    const label = recent ? "Sudden noise" : "Last noise";
+    return { lines: [label, `${duration(ago)} ago`], active: recent };
+}
+
+function visionTile(vision) {
+    if (vision.face_seen_for_s !== null) {
+        const lines = [`Face seen · ${duration(vision.face_seen_for_s)}`];
+        if (vision.face_distance_m !== null) {
+            lines.push(`${vision.face_distance_m.toFixed(1)} m away`);
+        }
+        return { lines, active: true };
+    }
+    if (vision.last_face_lost_s_ago !== null) {
+        return {
+            lines: ["No face", `Left ${duration(vision.last_face_lost_s_ago)} ago`],
+            active: false,
+        };
+    }
+    return { lines: ["No face yet"], active: false };
+}
+
+function showTile(id, tile) {
+    const element = document.getElementById(id);
+    element.querySelector(".sense-state").textContent = tile.lines.join("\n");
+    element.classList.toggle("active", tile.active); // adds the class if true, removes it if false
+}
+
+// Never returns: reads the senses, waits, and again. Waiting after each
+// answer, rather than on a fixed timer, never piles requests up.
+async function watchSenses() {
+    const status = document.getElementById("senses-status");
+    for (;;) {
+        try {
+            const resp = await fetch(SENSES_URL);
+            if (resp.ok) {
+                const senses = await resp.json();
+                showTile("sense-inertial", inertialTile(senses.inertial));
+                showTile("sense-touch", touchTile(senses.touch));
+                showTile("sense-hearing", hearingTile(senses.hearing));
+                showTile("sense-vision", visionTile(senses.vision));
+                status.textContent = "";
+            } else {
+                status.textContent = `Could not read the senses (${resp.status})`;
+            }
+        } catch (e) {
+            status.textContent = "Backend unreachable";
+        }
+        await wait(SENSES_POLL_MS);
+    }
+}
+
 async function start() {
     document.getElementById("interval-form").addEventListener("submit", saveIdleMoveInterval);
     document.getElementById("interval-min").addEventListener("input", checkIntervalOrder);
     document.getElementById("interval-max").addEventListener("input", checkIntervalOrder);
     if (await loadMoves()) {
         await loadIdleMoveInterval();
+        watchSenses(); // no await: it runs for as long as the page is open
     }
 }
 

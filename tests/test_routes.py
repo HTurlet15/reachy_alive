@@ -1,12 +1,14 @@
 """Unit tests for the app page's routes."""
 
 import queue
+import time
 from unittest.mock import MagicMock
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from reachy_alive.brain.sensory_cortex.vision.vision_features import SeenFace
 from reachy_alive.routes import create_router
 from reachy_alive.shared_state import DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S, SharedState
 
@@ -87,3 +89,47 @@ def test_rejects_an_interval_out_of_bounds(client, shared_state):
 
     assert response.status_code == 422
     assert shared_state.idle_move_interval_range_s() == DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S
+
+
+def test_senses_are_all_null_before_anything_happens(client):
+    response = client.get("/senses")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "inertial": {"last_bump_s_ago": None},
+        "touch": {"right_pushed_for_s": None, "left_pushed_for_s": None},
+        "hearing": {"last_sudden_noise_s_ago": None},
+        "vision": {
+            "face_seen_for_s": None,
+            "face_distance_m": None,
+            "last_face_lost_s_ago": None,
+        },
+    }
+
+
+def test_senses_are_sent_as_seconds_before_the_request(client, shared_state):
+    three_s_ago = time.monotonic() - 3.0
+    shared_state.inertial.record_bump(three_s_ago)
+    shared_state.touch.record_antenna_pushed_since("left", three_s_ago)
+    shared_state.hearing.record_sudden_noise(three_s_ago)
+    shared_state.vision.record_face_appeared(three_s_ago, SeenFace(x=0.0, y=0.0, distance_m=1.2))
+
+    senses = client.get("/senses").json()
+
+    assert senses["inertial"]["last_bump_s_ago"] == pytest.approx(3.0, abs=0.5)
+    assert senses["touch"]["left_pushed_for_s"] == pytest.approx(3.0, abs=0.5)
+    assert senses["touch"]["right_pushed_for_s"] is None
+    assert senses["hearing"]["last_sudden_noise_s_ago"] == pytest.approx(3.0, abs=0.5)
+    assert senses["vision"]["face_seen_for_s"] == pytest.approx(3.0, abs=0.5)
+    assert senses["vision"]["face_distance_m"] == 1.2
+
+
+def test_a_lost_face_has_no_distance_and_a_time_since_it_left(client, shared_state):
+    shared_state.vision.record_face_appeared(time.monotonic() - 5.0, SeenFace(0.0, 0.0, 1.2))
+    shared_state.vision.record_face_lost(time.monotonic() - 2.0)
+
+    vision = client.get("/senses").json()["vision"]
+
+    assert vision["face_seen_for_s"] is None
+    assert vision["face_distance_m"] is None
+    assert vision["last_face_lost_s_ago"] == pytest.approx(2.0, abs=0.5)
