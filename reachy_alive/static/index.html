@@ -19,8 +19,12 @@
             <p>Play a move now, set how often the robot plays one on its own, and see what it perceives.</p>
         </header>
 
-        <section aria-labelledby="idle-title">
-            <h2 id="idle-title">Idle moves</h2>
+        <nav class="tabs" role="tablist">
+            <button role="tab" id="tab-idle" aria-controls="panel-idle" aria-selected="true">Idle moves</button>
+            <button role="tab" id="tab-senses" aria-controls="panel-senses" aria-selected="false">Senses</button>
+        </nav>
+
+        <section id="panel-idle" role="tabpanel" aria-labelledby="tab-idle">
             <p class="hint">The robot plays one of these on its own, now and then. Click one to play it right away.</p>
             <div id="moves" class="moves"></div>
             <p id="move-status" class="status" role="status"></p>
@@ -40,8 +44,7 @@
             <p id="interval-status" class="status" role="status"></p>
         </section>
 
-        <section aria-labelledby="senses-title">
-            <h2 id="senses-title">Senses</h2>
+        <section id="panel-senses" role="tabpanel" aria-labelledby="tab-senses" hidden>
             <p class="hint">What the robot perceives right now. It doesn't react to it yet.</p>
             <div class="senses">
                 <div class="sense" id="sense-inertial">

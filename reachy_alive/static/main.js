@@ -7,7 +7,7 @@ const INTERVAL_URL = "/settings/idle-move-interval";
 
 const SENSES_URL = "/senses";
 // Facts stay in place until the next one, so polling misses no event: it only
-// shows it up to SENSES_POLL_MS late. 200 ms is about what the eye notices.
+// shows it up to SENSES_POLL_MS late.
 const SENSES_POLL_MS = 200;
 // After a bump or a sudden noise, its tile stays lit this long.
 const RECENT_EVENT_S = 2;
@@ -202,11 +202,26 @@ function showTile(id, tile) {
     element.classList.toggle("active", tile.active); // adds the class if true, removes it if false
 }
 
+// Shows the panel of the clicked tab and hides the others.
+function showTab(selected) {
+    for (const tab of document.querySelectorAll('[role="tab"]')) {
+        const isSelected = tab === selected;
+        tab.setAttribute("aria-selected", isSelected);
+        document.getElementById(tab.getAttribute("aria-controls")).hidden = !isSelected;
+    }
+}
+
 // Never returns: reads the senses, waits, and again. Waiting after each
 // answer, rather than on a fixed timer, never piles requests up.
 async function watchSenses() {
     const status = document.getElementById("senses-status");
+    const panel = document.getElementById("panel-senses");
     for (;;) {
+        // While the tab is hidden, nobody looks: spare the robot the requests.
+        if (panel.hidden) {
+            await wait(SENSES_POLL_MS);
+            continue;
+        }
         try {
             const resp = await fetch(SENSES_URL);
             if (resp.ok) {
@@ -227,6 +242,9 @@ async function watchSenses() {
 }
 
 async function start() {
+    for (const tab of document.querySelectorAll('[role="tab"]')) {
+        tab.addEventListener("click", () => showTab(tab));
+    }
     document.getElementById("interval-form").addEventListener("submit", saveIdleMoveInterval);
     document.getElementById("interval-min").addEventListener("input", checkIntervalOrder);
     document.getElementById("interval-max").addEventListener("input", checkIntervalOrder);
