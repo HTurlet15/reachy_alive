@@ -16,7 +16,7 @@
     <main>
         <header>
             <h1>Reachy Alive</h1>
-            <p>Play a move now, or set how often the robot plays one on its own.</p>
+            <p>Play a move now, set how often the robot plays one on its own, and see what it perceives.</p>
         </header>
 
         <section aria-labelledby="idle-title">
@@ -38,6 +38,30 @@
                 <button type="submit">Save</button>
             </form>
             <p id="interval-status" class="status" role="status"></p>
+        </section>
+
+        <section aria-labelledby="senses-title">
+            <h2 id="senses-title">Senses</h2>
+            <p class="hint">What the robot perceives right now. It doesn't react to it yet.</p>
+            <div class="senses">
+                <div class="sense" id="sense-inertial">
+                    <p class="sense-name">Inertial</p>
+                    <p class="sense-state">Waiting…</p>
+                </div>
+                <div class="sense" id="sense-touch">
+                    <p class="sense-name">Touch</p>
+                    <p class="sense-state">Waiting…</p>
+                </div>
+                <div class="sense" id="sense-hearing">
+                    <p class="sense-name">Hearing</p>
+                    <p class="sense-state">Waiting…</p>
+                </div>
+                <div class="sense" id="sense-vision">
+                    <p class="sense-name">Vision</p>
+                    <p class="sense-state">Waiting…</p>
+                </div>
+            </div>
+            <p id="senses-status" class="status" role="status"></p>
         </section>
     </main>
 
