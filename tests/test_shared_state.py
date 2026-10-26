@@ -53,6 +53,26 @@ def test_set_idle_move_interval_rejects_min_above_max():
     assert state.idle_move_interval_range_s() == DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S
 
 
+def test_every_sense_is_enabled_at_first():
+    assert SharedState().is_sense_enabled("touch") is True
+
+
+def test_a_sense_switched_off_stays_off_until_switched_back_on():
+    state = SharedState()
+
+    state.set_sense_enabled("touch", False)
+    assert state.is_sense_enabled("touch") is False
+
+    state.set_sense_enabled("touch", True)
+    assert state.is_sense_enabled("touch") is True
+
+
+def test_switching_a_sense_off_leaves_the_others_on():
+    state = SharedState()
+    state.set_sense_enabled("touch", False)
+    assert state.is_sense_enabled("vision") is True
+
+
 def test_no_move_is_playing_at_first():
     assert SharedState().is_move_playing() is False
 
