@@ -7,7 +7,7 @@ export default [
         files: ["reachy_alive/static/**/*.js"],
         languageOptions: {
             globals: globals.browser,
-            sourceType: "script",
+            sourceType: "module",
         },
     },
 ];
