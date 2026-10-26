@@ -7,7 +7,7 @@ const INTERVAL_URL = "/settings/idle-move-interval";
 
 const SENSES_URL = "/senses";
 // Facts stay in place until the next one, so polling misses no event: it only
-// shows it up to SENSES_POLL_MS late. 200 ms is about what the eye notices.
+// shows it up to SENSES_POLL_MS late.
 const SENSES_POLL_MS = 200;
 // After a bump or a sudden noise, its tile stays lit this long.
 const RECENT_EVENT_S = 2;
@@ -41,7 +41,7 @@ async function requestMove(name) {
             return;
         }
         status.textContent = `${labelFor(name)} requested`;
-    } catch (e) {
+    } catch {
         status.textContent = "Backend unreachable";
     }
 }
@@ -54,7 +54,7 @@ async function fetchMoveNamesUntilReady() {
             if (resp.ok) {
                 return await resp.json();
             }
-        } catch (e) {
+        } catch {
             // Server not reachable yet: retry like any other failure.
         }
         if (Date.now() >= deadline) {
@@ -78,6 +78,7 @@ async function loadMoves() {
     container.textContent = "";
     for (const name of names) {
         const button = document.createElement("button");
+        button.type = "button";
         button.textContent = labelFor(name);
         button.addEventListener("click", () => requestMove(name));
         container.appendChild(button);
@@ -96,7 +97,7 @@ async function loadIdleMoveInterval() {
         const interval = await resp.json();
         document.getElementById("interval-min").value = interval.min_s;
         document.getElementById("interval-max").value = interval.max_s;
-    } catch (e) {
+    } catch {
         status.textContent = "Backend unreachable";
     }
 }
@@ -127,7 +128,7 @@ async function saveIdleMoveInterval(event) {
             return;
         }
         status.textContent = "Saved. Applies after the next idle move.";
-    } catch (e) {
+    } catch {
         status.textContent = "Backend unreachable";
     }
 }
@@ -202,11 +203,41 @@ function showTile(id, tile) {
     element.classList.toggle("active", tile.active); // adds the class if true, removes it if false
 }
 
+// Selects a tab: shows its panel, hides the others. Only the selected tab
+// is reached with the Tab key; the arrow keys move between tabs.
+function showTab(selected) {
+    for (const tab of document.querySelectorAll('[role="tab"]')) {
+        const isSelected = tab === selected;
+        tab.setAttribute("aria-selected", String(isSelected));
+        tab.tabIndex = isSelected ? 0 : -1;
+        document.getElementById(tab.getAttribute("aria-controls")).hidden = !isSelected;
+    }
+}
+
+// Left and right arrows select the previous or next tab, wrapping around.
+function onTabKeydown(event) {
+    const steps = { ArrowLeft: -1, ArrowRight: 1 };
+    if (!(event.key in steps)) {
+        return;
+    }
+    const tabs = [...document.querySelectorAll('[role="tab"]')];
+    const current = tabs.indexOf(event.currentTarget);
+    const next = tabs[(current + steps[event.key] + tabs.length) % tabs.length];
+    showTab(next);
+    next.focus();
+}
+
 // Never returns: reads the senses, waits, and again. Waiting after each
 // answer, rather than on a fixed timer, never piles requests up.
 async function watchSenses() {
     const status = document.getElementById("senses-status");
+    const panel = document.getElementById("panel-senses");
     for (;;) {
+        // While the tab is hidden, nobody looks: spare the robot the requests.
+        if (panel.hidden) {
+            await wait(SENSES_POLL_MS);
+            continue;
+        }
         try {
             const resp = await fetch(SENSES_URL);
             if (resp.ok) {
@@ -219,7 +250,7 @@ async function watchSenses() {
             } else {
                 status.textContent = `Could not read the senses (${resp.status})`;
             }
-        } catch (e) {
+        } catch {
             status.textContent = "Backend unreachable";
         }
         await wait(SENSES_POLL_MS);
@@ -227,6 +258,10 @@ async function watchSenses() {
 }
 
 async function start() {
+    for (const tab of document.querySelectorAll('[role="tab"]')) {
+        tab.addEventListener("click", () => showTab(tab));
+        tab.addEventListener("keydown", onTabKeydown);
+    }
     document.getElementById("interval-form").addEventListener("submit", saveIdleMoveInterval);
     document.getElementById("interval-min").addEventListener("input", checkIntervalOrder);
     document.getElementById("interval-max").addEventListener("input", checkIntervalOrder);
