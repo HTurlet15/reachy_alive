@@ -1,13 +1,36 @@
-// Senses tab: what the robot perceives, read from the app every SENSES_POLL_MS.
+// Senses tab: what the robot perceives, read from the app every SENSES_POLL_MS,
+// and a box per sense to switch it off.
 
 import { wait } from "./wait.js";
 
 const SENSES_URL = "/senses";
+const SWITCHES_URL = "/settings/senses";
 // Facts stay in place until the next one, so polling misses no event: it only
 // shows it up to SENSES_POLL_MS late.
 const SENSES_POLL_MS = 200;
 // After a bump or a sudden noise, its tile stays lit this long.
 const RECENT_EVENT_S = 2;
+
+// Ticks each sense's box as the app has it, then lets it switch the sense.
+// Until then, boxes stay ticked and greyed out: every sense runs at start.
+export async function setUpSenseSwitches() {
+    const status = document.getElementById("switch-status");
+    try {
+        const resp = await fetch(SWITCHES_URL);
+        if (!resp.ok) {
+            status.textContent = `Could not read which senses run (${resp.status})`;
+            return;
+        }
+        const enabled = await resp.json();
+        for (const box of document.querySelectorAll(".sense-switch")) {
+            box.checked = enabled[box.dataset.sense];
+            box.disabled = false;
+            box.addEventListener("change", () => switchSense(box));
+        }
+    } catch {
+        status.textContent = "Backend unreachable";
+    }
+}
 
 // Never returns: reads the senses, waits, and again. Waiting after each
 // answer, rather than on a fixed timer, never piles requests up.
@@ -39,10 +62,41 @@ export async function watchSenses() {
     }
 }
 
+// The box is ticked the moment it is clicked: the tile dims at once, and
+// lights up again if the app refuses.
+async function switchSense(box) {
+    const status = document.getElementById("switch-status");
+    const name = box.dataset.sense;
+    box.disabled = true; // one request at a time
+    try {
+        const resp = await fetch(`${SWITCHES_URL}/${encodeURIComponent(name)}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ enabled: box.checked }),
+        });
+        if (resp.ok) {
+            status.textContent = "";
+        } else {
+            box.checked = !box.checked;
+            status.textContent = `Could not switch ${name} (${resp.status}): nothing changed`;
+        }
+    } catch {
+        box.checked = !box.checked;
+        status.textContent = "Backend unreachable: nothing changed";
+    } finally {
+        box.disabled = false;
+    }
+}
+
 function showTile(id, tile) {
     const element = document.getElementById(id);
-    element.querySelector(".sense-state").textContent = tile.lines.join("\n");
-    element.classList.toggle("active", tile.active); // adds the class if true, removes it if false
+    // Facts of a sense switched off may be old: past events stay recorded.
+    const off = !element.querySelector(".sense-switch").checked;
+    element.querySelector(".sense-state").textContent = off
+        ? "Switched off"
+        : tile.lines.join("\n");
+    element.classList.toggle("off", off);
+    element.classList.toggle("active", tile.active && !off); // adds the class if true, removes it if false
 }
 
 // Each *Tile function turns one sense's facts into what its tile shows:

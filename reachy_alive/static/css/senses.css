@@ -1,4 +1,4 @@
-/* Senses tab: a tile lights up while something is happening. */
+/* Senses tab: a tile lights up while something is happening, and dims while switched off. */
 
 .senses {
     display: grid;
@@ -20,10 +20,35 @@
     background: var(--accent-soft);
 }
 
+/* Switched off is a choice, not a fault: grey and dashed, never red. */
+.sense.off {
+    border-style: dashed;
+}
+
+.sense.off .sense-state {
+    color: var(--muted);
+    font-weight: 400;
+}
+
 .sense-name {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    width: fit-content; /* clicking beside the name doesn't tick the box */
     margin: 0 0 0.25rem;
     color: var(--muted);
     font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.sense-switch {
+    margin: 0;
+    accent-color: var(--accent);
+    cursor: inherit;
+}
+
+.sense-switch:disabled {
+    cursor: default;
 }
 
 .sense-state {
