@@ -3,6 +3,7 @@
 import itertools
 import math
 import threading
+import time
 from unittest.mock import MagicMock
 
 import numpy as np
@@ -149,14 +150,56 @@ def test_opening_and_closing_start_and_stop_the_recording():
 
 
 def test_sound_left_over_when_switched_off_is_not_read_once_switched_back_on():
-    sense, _, _ = make_sense([sound(LOUD, 0.04)])  # one chunk: two stretches
+    sense, _, reachy_mini = make_sense([])
     sense.open()
-    sense.read_once(0.0)  # the first stretch; the second one waits
+    reachy_mini.media.get_audio_sample.side_effect = [sound(LOUD, 0.04)] + [None] * 100
+    sense.read_once(0.0)  # one chunk, two stretches: the first is read, the second waits
     sense.close()
 
     sense.open()
 
     assert sense.read_once(60.0) is None  # read now, it would be dated now
+
+
+def microphones_with_a_queue(queued: list, fresh: np.ndarray):
+    """Fake microphones that queued chunks while the sense was off.
+
+    Queued chunks come back at once; fresh ones after a wait, as from the SDK.
+    """
+    queue = list(queued)
+
+    def get_audio_sample():
+        if queue:
+            return queue.pop(0)
+        time.sleep(0.02)
+        return fresh
+
+    return get_audio_sample
+
+
+def test_sound_queued_while_switched_off_is_dropped():
+    # Through WebRTC, stop_recording does nothing: a noise made while
+    # switched off waits in the queue.
+    sense, _, reachy_mini = make_sense([])
+    queued = chunks_of(sound(LOUD, 1.0), STRETCH_SAMPLES)
+    fresh = sound(QUIET, 0.02)
+    reachy_mini.media.get_audio_sample.side_effect = microphones_with_a_queue(queued, fresh)
+
+    sense.open()
+
+    assert sense.read_once(0.0).level_dbfs == pytest.approx(-60.0)
+
+
+def test_dropping_queued_sound_gives_up_after_max_drop_s(monkeypatch):
+    monkeypatch.setattr(HearingSense, "MAX_DROP_S", 0.05)
+    sense, _, reachy_mini = make_sense([])
+    chunk = sound(QUIET, 0.02)
+    reachy_mini.media.get_audio_sample.side_effect = itertools.repeat(chunk)  # never empties
+    started_at = time.monotonic()
+
+    sense.open()
+
+    assert time.monotonic() - started_at < 0.5
 
 
 def test_microphones_that_give_nothing_at_once_do_not_make_the_sense_spin():

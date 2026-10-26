@@ -5,6 +5,7 @@ stretch of 320 samples becomes one loudness level.
 """
 
 import math
+import time
 
 import numpy as np
 from reachy_mini import ReachyMini
@@ -29,6 +30,11 @@ class HearingSense(Sense):
     # microphones give nothing at once, and still drains a backlog at 200 stretches a second.
     PERIOD_S = 0.005
     STRETCH_S = 0.02
+    # A chunk that waited in the microphones' queue comes back at once; for a
+    # fresh one, the SDK waits up to 20 ms.
+    QUEUED_CHUNK_S = 0.005
+    # Dropping old sound never takes longer: the sense would sit deaf.
+    MAX_DROP_S = 1.0
 
     def __init__(self, reachy_mini: ReachyMini, shared_state: SharedState) -> None:
         """Size the stretches from the microphones' sample rate.
@@ -56,6 +62,7 @@ class HearingSense(Sense):
         """
         self._samples_not_read_yet = np.zeros(0)
         self._reachy_mini.media.start_recording()
+        self._drop_sound_queued_while_off()
 
     def _perceive(self, perceived_at: float, robot_moving_itself: bool) -> HearingFeatures | None:
         """Describe the next stretch of sound, or return None if no full stretch came yet."""
@@ -76,6 +83,21 @@ class HearingSense(Sense):
     def close(self) -> None:
         """Stop recording."""
         self._reachy_mini.media.stop_recording()
+
+    def _drop_sound_queued_while_off(self) -> None:
+        """Drop the chunks the microphones queued while the sense was switched off.
+
+        Through WebRTC, when the app runs on a computer, the SDK's stop_recording
+        does nothing: sound keeps queuing, up to 500 chunks. Queued chunks come
+        back at once; the first one that makes us wait is fresh, and the queue
+        is empty.
+        """
+        give_up_at = time.monotonic() + self.MAX_DROP_S
+        while time.monotonic() < give_up_at:
+            asked_at = time.monotonic()
+            chunk = self._reachy_mini.media.get_audio_sample()
+            if chunk is None or time.monotonic() - asked_at > self.QUEUED_CHUNK_S:
+                return  # no sound, or fresh sound: nothing old is left
 
     def _has_full_stretch(self) -> bool:
         """Return whether the samples not read yet hold a full stretch."""
