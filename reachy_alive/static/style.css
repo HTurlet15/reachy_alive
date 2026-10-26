@@ -4,7 +4,7 @@
     --ink: #1e1b33;
     --muted: #5f5b73;
     --line: #ebe8f1;
-    --paper: #ffffff;
+    --paper: #fff;
     --accent: #e97b12;
     --accent-ink: #b85a00;
     --accent-soft: #fff4e6;
@@ -73,43 +73,6 @@ section {
     margin-top: 2rem;
     padding-top: 1.75rem;
     border-top: 1px solid var(--line);
-}
-
-/* Tabs: the selected one is underlined in the accent color. */
-
-.tabs {
-    display: flex;
-    gap: 1.5rem;
-    margin-top: 1.75rem;
-    border-bottom: 1px solid var(--line);
-}
-
-.tabs button {
-    padding: 0.6rem 0;
-    border: none;
-    border-bottom: 3px solid transparent;
-    margin-bottom: -1px; /* the underline sits on the row's border */
-    background: none;
-    color: var(--muted);
-    font: 700 1.1rem var(--font-display);
-    cursor: pointer;
-}
-
-.tabs button:hover {
-    color: var(--ink);
-}
-
-.tabs button[aria-selected="true"] {
-    border-bottom-color: var(--accent);
-    color: var(--ink);
-}
-
-/* A panel sits right under the tabs: no separating line of its own. */
-
-[role="tabpanel"] {
-    margin-top: 1.5rem;
-    padding-top: 0;
-    border-top: none;
 }
 
 /* Moves: calm tiles, so nine of them don't all shout at once. */
@@ -191,7 +154,9 @@ section {
     padding: 0.85rem 1rem;
     border: 2px solid var(--line);
     border-radius: var(--radius);
-    transition: background-color 0.3s, border-color 0.3s;
+    transition:
+        background-color 0.3s,
+        border-color 0.3s;
 }
 
 .sense.active {
@@ -215,6 +180,43 @@ section {
 button:focus-visible {
     outline: 3px solid var(--accent);
     outline-offset: 2px;
+}
+
+/* Tabs: the selected one is underlined in the accent color. */
+
+.tabs {
+    display: flex;
+    gap: 1.5rem;
+    margin-top: 1.75rem;
+    border-bottom: 1px solid var(--line);
+}
+
+.tabs button {
+    padding: 0.6rem 0;
+    border: none;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -1px; /* the underline sits on the row's border */
+    background: none;
+    color: var(--muted);
+    font: 700 1.1rem var(--font-display);
+    cursor: pointer;
+}
+
+.tabs button:hover {
+    color: var(--ink);
+}
+
+.tabs button[aria-selected="true"] {
+    border-bottom-color: var(--accent);
+    color: var(--ink);
+}
+
+/* A panel sits right under the tabs: no separating line of its own. */
+
+[role="tabpanel"] {
+    margin-top: 1.5rem;
+    padding-top: 0;
+    border-top: none;
 }
 
 /* Feedback lines keep their height, so the page doesn't jump when they fill. */

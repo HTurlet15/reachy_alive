@@ -19,10 +19,12 @@
             <p>Play a move now, set how often the robot plays one on its own, and see what it perceives.</p>
         </header>
 
-        <nav class="tabs" role="tablist">
-            <button role="tab" id="tab-idle" aria-controls="panel-idle" aria-selected="true">Idle moves</button>
-            <button role="tab" id="tab-senses" aria-controls="panel-senses" aria-selected="false">Senses</button>
-        </nav>
+        <div class="tabs" role="tablist" aria-label="Sections">
+            <button type="button" role="tab" id="tab-idle" aria-controls="panel-idle"
+                aria-selected="true">Idle moves</button>
+            <button type="button" role="tab" id="tab-senses" aria-controls="panel-senses"
+                aria-selected="false" tabindex="-1">Senses</button>
+        </div>
 
         <section id="panel-idle" role="tabpanel" aria-labelledby="tab-idle">
             <p class="hint">The robot plays one of these on its own, now and then. Click one to play it right away.</p>
