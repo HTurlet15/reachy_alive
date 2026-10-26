@@ -194,3 +194,14 @@ def test_a_lost_face_leaves_no_position_behind():
     assert vision.face_seen_since() is None
     assert vision.main_face() is None
     assert vision.last_face_lost_at() == 15.0
+
+
+def test_a_forgotten_face_leaves_no_departure_behind():
+    vision = SharedState().vision
+    vision.record_face_appeared(at=10.0, face=FACE)
+
+    vision.forget_face()
+
+    assert vision.face_seen_since() is None
+    assert vision.main_face() is None
+    assert vision.last_face_lost_at() is None

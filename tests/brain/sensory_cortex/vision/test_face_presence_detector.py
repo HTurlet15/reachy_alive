@@ -119,3 +119,22 @@ def test_a_face_gone_during_a_move_is_lost_a_while_after_it():
     show(detector, t, 2.0)  # nobody there once the move is over
     assert facts.face_seen_since() is None
     assert facts.last_face_lost_at() == 0.8
+
+
+def test_a_forgotten_face_is_no_longer_in_view_but_did_not_leave():
+    detector, facts = make_detector()
+    show(detector, 0.0, 1.0, NEAR)
+
+    detector.forget()
+
+    assert facts.face_seen_since() is None
+    assert facts.main_face() is None
+    assert facts.last_face_lost_at() is None  # nobody left: the robot stopped looking
+
+
+def test_a_face_glimpsed_before_forgetting_must_be_seen_anew():
+    detector, facts = make_detector()
+    t = show(detector, 0.0, 0.2, NEAR)  # one image before the sense is switched off
+    detector.forget()
+    show(detector, t + 10.0, 0.2, NEAR)  # one image once it is back on
+    assert facts.face_seen_since() is None

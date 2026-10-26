@@ -35,12 +35,16 @@ def made_up_sense(tmp_path, monkeypatch):
         + "class ClapDetector(Detector):\n"
         "    def _detect(self, features):\n"
         "        pass\n"
+        "    def forget(self):\n"
+        "        pass\n"
     )
     (package / "snap_detector.py").write_text(
         detector_import
         + "from made_up_sense.clap_detector import ClapDetector  # imported: not found twice\n"
         "class SnapDetector(Detector):\n"
         "    def _detect(self, features):\n"
+        "        pass\n"
+        "    def forget(self):\n"
         "        pass\n"
         "class SnapCounterDetector:  # named like one, but not a Detector: ignored\n"
         "    pass\n"

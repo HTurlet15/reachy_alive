@@ -96,3 +96,13 @@ def test_a_sneeze_reads_as_bumps_to_the_detector_alone():
     times = bump_times(load_accelerometer("imu_self_motion.csv"))
 
     assert [t for t in times if 13.5 <= t < 19.5] != []
+
+
+def test_forgetting_keeps_the_last_bump():
+    facts = InertialFacts()
+    detector = BumpDetector(facts)
+    facts.record_bump(1.0)
+
+    detector.forget()
+
+    assert facts.last_bump_at() == 1.0

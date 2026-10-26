@@ -61,6 +61,12 @@ class VisionFacts:
             self._last_face_lost_at = at
             self._main_face = None
 
+    def forget_face(self) -> None:
+        """Forget the face in view without recording that it left: the robot stopped looking."""
+        with self._lock:
+            self._face_seen_since = None
+            self._main_face = None
+
     def face_seen_since(self) -> float | None:
         """Return since when a face is in view (time.monotonic()), or None if none is."""
         with self._lock:
