@@ -46,7 +46,7 @@ where = ["."]
 include = ["reachy_alive*"]
 
 [tool.setuptools.package-data]
-reachy_alive = ["assets/**/*", "static/*"]
+reachy_alive = ["assets/**/*", "static/**/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
