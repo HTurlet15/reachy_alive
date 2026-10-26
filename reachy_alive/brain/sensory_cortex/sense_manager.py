@@ -60,6 +60,10 @@ class SenseManager:
         ]
         self._threads: list[threading.Thread] = []
 
+    def sense_names(self) -> list[str]:
+        """Return the NAME of every sense, available or not."""
+        return [sense.NAME for sense, _ in self._senses]
+
     def start(self, stop_event: threading.Event) -> None:
         """Start one thread per sense. Each stops once stop_event is set."""
         for sense, detectors in self._senses:

@@ -13,6 +13,7 @@ from reachy_alive.routes import create_router
 from reachy_alive.shared_state import DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S, SharedState
 
 INTERVAL_URL = "/settings/idle-move-interval"
+SENSES_URL = "/settings/senses"
 
 
 @pytest.fixture
@@ -37,7 +38,9 @@ def shared_state():
 def client(sneezing, move_requests, shared_state):
     """A client for an app serving only the page's routes."""
     app = FastAPI()
-    app.include_router(create_router({"sneezing": sneezing}, move_requests, shared_state))
+    app.include_router(
+        create_router({"sneezing": sneezing}, move_requests, shared_state, ["touch", "vision"])
+    )
     return TestClient(app)
 
 
@@ -89,6 +92,44 @@ def test_rejects_an_interval_out_of_bounds(client, shared_state):
 
     assert response.status_code == 422
     assert shared_state.idle_move_interval_range_s() == DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S
+
+
+def test_every_sense_is_on_at_first(client):
+    response = client.get(SENSES_URL)
+
+    assert response.status_code == 200
+    assert response.json() == {"touch": True, "vision": True}
+
+
+def test_a_sense_switched_off_stays_off(client, shared_state):
+    response = client.put(f"{SENSES_URL}/touch", json={"enabled": False})
+
+    assert response.status_code == 200
+    assert response.json() == {"enabled": False}
+    assert shared_state.is_sense_enabled("touch") is False
+    assert client.get(SENSES_URL).json() == {"touch": False, "vision": True}
+
+
+def test_a_sense_switched_back_on_runs_again(client, shared_state):
+    client.put(f"{SENSES_URL}/touch", json={"enabled": False})
+
+    client.put(f"{SENSES_URL}/touch", json={"enabled": True})
+
+    assert shared_state.is_sense_enabled("touch") is True
+
+
+def test_an_unknown_sense_is_404(client):
+    response = client.put(f"{SENSES_URL}/smell", json={"enabled": False})
+
+    assert response.status_code == 404
+    assert client.get(SENSES_URL).json() == {"touch": True, "vision": True}
+
+
+def test_a_switch_without_enabled_is_rejected(client, shared_state):
+    response = client.put(f"{SENSES_URL}/touch", json={})
+
+    assert response.status_code == 422
+    assert shared_state.is_sense_enabled("touch") is True
 
 
 def test_senses_are_all_null_before_anything_happens(client):

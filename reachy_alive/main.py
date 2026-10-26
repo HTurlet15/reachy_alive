@@ -46,17 +46,21 @@ class ReachyAlive(ReachyMiniApp):
         if len(idle_moves_by_name) != len(idle_moves):
             raise ValueError("Two moves share the same name")
 
+        # The senses, each in its own thread: they read the robot and write
+        # facts to shared_state, never driving it. Built before the routes,
+        # which need their names; started after.
+        sense_manager = SenseManager(reachy_mini, shared_state)
+
         # The page's routes run in the web server's thread: they only drop
         # requested moves in this queue and read or change shared_state,
         # never touching the robot.
         move_requests: queue.Queue[Move] = queue.Queue()
         self.settings_app.include_router(
-            create_router(idle_moves_by_name, move_requests, shared_state)
+            create_router(
+                idle_moves_by_name, move_requests, shared_state, sense_manager.sense_names()
+            )
         )
 
-        # The senses, each in its own thread: they read the robot and write
-        # facts to shared_state, never driving it.
-        sense_manager = SenseManager(reachy_mini, shared_state)
         sense_manager.start(stop_event)
 
         # Decide, choose, execute: IdleManager proposes, ActionSelector picks
