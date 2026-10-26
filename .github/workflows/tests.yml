@@ -31,3 +31,19 @@ jobs:
       - run: uv sync --locked
 
       - run: uv run pytest
+  web-lint:
+    # The app's page: HTML, JavaScript and CSS.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      # Install Node, and cache npm's downloads between runs.
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+
+      # Install the tools exactly as locked; fails if package-lock.json is out of date.
+      - run: npm ci
+
+      - run: npm run lint
