@@ -41,6 +41,18 @@ class SuddenNoiseDetector(Detector):
     def __init__(self, facts: HearingFacts) -> None:
         """Build the detector's mechanisms, from its settings."""
         super().__init__(facts)
+        self._start_afresh()
+
+    def forget(self) -> None:
+        """Forget the room: its background, the loud sound going on, the habit.
+
+        The room may have changed while the sense was off. The last sudden
+        noise stays: it still happened.
+        """
+        self._start_afresh()
+
+    def _start_afresh(self) -> None:
+        """Listen from scratch: no background, no loud sound going on, no habit."""
         # Every mechanism below follows the sound's own clock: features.time_listened_s.
         self._background = Background(time_constant_s=self.BACKGROUND_TIME_CONSTANT_S)
         self._loud_sound_trigger = SchmittTrigger(

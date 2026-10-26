@@ -261,3 +261,14 @@ def test_a_push_is_forgotten_once_the_robot_moves_itself():
     follow(detector, t, 0.02, pushed, robot_moving_itself=True)
 
     assert facts.antenna_pushed_since("left") is None
+
+
+def test_forgetting_clears_every_push():
+    facts = TouchFacts()
+    detector = AntennaPushDetector(facts)
+    facts.record_antenna_pushed_since("right", 3.0)
+
+    detector.forget()
+
+    assert facts.antenna_pushed_since("right") is None
+    assert facts.antenna_pushed_since("left") is None

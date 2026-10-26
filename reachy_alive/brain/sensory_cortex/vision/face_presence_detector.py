@@ -27,6 +27,15 @@ class FacePresenceDetector(Detector):
     def __init__(self, facts: VisionFacts) -> None:
         """Start with no face in view."""
         super().__init__(facts)
+        self._start_afresh()
+
+    def forget(self) -> None:
+        """Forget the face in view, without recording that it left: the robot stopped looking."""
+        self._start_afresh()
+        self._facts.forget_face()
+
+    def _start_afresh(self) -> None:
+        """Follow faces from scratch: none in view, none glimpsed yet."""
         self._in_view = False
         self._first_seen_at: float | None = None
         self._last_seen_at: float | None = None

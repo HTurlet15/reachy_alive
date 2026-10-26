@@ -91,26 +91,66 @@
             </section>
 
             <section id="panel-senses" role="tabpanel" aria-labelledby="tab-senses" hidden>
-                <p class="hint">What the robot perceives right now. It doesn't react to it yet.</p>
+                <p class="hint">
+                    What the robot perceives right now. It doesn't react to it yet. Untick a sense
+                    to switch it off.
+                </p>
                 <div class="senses">
                     <div class="sense" id="sense-inertial">
-                        <p class="sense-name">Inertial</p>
+                        <label class="sense-name">
+                            <input
+                                type="checkbox"
+                                class="sense-switch"
+                                data-sense="inertial"
+                                checked
+                                disabled
+                            />
+                            Inertial
+                        </label>
                         <p class="sense-state">Waiting…</p>
                     </div>
                     <div class="sense" id="sense-touch">
-                        <p class="sense-name">Touch</p>
+                        <label class="sense-name">
+                            <input
+                                type="checkbox"
+                                class="sense-switch"
+                                data-sense="touch"
+                                checked
+                                disabled
+                            />
+                            Touch
+                        </label>
                         <p class="sense-state">Waiting…</p>
                     </div>
                     <div class="sense" id="sense-hearing">
-                        <p class="sense-name">Hearing</p>
+                        <label class="sense-name">
+                            <input
+                                type="checkbox"
+                                class="sense-switch"
+                                data-sense="hearing"
+                                checked
+                                disabled
+                            />
+                            Hearing
+                        </label>
                         <p class="sense-state">Waiting…</p>
                     </div>
                     <div class="sense" id="sense-vision">
-                        <p class="sense-name">Vision</p>
+                        <label class="sense-name">
+                            <input
+                                type="checkbox"
+                                class="sense-switch"
+                                data-sense="vision"
+                                checked
+                                disabled
+                            />
+                            Vision
+                        </label>
                         <p class="sense-state">Waiting…</p>
                     </div>
                 </div>
                 <p id="senses-status" class="status" role="status"></p>
+                <p id="switch-status" class="status" role="status"></p>
             </section>
         </main>
 

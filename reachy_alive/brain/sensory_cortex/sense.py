@@ -11,10 +11,15 @@ class Sense(ABC):
     """Reads one sensor and describes each reading by its features.
 
     SenseManager opens it, calls read_once every PERIOD_S until the app stops,
-    then closes it, and hands the features to the sense's detectors. To write
-    a sense, write _perceive. A sense never drives the robot, and knows
-    nothing of its detectors.
+    then closes it, and hands the features to the sense's detectors. When the
+    page switches the sense off, SenseManager closes it, and opens it again once
+    switched back on: open and close may be called many times. To write a
+    sense, give it a NAME and write _perceive. A sense never drives the robot,
+    and knows nothing of its detectors.
     """
+
+    # What the page calls the sense, to switch it off: "vision", for example.
+    NAME: str
 
     # Time between two readings. 0: as fast as the sensor gives data.
     PERIOD_S = 0.0
@@ -36,8 +41,16 @@ class Sense(ABC):
         """Return whether the sensor can be read at all. By default, it can."""
         return True
 
+    def is_enabled(self) -> bool:
+        """Return whether the sense should run: the page may have switched it off."""
+        return self._shared_state.is_sense_enabled(self.NAME)
+
     def open(self) -> None:
-        """Get the sensor ready, before the first reading. By default, nothing to do."""
+        """Get the sensor ready, before the first reading. By default, nothing to do.
+
+        Called again each time the sense is switched back on: start afresh,
+        with nothing kept from before it was switched off.
+        """
 
     def read_once(self, now: float):
         """Read the sensor once, and return its features, or None if it gave nothing new.

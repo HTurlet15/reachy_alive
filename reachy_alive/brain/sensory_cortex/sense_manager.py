@@ -32,6 +32,8 @@ class SenseManager:
 
     # A sense stuck in a call must not hang the app's shutdown.
     STOP_TIMEOUT_S = 1.0
+    # How often a sense switched off checks whether the page switched it back on.
+    OFF_CHECK_S = 0.2
 
     def __init__(self, reachy_mini: ReachyMini, shared_state: SharedState) -> None:
         """Build every sense, and find the detectors of each.
@@ -57,6 +59,10 @@ class SenseManager:
             ),
         ]
         self._threads: list[threading.Thread] = []
+
+    def sense_names(self) -> list[str]:
+        """Return the NAME of every sense, available or not."""
+        return [sense.NAME for sense, _ in self._senses]
 
     def start(self, stop_event: threading.Event) -> None:
         """Start one thread per sense. Each stops once stop_event is set."""
@@ -94,30 +100,55 @@ class SenseManager:
 
     @staticmethod
     def watch(sense: Sense, detectors: list, stop_event: threading.Event) -> None:
-        """Open the sense, read it every PERIOD_S, and hand the features to every detector.
+        """Read the sense every PERIOD_S while it is on, and hand the features to every detector.
 
-        The sense is closed once stop_event is set. A sense that fails is
-        logged and stopped, and closed all the same. A detector that fails is
-        switched off, so the sense and the other detectors keep going.
+        The sense is opened while switched on, and closed while switched off: it
+        then costs nothing, and its detectors forget what they knew. It is
+        closed once stop_event is set. A sense that fails is logged and stopped,
+        and closed all the same. A detector that fails is switched off, so the
+        sense and the other detectors keep going.
 
         Args:
             sense: The sense to read.
-            detectors: Each has update(features).
+            detectors: Each has update(features) and forget().
             stop_event: Set externally to stop watching.
         """
-        sense.open()
+        is_open = False
         try:
             while not stop_event.is_set():
-                started_at = time.monotonic()
-                features = sense.read_once(started_at)
-                if features is not None:
-                    SenseManager._hand_features(features, detectors)
-                elapsed_s = time.monotonic() - started_at
-                stop_event.wait(max(0.0, sense.PERIOD_S - elapsed_s))  # wakes at once on stop
+                if sense.is_enabled():
+                    if not is_open:
+                        sense.open()
+                        is_open = True
+                        logger.info("%s switched on", type(sense).__name__)
+                    SenseManager._read_once(sense, detectors, stop_event)
+                else:
+                    if is_open:
+                        is_open = False  # first: a close that fails isn't tried again
+                        SenseManager._switch_off(sense, detectors)
+                    stop_event.wait(SenseManager.OFF_CHECK_S)  # wakes at once on stop
         except Exception:
             logger.exception("%s failed: stopped", type(sense).__name__)
         finally:
-            sense.close()
+            if is_open:
+                sense.close()
+
+    @staticmethod
+    def _read_once(sense: Sense, detectors: list, stop_event: threading.Event) -> None:
+        """Read the sense once, hand its features on, and wait for the rest of PERIOD_S."""
+        started_at = time.monotonic()
+        features = sense.read_once(started_at)
+        if features is not None:
+            SenseManager._hand_features(features, detectors)
+        elapsed_s = time.monotonic() - started_at
+        stop_event.wait(max(0.0, sense.PERIOD_S - elapsed_s))  # wakes at once on stop
+
+    @staticmethod
+    def _switch_off(sense: Sense, detectors: list) -> None:
+        """Close the sense, and make its detectors forget what they knew."""
+        sense.close()
+        SenseManager._make_forget(detectors)
+        logger.info("%s switched off", type(sense).__name__)
 
     @staticmethod
     def _build_detectors(module_name: str, facts) -> list:
@@ -135,6 +166,16 @@ class SenseManager:
         for detector in list(detectors):  # a copy: failing ones leave the list
             try:
                 detector.update(features)
+            except Exception:
+                logger.exception("%s failed: switched off", type(detector).__name__)
+                detectors.remove(detector)
+
+    @staticmethod
+    def _make_forget(detectors: list) -> None:
+        """Make every detector forget what it knew, and switch off any that fails."""
+        for detector in list(detectors):  # a copy: failing ones leave the list
+            try:
+                detector.forget()
             except Exception:
                 logger.exception("%s failed: switched off", type(detector).__name__)
                 detectors.remove(detector)

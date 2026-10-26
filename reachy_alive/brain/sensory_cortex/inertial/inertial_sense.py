@@ -18,6 +18,7 @@ class InertialSense(Sense):
     the first reading, so it can't tell yet.
     """
 
+    NAME = "inertial"
     # The SDK refreshes the inertial unit 50 times a second, untimed: reading twice as often
     # misses no sample, and BumpDetector.REFRACTORY_S absorbs a sample read twice.
     PERIOD_S = 0.01

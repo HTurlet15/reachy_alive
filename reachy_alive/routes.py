@@ -22,6 +22,12 @@ class IdleMoveInterval(BaseModel):
     max_s: float = Field(ge=MIN_IDLE_MOVE_INTERVAL_S, le=MAX_IDLE_MOVE_INTERVAL_S)
 
 
+class SenseSwitch(BaseModel):
+    """Whether a sense runs, as the page's checkbox sends it."""
+
+    enabled: bool
+
+
 class InertialReport(BaseModel):
     """What the inertial unit felt, in seconds before the request."""
 
@@ -67,6 +73,7 @@ def create_router(
     moves_by_name: dict[str, Move],
     move_requests: queue.Queue,
     shared_state: SharedState,
+    sense_names: list[str],
 ) -> APIRouter:
     """Build the routes the app's page calls.
 
@@ -74,6 +81,7 @@ def create_router(
         moves_by_name: Every move the page can play, by name.
         move_requests: Where requested moves wait to be played.
         shared_state: Where the settings and the senses' facts live.
+        sense_names: The NAME of every sense, which the page can switch off.
 
     Returns:
         A router to include in the app's web server.
@@ -102,6 +110,17 @@ def create_router(
             raise HTTPException(status_code=422, detail="min_s must not exceed max_s")
         shared_state.set_idle_move_interval_range_s(interval.min_s, interval.max_s)
         return interval
+
+    @router.get("/settings/senses")
+    def get_senses_enabled() -> dict[str, bool]:
+        return {name: shared_state.is_sense_enabled(name) for name in sense_names}
+
+    @router.put("/settings/senses/{name}")
+    def set_sense_enabled(name: str, switch: SenseSwitch) -> SenseSwitch:
+        if name not in sense_names:
+            raise HTTPException(status_code=404, detail=f"Unknown sense: {name}")
+        shared_state.set_sense_enabled(name, switch.enabled)
+        return switch
 
     @router.get("/senses")
     def get_senses() -> SensesReport:

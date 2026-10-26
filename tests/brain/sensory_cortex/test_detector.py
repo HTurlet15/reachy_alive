@@ -30,6 +30,9 @@ class MinimalDetector(Detector):
     def _detect(self, features: MadeUpFeatures) -> None:
         self.detected.append(features)
 
+    def forget(self) -> None:
+        self.detected.clear()
+
 
 def test_a_detector_reads_the_features_the_robot_did_not_disturb():
     detector = MinimalDetector(facts="the facts")
@@ -61,8 +64,18 @@ def test_a_detector_can_follow_the_features_disturbed_by_the_robot():
 
 
 def test_a_detector_without_detect_cannot_be_built():
+    class BlindDetector(Detector):
+        def forget(self) -> None:
+            pass
+
+    with pytest.raises(TypeError):
+        BlindDetector(facts="the facts")
+
+
+def test_a_detector_without_forget_cannot_be_built():
     class ForgetfulDetector(Detector):
-        pass
+        def _detect(self, features) -> None:
+            pass
 
     with pytest.raises(TypeError):
         ForgetfulDetector(facts="the facts")

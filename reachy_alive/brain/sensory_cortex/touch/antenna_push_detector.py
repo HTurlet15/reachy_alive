@@ -32,6 +32,12 @@ class AntennaPushDetector(Detector):
         super().__init__(facts)
         self._start_afresh()
 
+    def forget(self) -> None:
+        """Forget every push: the sense can no longer tell whether an antenna is pushed."""
+        self._start_afresh()
+        for side in ANTENNA_SIDES:
+            self._facts.record_antenna_pushed_since(side, None)
+
     def _start_afresh(self) -> None:
         """Follow both antennas from scratch: no target remembered, no push going on."""
         self._expected_ranges = {
@@ -64,9 +70,7 @@ class AntennaPushDetector(Detector):
 
     def _while_robot_moves(self, features: TouchFeatures) -> None:
         """Forget every push: an antenna pushed before the robot moved may no longer be."""
-        self._start_afresh()
-        for side in ANTENNA_SIDES:
-            self._facts.record_antenna_pushed_since(side, None)
+        self.forget()
 
 
 class ExpectedRange:

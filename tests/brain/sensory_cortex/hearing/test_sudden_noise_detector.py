@@ -257,6 +257,44 @@ def test_a_much_louder_sound_moments_later_is_not_expected():
     assert habituated_to_a_40_db_clap_at_0_s().is_expected(3.0, 50.0) is False
 
 
+# Forgetting, when the page switches hearing off
+
+
+def listen(detector: SuddenNoiseDetector, levels_dbfs: list[float], start_s: float = 0.0) -> float:
+    """Feed one level per stretch, from start_s; return when the last stretch ended."""
+    t = start_s
+    for level_dbfs in levels_dbfs:
+        detector.update(
+            HearingFeatures(
+                perceived_at=t, time_listened_s=t, level_dbfs=level_dbfs, robot_moving_itself=False
+            )
+        )
+        t = round(t + STRETCH_S, 2)
+    return t
+
+
+def test_a_room_that_got_louder_while_forgotten_is_no_sudden_noise():
+    # Without forget, this is test_a_room_getting_much_louder_at_once_is_reported_once.
+    facts = HearingFacts()
+    detector = SuddenNoiseDetector(facts)
+    t = listen(detector, steady(QUIET_ROOM_DBFS, 2.0))
+
+    detector.forget()  # hearing switched off; meanwhile, the vacuum is switched on
+    listen(detector, steady(-10.0, 10.0), start_s=t)
+
+    assert facts.last_sudden_noise_at() is None
+
+
+def test_forgetting_keeps_the_last_sudden_noise():
+    facts = HearingFacts()
+    detector = SuddenNoiseDetector(facts)
+    listen(detector, quiet_room_with(3.0, {2.0: CLAP_DBFS}))
+
+    detector.forget()
+
+    assert facts.last_sudden_noise_at() == 2.0
+
+
 # A recording from the robot's microphones (sprint B, through WebRTC from a
 # laptop): one loudness level per 20 ms, no sound kept. hearing_levels.csv
 # follows a script, timed by the clock printed on screen: silence until 10 s;

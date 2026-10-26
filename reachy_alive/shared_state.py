@@ -61,6 +61,12 @@ class VisionFacts:
             self._last_face_lost_at = at
             self._main_face = None
 
+    def forget_face(self) -> None:
+        """Forget the face in view without recording that it left: the robot stopped looking."""
+        with self._lock:
+            self._face_seen_since = None
+            self._main_face = None
+
     def face_seen_since(self) -> float | None:
         """Return since when a face is in view (time.monotonic()), or None if none is."""
         with self._lock:
@@ -186,6 +192,7 @@ class SharedState:
         self._last_move_ended_at: float | None = None
         self._commanded_pose: CommandedPose | None = None
         self._idle_move_interval_range_s = DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S
+        self._disabled_senses: set[str] = set()
 
     # Idle timer. Written by RobotController, when a move ends.
 
@@ -260,3 +267,25 @@ class SharedState:
             raise ValueError(f"Invalid idle move interval: ({min_s}, {max_s})")
         with self.lock:
             self._idle_move_interval_range_s = (min_s, max_s)
+
+    def is_sense_enabled(self, name: str) -> bool:
+        """Return whether a sense should run: every sense does until the page switches it off.
+
+        Args:
+            name: The sense's NAME, such as "touch".
+        """
+        with self.lock:
+            return name not in self._disabled_senses
+
+    def set_sense_enabled(self, name: str, enabled: bool) -> None:
+        """Switch a sense on or off.
+
+        Args:
+            name: The sense's NAME, such as "touch".
+            enabled: False to switch it off, True to switch it back on.
+        """
+        with self.lock:
+            if enabled:
+                self._disabled_senses.discard(name)
+            else:
+                self._disabled_senses.add(name)
