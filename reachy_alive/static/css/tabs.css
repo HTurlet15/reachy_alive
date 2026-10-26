@@ -1,0 +1,36 @@
+/* The tab bar and the panels under it. */
+
+.tabs {
+    display: flex;
+    gap: 1.5rem;
+    margin-top: 1.75rem;
+    border-bottom: 1px solid var(--line);
+}
+
+.tabs button {
+    padding: 0.6rem 0;
+    border: none;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -1px; /* the underline sits on the row's border */
+    background: none;
+    color: var(--muted);
+    font: 700 1.1rem var(--font-display);
+    cursor: pointer;
+}
+
+.tabs button:hover {
+    color: var(--ink);
+}
+
+.tabs button[aria-selected="true"] {
+    border-bottom-color: var(--accent);
+    color: var(--ink);
+}
+
+/* A panel sits right under the tabs: no separating line of its own. */
+
+[role="tabpanel"] {
+    margin-top: 1.5rem;
+    padding-top: 0;
+    border-top: none;
+}

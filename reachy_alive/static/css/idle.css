@@ -1,0 +1,68 @@
+/* Idle moves tab: the move tiles and the interval form. */
+
+/* Moves: calm tiles, so nine of them don't all shout at once. */
+
+.moves {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+    gap: 0.6rem;
+    color: var(--muted);
+}
+
+.moves button {
+    padding: 0.85rem 0.75rem;
+    border: 2px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--paper);
+    color: var(--ink);
+    font: 600 1rem var(--font-body);
+    text-align: left;
+    cursor: pointer;
+}
+
+.moves button:hover {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+}
+
+.moves button:active {
+    transform: scale(0.98);
+}
+
+/* Idle moves: one sentence, one action. */
+
+.interval {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem 0.9rem;
+}
+
+.interval input {
+    width: 4.5rem;
+    margin: 0 0.25rem;
+    padding: 0.45rem 0.5rem;
+    border: 2px solid var(--line);
+    border-radius: 0.5rem;
+    font: 1rem var(--font-body);
+    color: var(--ink);
+}
+
+.interval input:focus {
+    border-color: var(--accent);
+    outline: none;
+}
+
+.interval button {
+    padding: 0.6rem 1.3rem;
+    border: none;
+    border-radius: 999px;
+    background: var(--accent);
+    color: #fff;
+    font: 600 1rem var(--font-body);
+    cursor: pointer;
+}
+
+.interval button:hover {
+    background: var(--accent-ink);
+}

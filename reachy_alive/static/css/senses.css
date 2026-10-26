@@ -1,0 +1,34 @@
+/* Senses tab: a tile lights up while something is happening. */
+
+.senses {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.6rem;
+}
+
+.sense {
+    padding: 0.85rem 1rem;
+    border: 2px solid var(--line);
+    border-radius: var(--radius);
+    transition:
+        background-color 0.3s,
+        border-color 0.3s;
+}
+
+.sense.active {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+}
+
+.sense-name {
+    margin: 0 0 0.25rem;
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.sense-state {
+    min-height: 3em; /* two lines, so tiles keep their height */
+    margin: 0;
+    font-weight: 600;
+    white-space: pre-line; /* "\n" in the text starts a new line */
+}
