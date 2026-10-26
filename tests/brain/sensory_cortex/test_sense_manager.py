@@ -2,6 +2,7 @@
 
 import sys
 import threading
+import time
 from unittest.mock import MagicMock
 
 import pytest
@@ -89,6 +90,8 @@ def test_every_detector_is_given_the_sense_facts(made_up_sense):
 
 class ScriptedSense(Sense):
     """Gives the features it is told to, then stops the watch. Notes when opened and closed."""
+
+    NAME = "scripted"
 
     def __init__(self, features: list, stop_event: threading.Event) -> None:
         super().__init__(MagicMock(), SharedState())
@@ -189,3 +192,131 @@ def test_a_failing_detector_is_switched_off_after_its_first_failure():
     SenseManager.watch(sense, [failing], stop_event)
 
     assert failing.calls == 1
+
+
+# Switching a sense off and on
+
+
+class EndlessSense(Sense):
+    """Gives features at every reading, until the watch stops. Notes when opened and closed."""
+
+    NAME = "endless"
+    PERIOD_S = 0.01
+
+    def __init__(self, shared_state: SharedState) -> None:
+        super().__init__(MagicMock(), shared_state)
+        self.events: list[str] = []
+
+    def open(self) -> None:
+        self.events.append("open")
+
+    def close(self) -> None:
+        self.events.append("close")
+
+    def _perceive(self, perceived_at: float, robot_moving_itself: bool):
+        return "features"
+
+
+class ForgetfulDetector(RecordingDetector):
+    """Keeps all the features it is handed, and counts how often it forgot."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.forgotten = 0
+
+    def forget(self) -> None:
+        self.forgotten += 1
+
+
+def wait_until(condition, timeout_s: float = 2.0) -> None:
+    """Wait until condition() is true: the watch runs in its own thread."""
+    deadline = time.monotonic() + timeout_s
+    while not condition():
+        assert time.monotonic() < deadline, "waited too long"
+        time.sleep(0.005)
+
+
+class Watch:
+    """An EndlessSense and its detector, watched in a thread as SenseManager.start does."""
+
+    def __init__(self) -> None:
+        self.shared_state = SharedState()
+        self.sense = EndlessSense(self.shared_state)
+        self.detector = ForgetfulDetector()
+        self._stop_event = threading.Event()
+        self._thread = threading.Thread(
+            target=SenseManager.watch, args=(self.sense, [self.detector], self._stop_event)
+        )
+
+    def start(self) -> None:
+        self._thread.start()
+
+    def stop(self) -> None:
+        self._stop_event.set()
+        self._thread.join(timeout=1.0)
+
+    def switch(self, enabled: bool) -> None:
+        """Switch the sense on or off, as the page does."""
+        self.shared_state.set_sense_enabled(EndlessSense.NAME, enabled)
+
+
+@pytest.fixture
+def watch(monkeypatch):
+    """A watch that checks often whether the sense is back on, stopped after the test."""
+    monkeypatch.setattr(SenseManager, "OFF_CHECK_S", 0.01)
+    watch = Watch()
+    yield watch
+    watch.stop()
+
+
+def test_a_sense_switched_off_is_closed_and_its_detectors_forget(watch):
+    watch.start()
+    wait_until(lambda: watch.detector.features)
+
+    watch.switch(False)
+
+    wait_until(lambda: watch.sense.events == ["open", "close"])
+    assert watch.detector.forgotten == 1
+
+
+def test_a_sense_switched_off_is_not_read(watch):
+    watch.start()
+    watch.switch(False)
+    wait_until(lambda: "close" in watch.sense.events)
+    read_before = len(watch.detector.features)
+
+    time.sleep(0.05)  # five readings, were it still read
+
+    assert len(watch.detector.features) == read_before
+
+
+def test_a_sense_switched_back_on_is_opened_again(watch):
+    watch.start()
+    watch.switch(False)
+    wait_until(lambda: "close" in watch.sense.events)
+    read_while_off = len(watch.detector.features)
+
+    watch.switch(True)
+
+    wait_until(lambda: len(watch.detector.features) > read_while_off)
+    assert watch.sense.events == ["open", "close", "open"]
+
+
+def test_a_sense_switched_off_from_the_start_is_never_opened(watch):
+    watch.switch(False)
+    watch.start()
+
+    time.sleep(0.05)
+
+    assert watch.sense.events == []
+    assert watch.detector.forgotten == 0  # nothing to forget
+
+
+def test_a_sense_switched_off_is_not_closed_again_when_the_app_stops(watch):
+    watch.start()
+    watch.switch(False)
+    wait_until(lambda: "close" in watch.sense.events)
+
+    watch.stop()
+
+    assert watch.sense.events == ["open", "close"]

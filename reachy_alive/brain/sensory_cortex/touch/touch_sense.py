@@ -11,6 +11,7 @@ class TouchSense(Sense):
     RobotController sent.
     """
 
+    NAME = "touch"
     # RobotController sends new targets 50 times a second.
     PERIOD_S = 0.02
 

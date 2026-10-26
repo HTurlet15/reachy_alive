@@ -24,6 +24,7 @@ class HearingSense(Sense):
     and times them by how long it has listened.
     """
 
+    NAME = "hearing"
     # Waiting for the next chunk paces the sense; this floor stops it spinning when the
     # microphones give nothing at once, and still drains a backlog at 200 stretches a second.
     PERIOD_S = 0.005
@@ -48,7 +49,12 @@ class HearingSense(Sense):
         return self._sample_rate_hz > 0
 
     def open(self) -> None:
-        """Start recording."""
+        """Start recording, without the sound left over from before the sense was switched off.
+
+        Read now, that sound would be dated now: a door slammed minutes ago
+        would be heard as a sudden noise.
+        """
+        self._samples_not_read_yet = np.zeros(0)
         self._reachy_mini.media.start_recording()
 
     def _perceive(self, perceived_at: float, robot_moving_itself: bool) -> HearingFeatures | None:

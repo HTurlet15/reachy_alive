@@ -12,6 +12,7 @@ from reachy_alive.shared_state import SharedState
 class VisionSense(Sense):
     """Looks through the camera and describes each image by its VisionFeatures."""
 
+    NAME = "vision"
     PERIOD_S = 0.2
     # Wide enough to find a face up to about 2.5 m; each doubling costs about
     # twice the time to find faces.

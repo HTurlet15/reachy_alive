@@ -148,6 +148,17 @@ def test_opening_and_closing_start_and_stop_the_recording():
     reachy_mini.media.stop_recording.assert_called_once()
 
 
+def test_sound_left_over_when_switched_off_is_not_read_once_switched_back_on():
+    sense, _, _ = make_sense([sound(LOUD, 0.04)])  # one chunk: two stretches
+    sense.open()
+    sense.read_once(0.0)  # the first stretch; the second one waits
+    sense.close()
+
+    sense.open()
+
+    assert sense.read_once(60.0) is None  # read now, it would be dated now
+
+
 def test_microphones_that_give_nothing_at_once_do_not_make_the_sense_spin():
     sense, _, reachy_mini = make_sense([])
     reachy_mini.media.get_audio_sample.side_effect = itertools.repeat(None)  # no wait, ever
