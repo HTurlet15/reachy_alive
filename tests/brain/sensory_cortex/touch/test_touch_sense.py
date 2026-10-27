@@ -53,3 +53,16 @@ def test_the_features_say_when_the_robot_just_moved_itself():
 
     assert sense.read_once(ended_at + 0.3).robot_moving_itself is True  # within SETTLE_AFTER_MOVE_S
     assert sense.read_once(ended_at + 1.0).robot_moving_itself is False
+
+
+def test_both_antennas_are_felt_at_first():
+    sense, _ = make_sense()
+
+    assert sense.read_once(0.0).antennas_enabled == (True, True)
+
+
+def test_an_antenna_switched_off_from_the_page_is_not_felt():
+    sense, state = make_sense()
+    state.set_sense_enabled("touch.right", False)
+
+    assert sense.read_once(0.0).antennas_enabled == (False, True)

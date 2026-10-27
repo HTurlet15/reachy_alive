@@ -16,7 +16,8 @@ class AntennaPushDetector(Detector):
 
     For each antenna, an ExpectedRange measures how far it stands outside
     where the motor's lag allows it to be, and a SchmittTrigger turns that
-    gap into a push. While the robot moves itself, every push is forgotten.
+    gap into a push. While the robot moves itself, every push is forgotten,
+    and so is the push of an antenna switched off from the page.
     """
 
     # A push starts once the gap reaches the higher threshold, and ends under
@@ -30,32 +31,42 @@ class AntennaPushDetector(Detector):
     def __init__(self, facts: TouchFacts) -> None:
         """Start following both antennas, with nothing remembered yet."""
         super().__init__(facts)
-        self._start_afresh()
+        self._expected_ranges: dict[str, ExpectedRange] = {}
+        self._push_triggers: dict[str, SchmittTrigger] = {}
+        for side in ANTENNA_SIDES:
+            self._start_afresh(side)
 
     def forget(self) -> None:
         """Forget every push: the sense can no longer tell whether an antenna is pushed."""
-        self._start_afresh()
         for side in ANTENNA_SIDES:
-            self._facts.record_antenna_pushed_since(side, None)
+            self._forget(side)
 
-    def _start_afresh(self) -> None:
-        """Follow both antennas from scratch: no target remembered, no push going on."""
-        self._expected_ranges = {
-            side: ExpectedRange(min_delay_s=self.MIN_DELAY_S, max_delay_s=self.MAX_DELAY_S)
-            for side in ANTENNA_SIDES
-        }
-        self._push_triggers = {
-            side: SchmittTrigger(
-                on_threshold=self.PUSH_THRESHOLD_DEG, off_threshold=self.RELEASE_THRESHOLD_DEG
-            )
-            for side in ANTENNA_SIDES
-        }
+    def _start_afresh(self, side: str) -> None:
+        """Follow one antenna from scratch: no target remembered, no push going on."""
+        self._expected_ranges[side] = ExpectedRange(
+            min_delay_s=self.MIN_DELAY_S, max_delay_s=self.MAX_DELAY_S
+        )
+        self._push_triggers[side] = SchmittTrigger(
+            on_threshold=self.PUSH_THRESHOLD_DEG, off_threshold=self.RELEASE_THRESHOLD_DEG
+        )
+
+    def _forget(self, side: str) -> None:
+        """Forget one antenna: start it afresh, and record that it isn't pushed."""
+        self._start_afresh(side)
+        self._facts.record_antenna_pushed_since(side, None)
 
     def _detect(self, features: TouchFeatures) -> None:
         """Follow both antennas through one reading, and record whether each is pushed."""
-        for side, target_rad, measured_rad in zip(
-            ANTENNA_SIDES, features.targets_rad, features.measured_rad, strict=True
+        for side, enabled, target_rad, measured_rad in zip(
+            ANTENNA_SIDES,
+            features.antennas_enabled,
+            features.targets_rad,
+            features.measured_rad,
+            strict=True,
         ):
+            if not enabled:
+                self._forget(side)  # switched off from the page: nothing to judge
+                continue
             expected_range = self._expected_ranges[side]
             push_trigger = self._push_triggers[side]
 

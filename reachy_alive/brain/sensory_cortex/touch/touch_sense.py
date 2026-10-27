@@ -1,7 +1,7 @@
 """The touch sense: where the antennas are, against where they were sent, 50 times a second."""
 
 from reachy_alive.brain.sensory_cortex.sense import Sense
-from reachy_alive.brain.sensory_cortex.touch.touch_features import TouchFeatures
+from reachy_alive.brain.sensory_cortex.touch.touch_features import ANTENNA_SIDES, TouchFeatures
 
 
 class TouchSense(Sense):
@@ -25,4 +25,7 @@ class TouchSense(Sense):
             targets_rad=tuple(commanded_pose.antennas),
             measured_rad=tuple(self._reachy_mini.get_present_antenna_joint_positions()),
             robot_moving_itself=robot_moving_itself,
+            antennas_enabled=tuple(
+                self._shared_state.is_sense_enabled(f"{self.NAME}.{side}") for side in ANTENNA_SIDES
+            ),
         )

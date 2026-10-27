@@ -43,6 +43,7 @@ def hand_to_left_antenna(detector: AntennaPushDetector, sample) -> None:
             targets_rad=(0.0, target_rad),
             measured_rad=(0.0, present_rad),
             robot_moving_itself=False,
+            antennas_enabled=(True, True),
         )
     )
 
@@ -208,11 +209,13 @@ NEUTRAL_RAD = (-0.17, 0.17)  # (right, left)
 
 
 def follow(detector: AntennaPushDetector, start_s: float, duration_s: float, measured_rad,
-           robot_moving_itself: bool = False) -> float:
+           robot_moving_itself: bool = False, antennas_enabled=(True, True)) -> float:
     """Hand features every 20 ms, antennas sent to NEUTRAL_RAD; return the time after."""
     t = start_s
     while t < start_s + duration_s - 1e-9:
-        detector.update(TouchFeatures(t, NEUTRAL_RAD, measured_rad, robot_moving_itself))
+        detector.update(
+            TouchFeatures(t, NEUTRAL_RAD, measured_rad, robot_moving_itself, antennas_enabled)
+        )
         t = round(t + 0.02, 6)
     return t
 
@@ -272,3 +275,47 @@ def test_forgetting_clears_every_push():
 
     assert facts.antenna_pushed_since("right") is None
     assert facts.antenna_pushed_since("left") is None
+
+
+# An antenna switched off from the page, such as a faulty one.
+
+RIGHT_OFF = (False, True)  # (right, left)
+
+
+def test_an_antenna_switched_off_is_never_pushed_and_the_other_still_is():
+    facts = TouchFacts()
+    detector = AntennaPushDetector(facts)
+    t = follow(detector, 0.0, 0.5, NEUTRAL_RAD, antennas_enabled=RIGHT_OFF)
+    both_far = (NEUTRAL_RAD[0] + math.radians(30.0), NEUTRAL_RAD[1] + math.radians(10.0))
+
+    follow(detector, t, 0.2, both_far, antennas_enabled=RIGHT_OFF)
+
+    assert facts.antenna_pushed_since("right") is None
+    assert facts.antenna_pushed_since("left") == t
+
+
+def test_a_push_is_forgotten_once_its_antenna_is_switched_off():
+    facts = TouchFacts()
+    detector = AntennaPushDetector(facts)
+    t = follow(detector, 0.0, 0.5, NEUTRAL_RAD)
+    right_pushed = (NEUTRAL_RAD[0] + math.radians(10.0), NEUTRAL_RAD[1])
+    t = follow(detector, t, 0.2, right_pushed)
+
+    follow(detector, t, 0.02, right_pushed, antennas_enabled=RIGHT_OFF)
+
+    assert facts.antenna_pushed_since("right") is None
+
+
+def test_an_antenna_switched_back_on_is_judged_afresh():
+    facts = TouchFacts()
+    detector = AntennaPushDetector(facts)
+    right_pushed = (NEUTRAL_RAD[0] + math.radians(10.0), NEUTRAL_RAD[1])
+    t = follow(detector, 0.0, 0.5, NEUTRAL_RAD)
+    t = follow(detector, t, 0.2, right_pushed)
+    t = follow(detector, t, 1.0, right_pushed, antennas_enabled=RIGHT_OFF)
+    switched_back_on_at = t
+
+    follow(detector, t, 0.2, right_pushed)
+
+    # Still held away, so pushed again, but dated after it was switched back on.
+    assert facts.antenna_pushed_since("right") > switched_back_on_at
