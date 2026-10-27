@@ -92,8 +92,8 @@
 
             <section id="panel-senses" role="tabpanel" aria-labelledby="tab-senses" hidden>
                 <p class="hint">
-                    What the robot perceives right now. It doesn't react to it yet. Untick a sense
-                    to switch it off.
+                    What the robot perceives right now. It doesn't react to it yet. Untick a sense,
+                    or one antenna, to switch it off.
                 </p>
                 <div class="senses">
                     <div class="sense" id="sense-inertial">
@@ -110,17 +110,27 @@
                         <p class="sense-state">Waiting…</p>
                     </div>
                     <div class="sense" id="sense-touch">
-                        <label class="sense-name">
+                        <p class="sense-name">Touch</p>
+                        <label class="sense-part">
                             <input
                                 type="checkbox"
                                 class="sense-switch"
-                                data-sense="touch"
+                                data-sense="touch.right"
                                 checked
                                 disabled
                             />
-                            Touch
+                            Right: <span class="sense-state">waiting…</span>
                         </label>
-                        <p class="sense-state">Waiting…</p>
+                        <label class="sense-part">
+                            <input
+                                type="checkbox"
+                                class="sense-switch"
+                                data-sense="touch.left"
+                                checked
+                                disabled
+                            />
+                            Left: <span class="sense-state">waiting…</span>
+                        </label>
                     </div>
                     <div class="sense" id="sense-hearing">
                         <label class="sense-name">

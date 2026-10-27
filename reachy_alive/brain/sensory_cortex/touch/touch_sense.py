@@ -12,6 +12,8 @@ class TouchSense(Sense):
     """
 
     NAME = "touch"
+    # Each antenna is switched off on its own, such as a faulty one.
+    PARTS = ANTENNA_SIDES
     # RobotController sends new targets 50 times a second.
     PERIOD_S = 0.02
 
@@ -26,6 +28,6 @@ class TouchSense(Sense):
             measured_rad=tuple(self._reachy_mini.get_present_antenna_joint_positions()),
             robot_moving_itself=robot_moving_itself,
             antennas_enabled=tuple(
-                self._shared_state.is_sense_enabled(f"{self.NAME}.{side}") for side in ANTENNA_SIDES
+                self._shared_state.is_sense_enabled(name) for name in self.names()
             ),
         )

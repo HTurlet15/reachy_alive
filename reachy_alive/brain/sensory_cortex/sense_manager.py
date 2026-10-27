@@ -61,8 +61,11 @@ class SenseManager:
         self._threads: list[threading.Thread] = []
 
     def sense_names(self) -> list[str]:
-        """Return the NAME of every sense, available or not."""
-        return [sense.NAME for sense, _ in self._senses]
+        """Return what the page can switch off, available or not: each sense, or its parts."""
+        names = []
+        for sense, _ in self._senses:
+            names += sense.names()
+        return names
 
     def start(self, stop_event: threading.Event) -> None:
         """Start one thread per sense. Each stops once stop_event is set."""

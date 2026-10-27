@@ -132,6 +132,18 @@ def test_a_switch_without_enabled_is_rejected(client, shared_state):
     assert shared_state.is_sense_enabled("touch") is True
 
 
+def test_a_part_of_a_sense_is_switched_like_a_sense(move_requests, shared_state):
+    app = FastAPI()
+    antennas = ["touch.right", "touch.left"]
+    app.include_router(create_router({}, move_requests, shared_state, antennas))
+    client = TestClient(app)
+
+    response = client.put(f"{SENSES_URL}/touch.right", json={"enabled": False})
+
+    assert response.status_code == 200
+    assert client.get(SENSES_URL).json() == {"touch.right": False, "touch.left": True}
+
+
 def test_senses_are_all_null_before_anything_happens(client):
     response = client.get("/senses")
 

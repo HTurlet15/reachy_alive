@@ -197,6 +197,13 @@ def test_a_failing_detector_is_switched_off_after_its_first_failure():
 # Switching a sense off and on
 
 
+def test_a_sense_without_parts_is_named_after_itself():
+    sense = ScriptedSense([], threading.Event())
+
+    assert sense.names() == ["scripted"]
+
+
+
 class EndlessSense(Sense):
     """Gives features at every reading, until the watch stops. Notes when opened and closed."""
 
