@@ -20,6 +20,9 @@ class Sense(ABC):
 
     # What the page calls the sense, to switch it off: "vision", for example.
     NAME: str
+    # Parts of the sense the page switches off one by one, such as each antenna
+    # of the touch sense. Without any, the sense is switched off as a whole.
+    PARTS: tuple[str, ...] = ()
 
     # Time between two readings. 0: as fast as the sensor gives data.
     PERIOD_S = 0.0
@@ -41,9 +44,18 @@ class Sense(ABC):
         """Return whether the sensor can be read at all. By default, it can."""
         return True
 
+    def names(self) -> list[str]:
+        """Return what the page can switch off: the sense, or each of its parts.
+
+        A part is named after the sense: "touch.right" for the right antenna.
+        """
+        if not self.PARTS:
+            return [self.NAME]
+        return [f"{self.NAME}.{part}" for part in self.PARTS]
+
     def is_enabled(self) -> bool:
-        """Return whether the sense should run: the page may have switched it off."""
-        return self._shared_state.is_sense_enabled(self.NAME)
+        """Return whether the sense should run: until the page switches it off, or all its parts."""
+        return any(self._shared_state.is_sense_enabled(name) for name in self.names())
 
     def open(self) -> None:
         """Get the sensor ready, before the first reading. By default, nothing to do.

@@ -19,9 +19,12 @@ class TouchFeatures:
         measured_rad: Where each antenna is, measured, in the same order.
         robot_moving_itself: Whether a move was playing or had just ended:
             the antennas then follow targets RobotController didn't send.
+        antennas_enabled: Whether each antenna is felt, in the same order:
+            the page can switch one off, such as a faulty one.
     """
 
     perceived_at: float
     targets_rad: tuple[float, float]
     measured_rad: tuple[float, float]
     robot_moving_itself: bool
+    antennas_enabled: tuple[bool, bool]

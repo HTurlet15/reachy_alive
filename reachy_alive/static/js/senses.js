@@ -90,17 +90,29 @@ async function switchSense(box) {
 
 function showTile(id, tile) {
     const element = document.getElementById(id);
-    // Facts of a sense switched off may be old: past events stay recorded.
-    const off = !element.querySelector(".sense-switch").checked;
-    element.querySelector(".sense-state").textContent = off
-        ? "Switched off"
-        : tile.lines.join("\n");
+    const parts = element.querySelectorAll(".sense-part");
+    // A tile is off once every box in it is unticked. Its facts may be old:
+    // past events stay recorded.
+    const off = [...element.querySelectorAll(".sense-switch")].every((box) => !box.checked);
     element.classList.toggle("off", off);
     element.classList.toggle("active", tile.active && !off); // adds the class if true, removes it if false
+    if (parts.length === 0) {
+        element.querySelector(".sense-state").textContent = off
+            ? "Switched off"
+            : tile.lines.join("\n");
+        return;
+    }
+    // A tile with parts has one line per part, in the same order.
+    parts.forEach((part, i) => {
+        const partOn = part.querySelector(".sense-switch").checked;
+        part.classList.toggle("off", !partOn);
+        part.querySelector(".sense-state").textContent = partOn ? tile.lines[i] : "switched off";
+    });
 }
 
 // Each *Tile function turns one sense's facts into what its tile shows:
-// its lines of text, and whether it is lit.
+// its lines of text, and whether it is lit. A tile with parts, such as
+// touch, has one line per part.
 
 function inertialTile(inertial) {
     const ago = inertial.last_bump_s_ago;
@@ -113,19 +125,16 @@ function inertialTile(inertial) {
 
 function touchTile(touch) {
     return {
-        lines: [
-            antennaLine("Right", touch.right_pushed_for_s),
-            antennaLine("Left", touch.left_pushed_for_s),
-        ],
+        lines: [antennaLine(touch.right_pushed_for_s), antennaLine(touch.left_pushed_for_s)],
         active: touch.right_pushed_for_s !== null || touch.left_pushed_for_s !== null,
     };
 }
 
-function antennaLine(side, pushedFor) {
+function antennaLine(pushedFor) {
     if (pushedFor === null) {
-        return `${side}: not pushed`;
+        return "not pushed";
     }
-    return `${side}: pushed ${duration(pushedFor)}`;
+    return `pushed ${duration(pushedFor)}`;
 }
 
 function hearingTile(hearing) {

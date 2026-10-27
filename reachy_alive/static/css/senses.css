@@ -25,7 +25,8 @@
     border-style: dashed;
 }
 
-.sense.off .sense-state {
+.sense.off .sense-state,
+.sense-part.off {
     color: var(--muted);
     font-weight: 400;
 }
@@ -39,6 +40,21 @@
     color: var(--muted);
     font-size: 0.9rem;
     cursor: pointer;
+}
+
+/* A tile with parts, such as touch: one box and one line per antenna. */
+.sense-part {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    width: fit-content;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.sense-part .sense-state {
+    min-height: auto;
+    font-weight: inherit;
 }
 
 .sense-switch {
