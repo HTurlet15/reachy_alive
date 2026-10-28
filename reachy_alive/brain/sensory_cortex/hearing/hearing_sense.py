@@ -1,7 +1,10 @@
 """The hearing sense: how loud the sound is, 20 ms at a time.
 
-The microphones give 16,000 samples per second, each between -1 and 1. Each
-stretch of 320 samples becomes one loudness level.
+The microphones give 16,000 samples per second, each between -1 and 1. The
+SDK hands them over in chunks of any length, as they arrive, and queues the
+chunks not taken yet. The sense pours the samples of the chunks it takes into
+its buffer, and cuts them into frames of 20 ms, 320 samples: one loudness
+level each.
 """
 
 import math
@@ -19,18 +22,18 @@ SILENCE_DBFS = -100.0
 
 
 class HearingSense(Sense):
-    """Listens to the microphones and describes each stretch of sound by its HearingFeatures.
+    """Listens to the microphones and describes each frame of sound by its HearingFeatures.
 
-    Sound arrives in chunks of any length: the sense cuts it into stretches,
+    Sound arrives in SDK chunks of any length: the sense cuts it into frames,
     and times them by how long it has listened.
     """
 
     NAME = "hearing"
     # Waiting for the next chunk paces the sense; this floor stops it spinning when the
-    # microphones give nothing at once, and still drains a backlog at 200 stretches a second.
+    # microphones give nothing at once, and still drains a backlog at 200 frames a second.
     PERIOD_S = 0.005
-    STRETCH_S = 0.02
-    # A chunk that waited in the microphones' queue comes back at once; for a
+    FRAME_S = 0.02
+    # An SDK chunk that waited in the queue comes back at once; for a
     # fresh one, the SDK waits up to 20 ms.
     QUEUED_CHUNK_S = 0.005
     # Dropping old sound never takes longer: the sense would sit deaf.
@@ -40,7 +43,7 @@ class HearingSense(Sense):
     SWITCHED_OFF_GAP_S = 0.5
 
     def __init__(self, reachy_mini: ReachyMini, shared_state: SharedState) -> None:
-        """Size the stretches from the microphones' sample rate.
+        """Size the frames from the microphones' sample rate.
 
         Args:
             reachy_mini: Connected robot instance, only listened to.
@@ -48,8 +51,8 @@ class HearingSense(Sense):
         """
         super().__init__(reachy_mini, shared_state)
         self._sample_rate_hz = reachy_mini.media.get_input_audio_samplerate()
-        self._samples_per_stretch = round(self._sample_rate_hz * self.STRETCH_S)
-        self._samples_not_read_yet = np.zeros(0)
+        self._samples_per_frame = round(self._sample_rate_hz * self.FRAME_S)
+        self._sample_buffer = np.zeros(0)
         # The sound's own clock, never reset: chunks can arrive late, the sound itself can't.
         self._time_listened_s = 0.0
         self._last_read_at: float | None = None  # None until the first reading
@@ -61,7 +64,7 @@ class HearingSense(Sense):
     def _extract_features(
         self, perceived_at: float, robot_moving_itself: bool
     ) -> HearingFeatures | None:
-        """Describe the next stretch of sound, or return None if no full stretch came yet.
+        """Describe the next frame of sound, or return None if no full frame came yet.
 
         The first reading starts the recording. After a long gap, hearing was
         switched off: the sound left over from before is dropped. Read now, it
@@ -70,61 +73,60 @@ class HearingSense(Sense):
         if self._last_read_at is None:
             self._reachy_mini.media.start_recording()
         elif perceived_at - self._last_read_at > self.SWITCHED_OFF_GAP_S:
-            self._drop_sound_heard_before()
+            self._drop_old_sound()
         self._last_read_at = perceived_at
 
-
-        if not self._has_full_stretch():
-            self._add_next_chunk()
-        if not self._has_full_stretch():
+        if not self._has_full_frame():
+            self._take_sdk_chunk()
+        if not self._has_full_frame():
             return None  # not enough sound yet
 
-        stretch = self._take_stretch()
-        self._time_listened_s += self.STRETCH_S
+        frame = self._take_frame()
+        self._time_listened_s += self.FRAME_S
         return HearingFeatures(
             perceived_at=perceived_at,
             time_listened_s=self._time_listened_s,
-            level_dbfs=self.loudness_dbfs(stretch),
+            level_dbfs=self.loudness_dbfs(frame),
             robot_moving_itself=robot_moving_itself,
         )
 
-    def _drop_sound_heard_before(self) -> None:
-        """Drop the sound not read yet, and the chunks the microphones queued meanwhile.
+    def _drop_old_sound(self) -> None:
+        """Drop the samples in the buffer, and the SDK chunks queued meanwhile.
 
         Recording never stops: sound keeps queuing in the SDK, up to 500 chunks.
         Queued chunks come back at once; the first one that makes us wait is
         fresh, and the queue is empty.
         """
-        self._samples_not_read_yet = np.zeros(0) #We drop the queue of sound not read yet
+        self._sample_buffer = np.zeros(0)  # ours: taken from the SDK, not cut yet
         give_up_at = time.monotonic() + self.MAX_DROP_S
         while time.monotonic() < give_up_at:
             asked_at = time.monotonic()
-            chunk = self._reachy_mini.media.get_audio_sample()
-            if chunk is None or time.monotonic() - asked_at > self.QUEUED_CHUNK_S:
+            sdk_chunk = self._reachy_mini.media.get_audio_sample()
+            if sdk_chunk is None or time.monotonic() - asked_at > self.QUEUED_CHUNK_S:
                 return  # no sound, or fresh sound: nothing old is left
 
-    def _has_full_stretch(self) -> bool:
-        """Return whether the samples not read yet hold a full stretch."""
-        return len(self._samples_not_read_yet) >= self._samples_per_stretch
+    def _has_full_frame(self) -> bool:
+        """Return whether the buffer holds a full frame."""
+        return len(self._sample_buffer) >= self._samples_per_frame
 
-    def _add_next_chunk(self) -> None:
-        """Add the microphones' next chunk of sound, if any, to the samples not read yet."""
-        chunk = self._reachy_mini.media.get_audio_sample()  # waits up to 20 ms for sound
-        if chunk is None:
+    def _take_sdk_chunk(self) -> None:
+        """Take the next SDK chunk, if any, and pour its samples into the buffer."""
+        sdk_chunk = self._reachy_mini.media.get_audio_sample()  # waits up to 20 ms for sound
+        if sdk_chunk is None:
             return
         # Loudness doesn't need stereo: the two microphones are averaged.
-        mono_samples = chunk.mean(axis=1) if chunk.ndim == 2 else chunk
-        self._samples_not_read_yet = np.concatenate([self._samples_not_read_yet, mono_samples])
+        mono_samples = sdk_chunk.mean(axis=1) if sdk_chunk.ndim == 2 else sdk_chunk
+        self._sample_buffer = np.concatenate([self._sample_buffer, mono_samples])
 
-    def _take_stretch(self) -> np.ndarray:
-        """Take the oldest full stretch out of the samples not read yet."""
-        stretch = self._samples_not_read_yet[: self._samples_per_stretch]
-        self._samples_not_read_yet = self._samples_not_read_yet[self._samples_per_stretch :]
-        return stretch
+    def _take_frame(self) -> np.ndarray:
+        """Take the oldest full frame out of the buffer."""
+        frame = self._sample_buffer[: self._samples_per_frame]
+        self._sample_buffer = self._sample_buffer[self._samples_per_frame :]
+        return frame
 
     @staticmethod
     def loudness_dbfs(samples: np.ndarray) -> float:
-        """Return how loud a stretch of sound is, in dBFS.
+        """Return how loud a frame of sound is, in dBFS.
 
         0 dBFS is the loudest sound the microphones can report. Every -6 dB
         halves the sound.

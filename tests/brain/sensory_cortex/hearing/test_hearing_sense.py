@@ -14,7 +14,7 @@ from reachy_alive.brain.sensory_cortex.sense_manager import SenseManager
 from reachy_alive.shared_state import SharedState
 
 SAMPLE_RATE_HZ = 16_000
-STRETCH_SAMPLES = 320  # 20 ms at 16 kHz
+FRAME_SAMPLES = 320  # 20 ms at 16 kHz
 QUIET = 0.001  # -60 dBFS
 LOUD = 0.3  # about -10 dBFS
 
@@ -39,7 +39,7 @@ def make_sense(chunks: list, sample_rate_hz: int = SAMPLE_RATE_HZ):
 
 
 def features_from(sense: HearingSense, readings: int) -> list:
-    """Take `readings` readings, 10 ms apart, and return the features of the stretches they gave."""
+    """Take `readings` readings, 10 ms apart, and return the features of the frames they gave."""
     readings = [sense.perceive(i * 0.01) for i in range(readings)]
     return [features for features in readings if features is not None]
 
@@ -62,45 +62,45 @@ def test_halving_the_sound_lowers_it_by_6_db():
     assert math.isclose(full - half, 20 * math.log10(2))
 
 
-# Stretches
+# Frames
 
 
-def test_each_stretch_of_sound_gets_its_own_features():
-    sense, _, _ = make_sense(chunks_of(sound(QUIET, 0.1), STRETCH_SAMPLES))
+def test_each_frame_of_sound_gets_its_own_features():
+    sense, _, _ = make_sense(chunks_of(sound(QUIET, 0.1), FRAME_SAMPLES))
 
-    stretches = features_from(sense, 10)
+    frames = features_from(sense, 10)
 
-    assert len(stretches) == 5
-    assert stretches[0].level_dbfs == pytest.approx(-60.0)
+    assert len(frames) == 5
+    assert frames[0].level_dbfs == pytest.approx(-60.0)
 
 
 def test_the_features_are_dated_by_the_reading_and_timed_by_the_sound():
-    sense, _, _ = make_sense(chunks_of(sound(QUIET, 0.04), STRETCH_SAMPLES))
+    sense, _, _ = make_sense(chunks_of(sound(QUIET, 0.04), FRAME_SAMPLES))
 
-    stretches = [sense.perceive(5.0), sense.perceive(5.2)]
+    frames = [sense.perceive(5.0), sense.perceive(5.2)]
 
-    assert [features.perceived_at for features in stretches] == [5.0, 5.2]
-    assert [features.time_listened_s for features in stretches] == pytest.approx([0.02, 0.04])
+    assert [features.perceived_at for features in frames] == [5.0, 5.2]
+    assert [features.time_listened_s for features in frames] == pytest.approx([0.02, 0.04])
 
 
-def test_a_loud_stretch_reads_loud():
-    sense, _, _ = make_sense(chunks_of(sound(LOUD, 0.02), STRETCH_SAMPLES))
+def test_a_loud_frame_reads_loud():
+    sense, _, _ = make_sense(chunks_of(sound(LOUD, 0.02), FRAME_SAMPLES))
 
     assert sense.perceive(0.0).level_dbfs == pytest.approx(20 * math.log10(LOUD))
 
 
-def test_small_chunks_are_gathered_into_stretches():
+def test_small_chunks_are_gathered_into_frames():
     sense, _, _ = make_sense(chunks_of(sound(QUIET, 0.1), 123))
 
     assert len(features_from(sense, 20)) == 5
 
 
-def test_a_big_chunk_gives_one_stretch_per_reading():
+def test_a_big_chunk_gives_one_frame_per_reading():
     sense, _, reachy_mini = make_sense([sound(QUIET, 0.1)])
 
-    stretches = features_from(sense, 5)
+    frames = features_from(sense, 5)
 
-    assert len(stretches) == 5
+    assert len(frames) == 5
     assert reachy_mini.media.get_audio_sample.call_count == 1
 
 
@@ -114,14 +114,14 @@ def test_no_features_without_sound():
 
 
 def test_the_features_say_when_a_move_plays():
-    sense, state, _ = make_sense(chunks_of(sound(QUIET, 0.02), STRETCH_SAMPLES))
+    sense, state, _ = make_sense(chunks_of(sound(QUIET, 0.02), FRAME_SAMPLES))
     state.set_move_playing(True)
 
     assert sense.perceive(0.0).robot_moving_itself is True
 
 
 def test_the_features_say_when_the_robot_just_moved_itself():
-    sense, state, _ = make_sense(chunks_of(sound(QUIET, 0.04), STRETCH_SAMPLES))
+    sense, state, _ = make_sense(chunks_of(sound(QUIET, 0.04), FRAME_SAMPLES))
     state.set_move_playing(True)
     state.set_move_playing(False)
     ended_at = state.last_move_ended_at()
@@ -149,8 +149,8 @@ def test_the_first_reading_starts_the_recording_once():
 
 
 def test_sound_left_over_when_switched_off_is_not_read_once_switched_back_on():
-    sense, _, _ = make_sense([sound(LOUD, 0.04)])  # one chunk: two stretches
-    sense.perceive(0.0)  # the first stretch is read, the second waits
+    sense, _, _ = make_sense([sound(LOUD, 0.04)])  # one chunk: two frames
+    sense.perceive(0.0)  # the first frame is read, the second waits
 
     # Hearing switched off for a minute: no reading meanwhile.
 
@@ -185,7 +185,7 @@ def test_sound_queued_while_switched_off_is_dropped():
     # switched off waits in the queue.
     sense, _, reachy_mini = make_sense([sound(QUIET, 0.02)])
     sense.perceive(0.0)
-    queued = chunks_of(sound(LOUD, 1.0), STRETCH_SAMPLES)
+    queued = chunks_of(sound(LOUD, 1.0), FRAME_SAMPLES)
     fresh = sound(QUIET, 0.02)
     reachy_mini.media.get_audio_sample.side_effect = microphones_with_a_queue(queued, fresh)
 

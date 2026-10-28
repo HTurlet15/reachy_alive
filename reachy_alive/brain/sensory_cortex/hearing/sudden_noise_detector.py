@@ -63,7 +63,7 @@ class SuddenNoiseDetector(Detector):
         )
 
     def _detect(self, features: HearingFeatures) -> None:
-        """Follow the sound through one stretch, and record a sudden noise if one starts on it."""
+        """Follow the sound through one frame, and record a sudden noise if one starts on it."""
         # Judged before the sound is followed and remembered, since both move what it
         # is judged against: the background (a sound would shrink its own jump), the
         # loud sound going on, and the habituation.
@@ -78,7 +78,7 @@ class SuddenNoiseDetector(Detector):
             logger.info("Sudden noise")
 
     def _while_robot_moves(self, features: HearingFeatures) -> None:
-        """Follow the sound through one stretch, without judging it: it is the robot's.
+        """Follow the sound through one frame, without judging it: it is the robot's.
 
         The background and the loud sound going on stay up to date for when
         the move is over. The habituation doesn't remember the robot's own
