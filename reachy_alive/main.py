@@ -57,7 +57,10 @@ class ReachyAlive(ReachyMiniApp):
         move_requests: queue.Queue[Move] = queue.Queue()
         self.settings_app.include_router(
             create_router(
-                idle_moves_by_name, move_requests, shared_state, sense_manager.sense_names()
+                idle_moves_by_name,
+                move_requests,
+                shared_state,
+                sense_manager.available_sense_names(),
             )
         )
 

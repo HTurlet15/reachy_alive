@@ -76,7 +76,7 @@ def create_router(
     moves_by_name: dict[str, Move],
     move_requests: queue.Queue,
     shared_state: SharedState,
-    sense_names: list[str],
+    available_sense_names: list[str],
 ) -> APIRouter:
     """Build the routes the app's page calls.
 
@@ -84,7 +84,7 @@ def create_router(
         moves_by_name: Every move the page can play, by name.
         move_requests: Where requested moves wait to be played.
         shared_state: Where the settings and the senses' facts live.
-        sense_names: The NAME of every sense, which the page can switch off.
+        available_sense_names: What the page can switch off: each available sense, or its parts.
 
     Returns:
         A router to include in the app's web server.
@@ -116,11 +116,11 @@ def create_router(
 
     @router.get("/settings/senses")
     def get_senses_enabled() -> dict[str, bool]:
-        return {name: shared_state.is_sense_enabled(name) for name in sense_names}
+        return {name: shared_state.is_sense_enabled(name) for name in available_sense_names}
 
     @router.put("/settings/senses/{name}")
     def set_sense_enabled(name: str, switch: SenseSwitch) -> SenseSwitch:
-        if name not in sense_names:
+        if name not in available_sense_names:
             raise HTTPException(status_code=404, detail=f"Unknown sense: {name}")
         shared_state.set_sense_enabled(name, switch.enabled)
         logger.info("%s switched %s from the page", name, "on" if switch.enabled else "off")
