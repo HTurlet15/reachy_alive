@@ -68,14 +68,21 @@ class SenseManager:
         return names
 
     def start(self, stop_event: threading.Event) -> None:
-        """Start one thread per sense. Each stops once stop_event is set."""
+        """Start one thread per sense, each running run_sense until stop_event is set."""
         for sense, detectors in self._senses:
             sense_name = type(sense).__name__
             if not sense.is_available():
                 logger.info("%s has nothing to read: not started", sense_name)
                 continue
             logger.info("%s detectors: %s", sense_name, [type(d).__name__ for d in detectors])
-            self._start_thread(sense, detectors, stop_event)
+            thread = threading.Thread(
+                target=SenseManager.run_sense,
+                args=(sense, detectors, stop_event),
+                name=sense_name,
+                daemon=True,
+            )
+            thread.start()
+            self._threads.append(thread)
 
     def join(self) -> None:
         """Wait for every sense to stop, STOP_TIMEOUT_S at most each."""
@@ -95,76 +102,65 @@ class SenseManager:
             if not file.name.endswith("_detector"):
                 continue
             try:
-                module_name = f"{sense_folder.__name__}.{file.name}"
-                detectors += SenseManager._build_detectors(module_name, facts)
+                module = importlib.import_module(f"{sense_folder.__name__}.{file.name}")
+                detectors += [
+                    cls(facts)
+                    for _, cls in inspect.getmembers(module, inspect.isclass)
+                    # cls.__module__: written in this file, not imported into it
+                    if issubclass(cls, Detector) and cls.__module__ == module.__name__
+                ]
             except Exception:
                 logger.exception("%s can't be loaded: skipped", file.name)
         return detectors
 
     @staticmethod
-    def watch(sense: Sense, detectors: list, stop_event: threading.Event) -> None:
-        """Read the sense every PERIOD_S while it is on, and hand the features to every detector.
+    def run_sense(sense: Sense, detectors: list, stop_event: threading.Event) -> None:
+        """Run a sense until stop_event is set, handing the features it perceives to its detectors.
 
-        The sense is opened while switched on, and closed while switched off: it
-        then costs nothing, and its detectors forget what they knew. It is
-        closed once stop_event is set. A sense that fails is logged and stopped,
-        and closed all the same. A detector that fails is switched off, so the
-        sense and the other detectors keep going.
+        Each turn, while the page has the sense switched on: perceive, hand the
+        features to every detector, then wait for the rest of PERIOD_S. Switched
+        off, the sense is closed, so it costs nothing, and its detectors forget
+        what they knew; it is opened again once switched back on. A sense that
+        fails is logged and stopped, and closed all the same. A detector that
+        fails is switched off, so the sense and the other detectors keep going.
 
         Args:
-            sense: The sense to read.
+            sense: The sense to run.
             detectors: Each has update(features) and forget().
-            stop_event: Set externally to stop watching.
+            stop_event: Set externally to stop the sense.
         """
+        sense_name = type(sense).__name__
         is_open = False
         try:
             while not stop_event.is_set():
-                if sense.is_enabled():
-                    if not is_open:
-                        sense.open()
-                        is_open = True
-                        logger.info("%s switched on", type(sense).__name__)
-                    SenseManager._read_once(sense, detectors, stop_event)
-                else:
+                if not sense.is_enabled():
                     if is_open:
                         is_open = False  # first: a close that fails isn't tried again
-                        SenseManager._switch_off(sense, detectors)
+                        sense.close()
+                        SenseManager._make_detectors_forget(detectors)
+                        logger.info("%s switched off", sense_name)
                     stop_event.wait(SenseManager.OFF_CHECK_S)  # wakes at once on stop
+                    continue
+
+                if not is_open:
+                    sense.open()
+                    is_open = True
+                    logger.info("%s switched on", sense_name)
+
+                started_at = time.monotonic()
+                features = sense.perceive(started_at)
+                if features is not None:
+                    SenseManager._update_detectors(features, detectors)
+                elapsed_s = time.monotonic() - started_at
+                stop_event.wait(max(0.0, sense.PERIOD_S - elapsed_s))  # wakes at once on stop
         except Exception:
-            logger.exception("%s failed: stopped", type(sense).__name__)
+            logger.exception("%s failed: stopped", sense_name)
         finally:
             if is_open:
                 sense.close()
 
     @staticmethod
-    def _read_once(sense: Sense, detectors: list, stop_event: threading.Event) -> None:
-        """Read the sense once, hand its features on, and wait for the rest of PERIOD_S."""
-        started_at = time.monotonic()
-        features = sense.perceive(started_at)
-        if features is not None:
-            SenseManager._hand_features(features, detectors)
-        elapsed_s = time.monotonic() - started_at
-        stop_event.wait(max(0.0, sense.PERIOD_S - elapsed_s))  # wakes at once on stop
-
-    @staticmethod
-    def _switch_off(sense: Sense, detectors: list) -> None:
-        """Close the sense, and make its detectors forget what they knew."""
-        sense.close()
-        SenseManager._make_forget(detectors)
-        logger.info("%s switched off", type(sense).__name__)
-
-    @staticmethod
-    def _build_detectors(module_name: str, facts) -> list:
-        """Import a detector file, and build each detector class written in it."""
-        module = importlib.import_module(module_name)
-        return [
-            cls(facts)
-            for _, cls in inspect.getmembers(module, inspect.isclass)
-            if issubclass(cls, Detector) and cls.__module__ == module.__name__  # not imported
-        ]
-
-    @staticmethod
-    def _hand_features(features, detectors: list) -> None:
+    def _update_detectors(features, detectors: list) -> None:
         """Hand the features of one reading to every detector, and switch off any that fails."""
         for detector in list(detectors):  # a copy: failing ones leave the list
             try:
@@ -174,7 +170,7 @@ class SenseManager:
                 detectors.remove(detector)
 
     @staticmethod
-    def _make_forget(detectors: list) -> None:
+    def _make_detectors_forget(detectors: list) -> None:
         """Make every detector forget what it knew, and switch off any that fails."""
         for detector in list(detectors):  # a copy: failing ones leave the list
             try:
@@ -182,14 +178,3 @@ class SenseManager:
             except Exception:
                 logger.exception("%s failed: switched off", type(detector).__name__)
                 detectors.remove(detector)
-
-    def _start_thread(self, sense: Sense, detectors: list, stop_event: threading.Event) -> None:
-        """Watch the sense in a thread named after it, and keep the thread to join."""
-        thread = threading.Thread(
-            target=SenseManager.watch,
-            args=(sense, detectors, stop_event),
-            name=type(sense).__name__,
-            daemon=True,
-        )
-        thread.start()
-        self._threads.append(thread)

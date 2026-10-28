@@ -208,7 +208,7 @@ def test_microphones_that_give_nothing_at_once_do_not_make_the_sense_spin():
     stop_event = threading.Event()
     threading.Timer(0.2, stop_event.set).start()
 
-    SenseManager.watch(sense, [], stop_event)
+    SenseManager.run_sense(sense, [], stop_event)
 
     # Paced by PERIOD_S, 0.2 s holds about 40 reads; spinning would make thousands.
     assert reachy_mini.media.get_audio_sample.call_count < 100
