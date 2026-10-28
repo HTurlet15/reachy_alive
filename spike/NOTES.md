@@ -178,3 +178,42 @@ the robot only streams the images.
   → `AVERAGE_FACE_WIDTH_M` set to 0.195 m: YuNet's box is wider than the face.
 - **Lesson**: calibrate on a measured ground truth; by-eye distances drifted
   more than the error being chased.
+
+## Hearing, third round (2026-10-28): are the sudden-noise thresholds right?
+
+Seen on the robot: claps missed with the TV on, so START_THRESHOLD_DB = 30
+looked too high. Tools: `hearing/levels_record.py <scenario>` records the
+levels through the app's own `HearingSense` (no judging); `hearing/hearing_replay.py
+<scenario> --start S --end E` replays main's `SuddenNoiseDetector` on them,
+prints each action's peak height and plots it. Laptop over WebRTC. Data:
+`hearing/{quiet_claps,tv_claps,talk}.csv` (+ `_start30_end10.png`).
+
+- **Quiet room: 30 dB is right.** Every clap from "soft" up starts a loud
+  sound (35-57 dB above the background); only very soft ones (20-24) are
+  missed.
+- **TV on: no threshold works.** Claps stand 14-26 dB above the TV (one hard
+  clap 38), while the TV jumps 32 dB on its own (a quiet scene, then loud).
+  At 20 dB: 10 loud sound starts for 8 claps, many from the TV.
+- **Talk: the first word after a silence is 35-37 dB**, already a sudden
+  noise at 30. At 20 dB: 9 loud sound starts instead of 2.
+- Lowering the threshold trades misses for false alarms: **kept at 30.** The
+  height above the background can't tell a clap from a TV scene change or a
+  first word.
+- How long the sound stays loud doesn't separate them either (above 20 dB:
+  claps 60-420 ms, speech 20-780 ms).
+- **Abruptness still does, mostly** (the second round's lead), and it only
+  needs the levels: the rise within one 20 ms frame.
+  - Quiet room: claps 19-49 dB; nothing else above 12.
+  - Talk: sentence starts 10-17 dB, at most 21 inside speech.
+  - TV: claps 13-38 dB, but the TV itself reaches 23. A 25 dB rise would
+    catch 6 of 8 claps in quiet, 3 of 8 with the TV, and nothing else.
+- About 5 % of the sound never reached the script: the sound clock fell 4-6 s
+  behind the screen clock over 90 s (lost over Wi-Fi?). Harmless for the
+  thresholds; check on the robot itself.
+- Habituation hid every second clap of a pair (expected within 10 s): it is
+  a choice of the reaction, not of the perception. It moves into the
+  reflexes.
+
+Next: a feature that tells a clap from speech or TV, before Sprint C.
+Candidates: abruptness (above, free from the levels), the chip's
+`speech_detected`, spectral flatness (needs WAV recordings).
