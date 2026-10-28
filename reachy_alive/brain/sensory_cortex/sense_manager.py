@@ -60,11 +60,16 @@ class SenseManager:
         ]
         self._threads: list[threading.Thread] = []
 
-    def sense_names(self) -> list[str]:
-        """Return what the page can switch off, available or not: each sense, or its parts."""
+    def available_sense_names(self) -> list[str]:
+        """Return what the page can switch off: each available sense, or its parts.
+
+        A sense without its sensor, such as hearing without microphones, isn't
+        run: there is nothing to switch, so the page isn't offered it.
+        """
         names = []
         for sense, _ in self._senses:
-            names += sense.names()
+            if sense.is_available():
+                names += sense.names()
         return names
 
     def start(self, stop_event: threading.Event) -> None:

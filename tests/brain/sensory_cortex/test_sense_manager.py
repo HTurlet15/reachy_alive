@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from reachy_alive.brain.sensory_cortex import vision
+from reachy_alive.brain.sensory_cortex import sense_manager, vision
 from reachy_alive.brain.sensory_cortex.sense import Sense
 from reachy_alive.brain.sensory_cortex.sense_manager import SenseManager
 from reachy_alive.brain.sensory_cortex.vision.face_presence_detector import FacePresenceDetector
@@ -177,6 +177,52 @@ def test_a_failing_detector_is_switched_off_after_its_first_failure():
     SenseManager.run_sense(sense, [failing], stop_event)
 
     assert failing.calls == 1
+
+
+# What the page can switch off
+
+
+class StandInSense(Sense):
+    """A sense with or without its sensor, as the test says. Never read."""
+
+    def __init__(self, name: str, available: bool, parts: tuple[str, ...] = ()) -> None:
+        super().__init__(MagicMock(), SharedState())
+        self.NAME = name
+        self.PARTS = parts
+        self._available = available
+
+    def is_available(self) -> bool:
+        return self._available
+
+    def _extract_features(self, perceived_at: float, robot_moving_itself: bool):
+        return None
+
+
+def manager_without(monkeypatch, missing: set[str]) -> SenseManager:
+    """Build a SenseManager on stand-in senses: those named in `missing` have no sensor."""
+    for class_name, name, parts in [
+        ("VisionSense", "vision", ()),
+        ("InertialSense", "inertial", ()),
+        ("TouchSense", "touch", ("right", "left")),
+        ("HearingSense", "hearing", ()),
+    ]:
+        stand_in = StandInSense(name, available=name not in missing, parts=parts)
+        monkeypatch.setattr(sense_manager, class_name, lambda *_, sense=stand_in: sense)
+    return SenseManager(MagicMock(), SharedState())
+
+
+def test_the_page_can_switch_off_every_available_sense_and_part(monkeypatch):
+    manager = manager_without(monkeypatch, missing=set())
+
+    names = manager.available_sense_names()
+
+    assert names == ["vision", "inertial", "touch.right", "touch.left", "hearing"]
+
+
+def test_a_sense_without_its_sensor_is_not_offered_to_the_page(monkeypatch):
+    manager = manager_without(monkeypatch, missing={"hearing"})
+
+    assert manager.available_sense_names() == ["vision", "inertial", "touch.right", "touch.left"]
 
 
 # Switching a sense off and on
