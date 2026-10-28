@@ -13,6 +13,8 @@ const RECENT_EVENT_S = 2;
 
 // Ticks each sense's box as the app has it, then lets it switch the sense.
 // Until then, boxes stay ticked and greyed out: every sense runs at start.
+// A sense the app doesn't list has no sensor: its box stays unticked and
+// greyed out, for good.
 export async function setUpSenseSwitches() {
     const status = document.getElementById("switch-status");
     try {
@@ -23,6 +25,11 @@ export async function setUpSenseSwitches() {
         }
         const enabled = await resp.json();
         for (const box of document.querySelectorAll(".sense-switch")) {
+            if (!(box.dataset.sense in enabled)) {
+                box.checked = false;
+                box.classList.add("unavailable");
+                continue;
+            }
             box.checked = enabled[box.dataset.sense];
             box.disabled = false;
             box.addEventListener("change", () => switchSense(box));
@@ -97,17 +104,28 @@ function showTile(id, tile) {
     element.classList.toggle("off", off);
     element.classList.toggle("active", tile.active && !off); // adds the class if true, removes it if false
     if (parts.length === 0) {
+        const box = element.querySelector(".sense-switch");
         element.querySelector(".sense-state").textContent = off
-            ? "Switched off"
+            ? capitalize(offText(box))
             : tile.lines.join("\n");
         return;
     }
     // A tile with parts has one line per part, in the same order.
     parts.forEach((part, i) => {
-        const partOn = part.querySelector(".sense-switch").checked;
-        part.classList.toggle("off", !partOn);
-        part.querySelector(".sense-state").textContent = partOn ? tile.lines[i] : "switched off";
+        const box = part.querySelector(".sense-switch");
+        part.classList.toggle("off", !box.checked);
+        part.querySelector(".sense-state").textContent = box.checked ? tile.lines[i] : offText(box);
     });
+}
+
+// What an unticked box's line says: the page switched it off, or the robot
+// has no such sensor.
+function offText(box) {
+    return box.classList.contains("unavailable") ? "not available" : "switched off";
+}
+
+function capitalize(text) {
+    return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 // Each *Tile function turns one sense's facts into what its tile shows:
