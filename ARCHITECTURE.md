@@ -25,10 +25,11 @@ robot.
 
 ## The map
 
-Read it from left to right: something proposes, one part chooses, one part
-executes, and the senses perceive what happened. Their facts land in
-`SharedState`, where every proposer reads them: that closes the loop. The
-dashed boxes come later (see [Where it's going](#where-its-going)).
+Read it from left to right, like one tick: the proposers read the facts,
+something proposes, one part chooses, one part executes, and the senses
+perceive what happened. `SharedState` is drawn twice, but it is one: read on
+the left, written on the right, and read again on the next tick. The dashed
+boxes come later (see [Where it's going](#where-its-going)).
 
 ```mermaid
 flowchart LR
@@ -49,8 +50,10 @@ flowchart LR
     subgraph perceive["4 · Perceive"]
         senses["the senses<br/>and their detectors"]
     end
-    state[("SharedState<br/>facts, read by<br/>every proposer")]
+    state[("SharedState<br/>(facts written)")]
+    stateRead[("SharedState<br/>(facts read)")]
 
+    stateRead -->|facts| decide
     decide -->|proposals| selector
     selector -->|one command| act
     act -->|sensor readings| perceive
