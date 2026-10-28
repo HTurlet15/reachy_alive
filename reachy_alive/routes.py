@@ -1,5 +1,6 @@
 """HTTP routes behind the app's page: moves, settings, and what the senses perceive."""
 
+import logging
 import queue
 import time
 
@@ -8,6 +9,8 @@ from pydantic import BaseModel, Field
 
 from reachy_alive.moves.base import Move
 from reachy_alive.shared_state import SharedState
+
+logger = logging.getLogger(__name__)
 
 # Below this, the robot barely breathes between idle moves; above, the page
 # would look broken.
@@ -120,6 +123,7 @@ def create_router(
         if name not in sense_names:
             raise HTTPException(status_code=404, detail=f"Unknown sense: {name}")
         shared_state.set_sense_enabled(name, switch.enabled)
+        logger.info("%s switched %s from the page", name, "on" if switch.enabled else "off")
         return switch
 
     @router.get("/senses")

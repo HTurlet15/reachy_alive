@@ -122,7 +122,7 @@ def make_sense(image=CAMERA_IMAGE, faces=(), has_camera=True):
 def test_the_features_are_timed_by_the_reading():
     sense, _, _ = make_sense()
 
-    features = sense.read_once(now=12.0)
+    features = sense.perceive(now=12.0)
 
     assert features.perceived_at == 12.0
 
@@ -130,7 +130,7 @@ def test_the_features_are_timed_by_the_reading():
 def test_faces_are_found_in_a_shrunk_image():
     sense, _, face_finder = make_sense()
 
-    sense.read_once(now=0.0)
+    sense.perceive(now=0.0)
 
     assert face_finder.image_shape == (IMAGE_HEIGHT_PX, IMAGE_WIDTH_PX, 3)
 
@@ -139,7 +139,7 @@ def test_the_focal_length_shrinks_with_the_image():
     face = face_centered_at(CENTER_X_PX, CENTER_Y_PX, width_px=FACE_AT_ONE_METER_PX)
     sense, _, _ = make_sense(faces=[face])
 
-    features = sense.read_once(now=0.0)
+    features = sense.perceive(now=0.0)
 
     assert math.isclose(features.faces[0].distance_m, 1.0)
 
@@ -149,7 +149,7 @@ def test_faces_come_nearest_first():
     near = face_centered_at(CENTER_X_PX, CENTER_Y_PX, width_px=40)
     sense, _, _ = make_sense(faces=[far, near])
 
-    features = sense.read_once(now=0.0)
+    features = sense.perceive(now=0.0)
 
     distances_m = [face.distance_m for face in features.faces]
     assert distances_m == sorted(distances_m)
@@ -159,7 +159,7 @@ def test_the_features_say_when_the_robot_moves_itself():
     sense, shared_state, _ = make_sense()
     shared_state.set_move_playing(True)
 
-    features = sense.read_once(now=0.0)
+    features = sense.perceive(now=0.0)
 
     assert features.robot_moving_itself is True
 
@@ -167,7 +167,7 @@ def test_the_features_say_when_the_robot_moves_itself():
 def test_no_image_yet_gives_no_features():
     sense, _, _ = make_sense(image=None)
 
-    assert sense.read_once(now=0.0) is None
+    assert sense.perceive(now=0.0) is None
 
 
 def test_without_a_camera_the_sense_is_unavailable():

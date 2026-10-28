@@ -1,5 +1,6 @@
 """Unit tests for the app page's routes."""
 
+import logging
 import queue
 import time
 from unittest.mock import MagicMock
@@ -142,6 +143,14 @@ def test_a_part_of_a_sense_is_switched_like_a_sense(move_requests, shared_state)
 
     assert response.status_code == 200
     assert client.get(SENSES_URL).json() == {"touch.right": False, "touch.left": True}
+
+
+def test_switching_a_sense_from_the_page_is_logged(client, caplog):
+    caplog.set_level(logging.INFO)
+
+    client.put(f"{SENSES_URL}/touch", json={"enabled": False})
+
+    assert "touch switched off from the page" in caplog.text
 
 
 def test_senses_are_all_null_before_anything_happens(client):

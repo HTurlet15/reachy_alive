@@ -33,26 +33,21 @@ class AntennaPushDetector(Detector):
         super().__init__(facts)
         self._expected_ranges: dict[str, ExpectedRange] = {}
         self._push_triggers: dict[str, SchmittTrigger] = {}
-        for side in ANTENNA_SIDES:
-            self._start_afresh(side)
+        self.forget()
 
     def forget(self) -> None:
         """Forget every push: the sense can no longer tell whether an antenna is pushed."""
         for side in ANTENNA_SIDES:
             self._forget(side)
 
-    def _start_afresh(self, side: str) -> None:
-        """Follow one antenna from scratch: no target remembered, no push going on."""
+    def _forget(self, side: str) -> None:
+        """Forget one antenna: no target remembered, and no push, recorded as such."""
         self._expected_ranges[side] = ExpectedRange(
             min_delay_s=self.MIN_DELAY_S, max_delay_s=self.MAX_DELAY_S
         )
         self._push_triggers[side] = SchmittTrigger(
             on_threshold=self.PUSH_THRESHOLD_DEG, off_threshold=self.RELEASE_THRESHOLD_DEG
         )
-
-    def _forget(self, side: str) -> None:
-        """Forget one antenna: start it afresh, and record that it isn't pushed."""
-        self._start_afresh(side)
         self._facts.record_antenna_pushed_since(side, None)
 
     def _detect(self, features: TouchFeatures) -> None:

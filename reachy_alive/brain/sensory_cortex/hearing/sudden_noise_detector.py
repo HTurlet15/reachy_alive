@@ -41,7 +41,7 @@ class SuddenNoiseDetector(Detector):
     def __init__(self, facts: HearingFacts) -> None:
         """Build the detector's mechanisms, from its settings."""
         super().__init__(facts)
-        self._start_afresh()
+        self.forget()
 
     def forget(self) -> None:
         """Forget the room: its background, the loud sound going on, the habit.
@@ -49,10 +49,6 @@ class SuddenNoiseDetector(Detector):
         The room may have changed while the sense was off. The last sudden
         noise stays: it still happened.
         """
-        self._start_afresh()
-
-    def _start_afresh(self) -> None:
-        """Listen from scratch: no background, no loud sound going on, no habit."""
         # Every mechanism below follows the sound's own clock: features.time_listened_s.
         self._background = Background(time_constant_s=self.BACKGROUND_TIME_CONSTANT_S)
         self._loud_sound_trigger = SchmittTrigger(
@@ -63,7 +59,7 @@ class SuddenNoiseDetector(Detector):
         )
 
     def _detect(self, features: HearingFeatures) -> None:
-        """Follow the sound through one stretch, and record a sudden noise if one starts on it."""
+        """Follow the sound through one frame, and record a sudden noise if one starts on it."""
         # Judged before the sound is followed and remembered, since both move what it
         # is judged against: the background (a sound would shrink its own jump), the
         # loud sound going on, and the habituation.
@@ -78,7 +74,7 @@ class SuddenNoiseDetector(Detector):
             logger.info("Sudden noise")
 
     def _while_robot_moves(self, features: HearingFeatures) -> None:
-        """Follow the sound through one stretch, without judging it: it is the robot's.
+        """Follow the sound through one frame, without judging it: it is the robot's.
 
         The background and the loud sound going on stay up to date for when
         the move is over. The habituation doesn't remember the robot's own

@@ -1,7 +1,7 @@
 """Unit tests for SuddenNoiseDetector.
 
 The detector is tested on made-up levels and on a recording from the robot.
-It reads the features of each 20 ms stretch of sound, as the sense hands them.
+It reads the features of each 20 ms frame of sound, as the sense hands them.
 """
 
 import csv
@@ -18,31 +18,31 @@ from reachy_alive.brain.sensory_cortex.hearing.sudden_noise_detector import (
 from reachy_alive.shared_state import HearingFacts
 
 DATA = Path(__file__).parent.parent / "data"
-STRETCH_S = 0.02  # one stretch every 20 ms
+FRAME_S = 0.02  # one frame every 20 ms
 
 
-def recorded_noises(stretches: list[HearingFeatures]) -> list[float]:
-    """Feed the features of each stretch to a fresh detector; return when it recorded noises.
+def recorded_noises(frames: list[HearingFeatures]) -> list[float]:
+    """Feed the features of each frame to a fresh detector; return when it recorded noises.
 
     The facts only keep the last noise: fake facts keep every call instead.
     """
     facts = MagicMock(spec=HearingFacts)
     detector = SuddenNoiseDetector(facts)
-    for features in stretches:
+    for features in frames:
         detector.update(features)
     return [call.args[0] for call in facts.record_sudden_noise.call_args_list]
 
 
 def noise_starts(levels_dbfs: list[float], robot_moving_itself: bool = False) -> list[float]:
-    """Feed one level per stretch; return when sudden noises started.
+    """Feed one level per frame; return when sudden noises started.
 
-    Each stretch is read the moment its sound ends: both clocks agree.
+    Each frame is read the moment its sound ends: both clocks agree.
     """
     return recorded_noises(
         [
             HearingFeatures(
-                perceived_at=round(i * STRETCH_S, 2),
-                time_listened_s=i * STRETCH_S,
+                perceived_at=round(i * FRAME_S, 2),
+                time_listened_s=i * FRAME_S,
                 level_dbfs=level_dbfs,
                 robot_moving_itself=robot_moving_itself,
             )
@@ -52,8 +52,8 @@ def noise_starts(levels_dbfs: list[float], robot_moving_itself: bool = False) ->
 
 
 def steady(level_dbfs: float, duration_s: float) -> list[float]:
-    """Return the same level for every stretch of duration_s."""
-    return [level_dbfs] * round(duration_s / STRETCH_S)
+    """Return the same level for every frame of duration_s."""
+    return [level_dbfs] * round(duration_s / FRAME_S)
 
 
 # A loud sound
@@ -67,11 +67,11 @@ def quiet_room_with(duration_s: float, sounds: dict[float, float]) -> list[float
 
     Args:
         duration_s: How long the room is listened to, in seconds.
-        sounds: One stretch-long sound per entry: {time in seconds: level in dBFS}.
+        sounds: One frame-long sound per entry: {time in seconds: level in dBFS}.
     """
     levels = steady(QUIET_ROOM_DBFS, duration_s)
     for t, level_dbfs in sounds.items():
-        levels[round(t / STRETCH_S)] = level_dbfs
+        levels[round(t / FRAME_S)] = level_dbfs
     return levels
 
 
@@ -83,7 +83,7 @@ def test_a_clap_in_a_quiet_room_is_a_sudden_noise():
     assert noise_starts(quiet_room_with(3.0, {2.0: CLAP_DBFS})) == [2.0]
 
 
-def test_a_sudden_noise_is_dated_when_its_stretch_was_perceived():
+def test_a_sudden_noise_is_dated_when_its_frame_was_perceived():
     facts = HearingFacts()
     detector = SuddenNoiseDetector(facts)
     quiet = HearingFeatures(
@@ -127,21 +127,21 @@ def test_a_sound_rising_over_seconds_is_not_sudden():
 
 
 def test_a_sound_rising_over_seconds_is_not_sudden_even_in_bunches():
-    # The sense fell behind: stretches arrive 5 s at a time, all perceived at
+    # The sense fell behind: frames arrive 5 s at a time, all perceived at
     # once. On the sound's own clock, they are still 20 ms apart.
     rising_over_5_s = list(np.linspace(-60.0, -20.0, 250))
     levels = steady(QUIET_ROOM_DBFS, 5.0) + rising_over_5_s + steady(-20.0, 5.0)
-    stretches = [
+    frames = [
         HearingFeatures(
             perceived_at=(i // 250 + 1) * 5.0,
-            time_listened_s=i * STRETCH_S,
+            time_listened_s=i * FRAME_S,
             level_dbfs=level_dbfs,
             robot_moving_itself=False,
         )
         for i, level_dbfs in enumerate(levels)
     ]
 
-    assert recorded_noises(stretches) == []
+    assert recorded_noises(frames) == []
 
 
 def test_the_background_follows_a_room_that_got_louder():
@@ -168,17 +168,17 @@ def test_the_background_keeps_following_the_room_while_the_robot_moves():
     # The room gets louder during a 10 s move. Once it is over, a jump to
     # -15 dBFS is only 15 dB above the background, if it kept following.
     levels = steady(QUIET_ROOM_DBFS, 2.0) + steady(-30.0, 10.0) + [-15.0]
-    stretches = [
+    frames = [
         HearingFeatures(
-            perceived_at=round(i * STRETCH_S, 2),
-            time_listened_s=i * STRETCH_S,
+            perceived_at=round(i * FRAME_S, 2),
+            time_listened_s=i * FRAME_S,
             level_dbfs=level_dbfs,
-            robot_moving_itself=2.0 <= i * STRETCH_S < 12.0,
+            robot_moving_itself=2.0 <= i * FRAME_S < 12.0,
         )
         for i, level_dbfs in enumerate(levels)
     ]
 
-    assert recorded_noises(stretches) == []
+    assert recorded_noises(frames) == []
 
 
 def test_a_clap_while_the_robot_moves_itself_is_not_recorded():
@@ -190,17 +190,17 @@ def test_a_clap_while_the_robot_moves_itself_is_not_recorded():
 def test_the_robots_own_sound_does_not_make_a_clap_after_the_move_expected():
     # A move from 2 to 4 s makes a sound at 3 s; a clap as loud comes at 6 s.
     levels = quiet_room_with(8.0, {3.0: -20.0, 6.0: -20.0})
-    stretches = [
+    frames = [
         HearingFeatures(
-            perceived_at=round(i * STRETCH_S, 2),
-            time_listened_s=i * STRETCH_S,
+            perceived_at=round(i * FRAME_S, 2),
+            time_listened_s=i * FRAME_S,
             level_dbfs=level_dbfs,
-            robot_moving_itself=2.0 <= i * STRETCH_S < 4.0,
+            robot_moving_itself=2.0 <= i * FRAME_S < 4.0,
         )
         for i, level_dbfs in enumerate(levels)
     ]
 
-    assert recorded_noises(stretches) == [6.0]
+    assert recorded_noises(frames) == [6.0]
 
 
 # Habituation
@@ -261,7 +261,7 @@ def test_a_much_louder_sound_moments_later_is_not_expected():
 
 
 def listen(detector: SuddenNoiseDetector, levels_dbfs: list[float], start_s: float = 0.0) -> float:
-    """Feed one level per stretch, from start_s; return when the last stretch ended."""
+    """Feed one level per frame, from start_s; return when the last frame ended."""
     t = start_s
     for level_dbfs in levels_dbfs:
         detector.update(
@@ -269,7 +269,7 @@ def listen(detector: SuddenNoiseDetector, levels_dbfs: list[float], start_s: flo
                 perceived_at=t, time_listened_s=t, level_dbfs=level_dbfs, robot_moving_itself=False
             )
         )
-        t = round(t + STRETCH_S, 2)
+        t = round(t + FRAME_S, 2)
     return t
 
 
@@ -306,11 +306,11 @@ def test_forgetting_keeps_the_last_sudden_noise():
 def recorded_noise_starts(name: str) -> list[float]:
     """Feed a recording to a fresh detector; return when sudden noises started.
 
-    Each row is a stretch: read at clock_s, the clock printed on screen, to
+    Each row is a frame: read at clock_s, the clock printed on screen, to
     compare with the script; time_listened_s is the sound's own clock.
     """
     with open(DATA / name) as f:
-        stretches = [
+        frames = [
             HearingFeatures(
                 perceived_at=float(row["clock_s"]),
                 time_listened_s=float(row["time_listened_s"]),
@@ -319,7 +319,7 @@ def recorded_noise_starts(name: str) -> list[float]:
             )
             for row in csv.DictReader(f)
         ]
-    return recorded_noises(stretches)
+    return recorded_noises(frames)
 
 
 def noises_between(start_s: float, end_s: float) -> list[float]:

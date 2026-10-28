@@ -17,7 +17,9 @@ class TouchSense(Sense):
     # RobotController sends new targets 50 times a second.
     PERIOD_S = 0.02
 
-    def _perceive(self, perceived_at: float, robot_moving_itself: bool) -> TouchFeatures | None:
+    def _extract_features(
+        self, perceived_at: float, robot_moving_itself: bool
+    ) -> TouchFeatures | None:
         """Describe where the antennas are, or return None if none was sent anywhere yet."""
         commanded_pose = self._shared_state.last_commanded_pose()
         if commanded_pose is None:

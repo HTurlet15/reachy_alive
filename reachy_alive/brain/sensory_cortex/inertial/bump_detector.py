@@ -27,14 +27,10 @@ class BumpDetector(Detector):
     def __init__(self, facts: InertialFacts) -> None:
         """Start with no bump to wait out."""
         super().__init__(facts)
-        self._start_afresh()
+        self.forget()
 
     def forget(self) -> None:
         """Forget the bump being waited out. The last bump stays: it still happened."""
-        self._start_afresh()
-
-    def _start_afresh(self) -> None:
-        """Feel bumps from scratch: no bump to wait out."""
         self._ignore_until = -math.inf
 
     def _detect(self, features: InertialFeatures) -> None:
