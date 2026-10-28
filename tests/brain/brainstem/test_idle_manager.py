@@ -66,7 +66,7 @@ def test_a_new_interval_applies_from_the_next_idle_move(fake_reachy_mini):
     command = manager.decide(t=2.0, shared_state=state, reachy_mini=fake_reachy_mini)
 
     assert isinstance(command, PlayMove)  # the 10 s already drawn still applies
-    
+
 
 def test_never_touches_the_idle_timer(fake_reachy_mini):
     state = state_with_interval(0.0, 0.0)

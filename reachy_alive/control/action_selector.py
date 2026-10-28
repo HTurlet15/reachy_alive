@@ -16,15 +16,16 @@ logger = logging.getLogger(__name__)
 class ActionSelector:
     """Chooses, each tick, which proposal the robot acts on.
 
-    A move requested from the settings page wins over idle behavior.
+    A move requested from the app's page wins over idle behavior.
     If several requests arrive during one move, only the latest plays.
     """
 
     def __init__(self, idle_manager: IdleManager, move_requests: queue.Queue) -> None:
-        """
+        """Keep where commands come from.
+
         Args:
             idle_manager: Proposes breathing and idle moves.
-            move_requests: Moves requested from the settings page.
+            move_requests: Moves requested from the app's page.
         """
         self._idle_manager = idle_manager
         self._move_requests = move_requests

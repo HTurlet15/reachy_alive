@@ -35,8 +35,8 @@ without any error. Leave a comment in both files pointing to the other.
 Load the recording in the constructor, and read it in `_pose_at`:
 
 ```python
-def __init__(self, library: RecordedMoves, tick_hz: float = 50.0) -> None:
-    super().__init__(tick_hz)
+def __init__(self, library: RecordedMoves) -> None:
+    super().__init__()
     self._recording = library.get("sneezing")
 
 def _pose_at(self, phase, p, elapsed_s):

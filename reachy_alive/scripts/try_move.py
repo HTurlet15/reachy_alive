@@ -1,4 +1,3 @@
-# reachy_alive/scripts/try_move.py
 """Manually trigger a single move on the robot, or in simulation, for visual testing.
 
 Unit tests can verify that a move calls the SDK correctly, but not

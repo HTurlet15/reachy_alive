@@ -103,7 +103,7 @@ they pass.
 - **Docstrings** say *what* the code does, in Google style. The *why*
   of a design choice goes in the commit message.
 
-  ## Releases
+## Releases
 
 Merging a pull request doesn't publish it. Reachy Mini Control installs the
 app from its Hugging Face Space, and the Space only receives tagged

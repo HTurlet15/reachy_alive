@@ -1,3 +1,5 @@
+"""Reachy Alive: the app that makes a Reachy Mini feel alive, and its entry point."""
+
 import logging
 import queue
 import threading
@@ -5,17 +7,21 @@ import threading
 from reachy_mini import ReachyMini, ReachyMiniApp
 from reachy_mini.motion.recorded_move import RecordedMoves
 
-from reachy_alive.control.action_selector import ActionSelector
 from reachy_alive.brain.brainstem.idle_manager import IdleManager
+from reachy_alive.brain.sensory_cortex.sense_manager import SenseManager
+from reachy_alive.control.action_selector import ActionSelector
+from reachy_alive.control.robot_controller import RobotController
 from reachy_alive.moves.base import LibraryMove, Move
 from reachy_alive.moves.sneezing import Sneezing
 from reachy_alive.moves.stretching import Stretching
 from reachy_alive.moves.yawning import Yawning
-from reachy_alive.control.robot_controller import RobotController
 from reachy_alive.routes import create_router
 from reachy_alive.shared_state import SharedState
 
+
 class ReachyAlive(ReachyMiniApp):
+    """The app as the SDK runs it: it builds every part, wires them, and runs the loop."""
+
     custom_app_url: str | None = "http://0.0.0.0:8042"
     request_media_backend: str | None = None
 
@@ -29,7 +35,8 @@ class ReachyAlive(ReachyMiniApp):
             reachy_mini: Connected robot instance.
             stop_event: Set by the SDK to stop the app.
         """
-        # Facts shared across threads: the idle timer, the page's settings.
+        # Facts shared across threads: the idle timer, the page's settings,
+        # what the robot senses.
         shared_state = SharedState()
 
         # The moves idle picks from. The page can play the same moves, looked
@@ -39,13 +46,25 @@ class ReachyAlive(ReachyMiniApp):
         if len(idle_moves_by_name) != len(idle_moves):
             raise ValueError("Two moves share the same name")
 
+        # The senses, each in its own thread: they read the robot and write
+        # facts to shared_state, never driving it. Built before the routes,
+        # which need their names; started after.
+        sense_manager = SenseManager(reachy_mini, shared_state)
+
         # The page's routes run in the web server's thread: they only drop
         # requested moves in this queue and read or change shared_state,
         # never touching the robot.
         move_requests: queue.Queue[Move] = queue.Queue()
         self.settings_app.include_router(
-            create_router(idle_moves_by_name, move_requests, shared_state)
+            create_router(
+                idle_moves_by_name,
+                move_requests,
+                shared_state,
+                sense_manager.available_sense_names(),
+            )
         )
+
+        sense_manager.start(stop_event)
 
         # Decide, choose, execute: IdleManager proposes, ActionSelector picks
         # a requested move over idle, RobotController drives the robot.
@@ -53,20 +72,21 @@ class ReachyAlive(ReachyMiniApp):
         action_selector = ActionSelector(idle_manager, move_requests)
         robot_controller = RobotController(action_selector)
 
-        # The control loop, in this thread, until the app stops.
-        robot_controller.run(reachy_mini, shared_state, stop_event)
-    def _build_idle_moves(self) -> list[Move]:
-        """Build the moves the idle manager picks from.
+        # The control loop, in this thread, until the app stops. The senses
+        # stop first: the robot closes once run() returns.
+        try:
+            robot_controller.run(reachy_mini, shared_state, stop_event)
+        finally:
+            stop_event.set()
+            sense_manager.join()
 
-        Raises:
-            ValueError: If a configured library move doesn't exist.
-        """
+    def _build_idle_moves(self) -> list[Move]:
+        """Build the moves the idle manager picks from."""
         pollen_emotions = RecordedMoves("pollen-robotics/reachy-mini-emotions-library")
         reachy_alive_recordings = RecordedMoves("HTurlet15/reachy-alive")
 
         # Recorded by Pollen, played as-is. Excludes waiting, mini-deep-sleep
         # and toc-toc-toc, which wedge the IK solver (pollen-robotics/reachy_mini#1417).
-        
         pollen_moves = self._library_moves(pollen_emotions, [
             "boredom1", "tired1", "serenity1", "curious1", "lonely1",
         ])
@@ -85,18 +105,7 @@ class ReachyAlive(ReachyMiniApp):
         return pollen_moves + marionette_moves + coded_moves + mixed_moves
 
     def _library_moves(self, library: RecordedMoves, names: list[str]) -> list[Move]:
-        """Wrap named moves from a library, checking they all exist.
-
-        Args:
-            library: The recorded-moves library to load from.
-            names: Move names to wrap.
-
-        Returns:
-            One LibraryMove per name.
-
-        Raises:
-            ValueError: If a name isn't in the library.
-        """
+        """Wrap named moves from a library, checking they all exist."""
         available = library.list_moves()
         missing = [name for name in names if name not in available]
         if missing:

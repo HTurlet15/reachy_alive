@@ -1,4 +1,3 @@
-# tests/conftest.py
 """Shared pytest fixtures."""
 
 from unittest.mock import MagicMock
@@ -28,8 +27,8 @@ class FakeRecording:
     HEAD = np.eye(4)
     BODY_YAW_RAD = 0.3
 
-    def __init__(self, last_frame_s: float = 100.0) -> None:
-        self.timestamps = [0.0, last_frame_s]
+    def __init__(self) -> None:
+        self.timestamps = [0.0, 100.0]
         self.evaluated_at: list[float] = []
 
     @property

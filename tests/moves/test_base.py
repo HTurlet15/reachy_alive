@@ -1,4 +1,3 @@
-# tests/moves/test_base.py
 """Unit tests for Move, PhasedMove and LibraryMove."""
 
 from pathlib import Path

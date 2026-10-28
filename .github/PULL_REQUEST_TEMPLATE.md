@@ -1,10 +1,22 @@
-## What this changes
+## Why
 
-<!-- One or two sentences. For a new move: what the move is, and how it's built (code, Marionette or mixed). -->
+<!-- The problem or the need, in one or two sentences. -->
+
+## What changes
+
+<!-- What was done, as a short list. For a new move: what the move is, and how it's built (code, Marionette or mixed). -->
+
+## How it was tested
+
+<!-- `uv run pytest`, and what was tried in simulation or on the robot. -->
+
+## Notes for the reviewer
+
+<!-- Optional: choices worth discussing, known limits, what comes next. Delete if empty. -->
 
 ## Video
 
-<!-- New or changed move: drag a short video here, in simulation or on the robot. Code review can't tell whether a move looks alive. -->
+<!-- New or changed move: drag a short video here, in simulation or on the robot. Code review can't tell whether a move looks alive. Delete otherwise. -->
 
 ## Checklist for a move
 

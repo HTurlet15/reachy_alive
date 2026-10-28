@@ -41,6 +41,7 @@ def test_head_is_never_read_at_or_past_the_recording_end(fake_library, fake_reco
 
 
 def _antenna(sneezing, phase, p, elapsed_s):
+    """Return the first antenna's angle in the sneeze's pose, at that moment."""
     _, antennas, _ = sneezing._pose_at(phase, p, elapsed_s)
     return antennas[0]
 
@@ -61,7 +62,7 @@ def test_antennas_end_where_go_neutral_expects_them(fake_library):
 
     antenna = _antenna(sneezing, "relief", 1.0, sneezing.duration_s)
 
-    assert antenna == pytest.approx(Sneezing.ANTENNA_START_RAD)
+    assert antenna == pytest.approx(Sneezing.ANTENNA_AT_NEUTRAL_RAD)
 
 
 def test_antennas_drop_to_the_sneeze_angle_in_a_few_ticks(fake_library):

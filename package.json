@@ -1,0 +1,29 @@
+{
+    "name": "reachy-alive-web-tools",
+    "private": true,
+    "description": "Linters and formatter for the app's page (reachy_alive/static). Development only.",
+    "scripts": {
+        "lint": "eslint reachy_alive/static && html-validate reachy_alive/static && stylelint \"reachy_alive/static/**/*.css\" && prettier --check reachy_alive/static",
+        "format": "prettier --write reachy_alive/static"
+    },
+    "devDependencies": {
+        "@eslint/js": "^10.0.1",
+        "eslint": "^10.13.0",
+        "globals": "^17.13.0",
+        "html-validate": "^11.17.0",
+        "prettier": "^3.9.10",
+        "stylelint": "^17.16.0",
+        "stylelint-config-standard": "^40.0.0"
+    },
+    "prettier": {
+        "tabWidth": 4,
+        "printWidth": 100
+    },
+    "stylelint": {
+        "extends": "stylelint-config-standard",
+        "rules": {
+            "custom-property-empty-line-before": null,
+            "no-descending-specificity": null
+        }
+    }
+}

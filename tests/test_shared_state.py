@@ -1,10 +1,19 @@
-# tests/test_shared_state.py
 """Unit tests for SharedState."""
 
-import pytest
 import time
 
-from reachy_alive.shared_state import DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S, SharedState
+import numpy as np
+import pytest
+
+from reachy_alive.brain.sensory_cortex.vision.vision_features import SeenFace
+from reachy_alive.shared_state import (
+    DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S,
+    CommandedPose,
+    SharedState,
+)
+
+FACE = SeenFace(x=0.1, y=-0.2, distance_m=1.0)
+FACE_MOVED = SeenFace(x=0.5, y=-0.2, distance_m=1.2)
 
 
 def test_seconds_since_last_activity_starts_near_zero():
@@ -26,6 +35,7 @@ def test_seconds_since_last_activity_increases_over_time():
     state.last_activity_at = time.monotonic() - 5.0
     assert state.seconds_since_last_activity() >= 5.0
 
+
 def test_idle_move_interval_starts_at_the_default():
     assert SharedState().idle_move_interval_range_s() == DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S
 
@@ -41,3 +51,157 @@ def test_set_idle_move_interval_rejects_min_above_max():
     with pytest.raises(ValueError):
         state.set_idle_move_interval_range_s(90.0, 60.0)
     assert state.idle_move_interval_range_s() == DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S
+
+
+def test_every_sense_is_enabled_at_first():
+    assert SharedState().is_sense_enabled("touch") is True
+
+
+def test_a_sense_switched_off_stays_off_until_switched_back_on():
+    state = SharedState()
+
+    state.set_sense_enabled("touch", False)
+    assert state.is_sense_enabled("touch") is False
+
+    state.set_sense_enabled("touch", True)
+    assert state.is_sense_enabled("touch") is True
+
+
+def test_switching_a_sense_off_leaves_the_others_on():
+    state = SharedState()
+    state.set_sense_enabled("touch", False)
+    assert state.is_sense_enabled("vision") is True
+
+
+def test_no_move_is_playing_at_first():
+    assert SharedState().is_move_playing() is False
+
+
+def test_set_move_playing_records_whether_a_move_plays():
+    state = SharedState()
+
+    state.set_move_playing(True)
+    assert state.is_move_playing() is True
+
+    state.set_move_playing(False)
+    assert state.is_move_playing() is False
+
+
+def test_no_move_ended_at_first():
+    assert SharedState().last_move_ended_at() is None
+
+
+def test_the_end_of_a_move_is_recorded():
+    state = SharedState()
+    state.set_move_playing(True)
+
+    before = time.monotonic()
+    state.set_move_playing(False)
+
+    assert before <= state.last_move_ended_at() <= time.monotonic()
+
+
+def test_starting_a_move_keeps_when_the_last_one_ended():
+    state = SharedState()
+    state.set_move_playing(False)
+    ended_at = state.last_move_ended_at()
+
+    state.set_move_playing(True)
+
+    assert state.last_move_ended_at() == ended_at
+
+
+def test_no_commanded_pose_at_first():
+    assert SharedState().last_commanded_pose() is None
+
+
+def test_record_commanded_pose_keeps_the_latest():
+    state = SharedState()
+    first = CommandedPose(at=1.0, head=np.eye(4), antennas=np.zeros(2))
+    second = CommandedPose(at=2.0, head=np.eye(4), antennas=np.ones(2))
+
+    state.record_commanded_pose(first)
+    state.record_commanded_pose(second)
+
+    assert state.last_commanded_pose() is second
+
+
+def test_no_bump_at_first():
+    assert SharedState().inertial.last_bump_at() is None
+
+
+def test_record_bump_keeps_the_latest():
+    inertial = SharedState().inertial
+    inertial.record_bump(10.0)
+    inertial.record_bump(12.5)
+    assert inertial.last_bump_at() == 12.5
+
+
+def test_no_antenna_is_pushed_at_first():
+    touch = SharedState().touch
+    assert touch.antenna_pushed_since("right") is None
+    assert touch.antenna_pushed_since("left") is None
+
+
+def test_a_push_is_recorded_on_its_own_side():
+    touch = SharedState().touch
+    touch.record_antenna_pushed_since("left", 3.0)
+    assert touch.antenna_pushed_since("left") == 3.0
+    assert touch.antenna_pushed_since("right") is None
+
+
+def test_no_sudden_noise_at_first():
+    assert SharedState().hearing.last_sudden_noise_at() is None
+
+
+def test_record_sudden_noise_keeps_the_latest():
+    hearing = SharedState().hearing
+    hearing.record_sudden_noise(10.0)
+    hearing.record_sudden_noise(12.5)
+    assert hearing.last_sudden_noise_at() == 12.5
+
+
+def test_no_face_at_first():
+    vision = SharedState().vision
+    assert vision.face_seen_since() is None
+    assert vision.last_face_lost_at() is None
+    assert vision.main_face() is None
+
+
+def test_a_face_appears_with_its_position():
+    vision = SharedState().vision
+    vision.record_face_appeared(at=10.0, face=FACE)
+    assert vision.face_seen_since() == 10.0
+    assert vision.main_face() == FACE
+
+
+def test_the_face_moves_but_stays_seen_since_it_appeared():
+    vision = SharedState().vision
+    vision.record_face_appeared(at=10.0, face=FACE)
+
+    vision.record_main_face(FACE_MOVED)
+
+    assert vision.face_seen_since() == 10.0
+    assert vision.main_face() == FACE_MOVED
+
+
+def test_a_lost_face_leaves_no_position_behind():
+    vision = SharedState().vision
+    vision.record_face_appeared(at=10.0, face=FACE)
+
+    vision.record_face_lost(at=15.0)
+
+    assert vision.face_seen_since() is None
+    assert vision.main_face() is None
+    assert vision.last_face_lost_at() == 15.0
+
+
+def test_a_forgotten_face_leaves_no_departure_behind():
+    vision = SharedState().vision
+    vision.record_face_appeared(at=10.0, face=FACE)
+
+    vision.forget_face()
+
+    assert vision.face_seen_since() is None
+    assert vision.main_face() is None
+    assert vision.last_face_lost_at() is None

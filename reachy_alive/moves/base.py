@@ -85,9 +85,12 @@ class Move(ABC):
     RETURN_DURATION_S = 0.5
     SOUNDS_DIR = Path(__file__).resolve().parent.parent / "assets" / "sounds"
 
+    # Built by prepare(), reset after each play: None means not prepared.
+    _remote_sounds: dict[str, str] | None = None
+
     @property
     def name(self) -> str:
-        """Identifier of the move, used in logs and by the settings page.
+        """Identifier of the move, used in logs and by the app's page.
 
         Lowercase words joined by hyphens, like recorded moves. Derived from
         the class name by default: DeepBreath becomes deep-breath.
@@ -105,16 +108,15 @@ class Move(ABC):
         Args:
             reachy_mini: Connected robot instance.
         """
-        # None means nobody called prepare() yet -- the attribute doesn't
-        # even exist before the first call -- so upload the sounds now.
-        if getattr(self, "_remote_sounds", None) is None:
+        if self._remote_sounds is None:
             self.prepare(reachy_mini)
         try:
             self._perform(reachy_mini)
             self.go_neutral(reachy_mini)
         finally:
-            # Uploads are keyed by file name, and another move may overwrite
-            # ours before this one plays again -- so the next play re-uploads.
+            # When the app runs on a laptop against a Wireless robot, the
+            # robot keeps uploads in one folder, by file name alone: any move
+            # or app may overwrite ours before the next play, which re-uploads.
             self._remote_sounds = None
 
     def prepare(self, reachy_mini: ReachyMini) -> None:
@@ -259,7 +261,8 @@ class PhasedMove(Move):
         self.step_s = 1.0 / tick_hz
 
         durations = [self._phase_duration(phase) for phase in self.PHASE_SOUNDS]
-        self.phase_ends_s = dict(zip(self.PHASE_SOUNDS, itertools.accumulate(durations)))
+        phase_ends_s = itertools.accumulate(durations)
+        self.phase_ends_s = dict(zip(self.PHASE_SOUNDS, phase_ends_s, strict=True))
         self.duration_s = sum(durations)
 
     def sound_paths(self) -> list[Path]:
@@ -284,9 +287,9 @@ class PhasedMove(Move):
                 that alternates, through ``alternating_sign``.
 
         Returns:
-            (head pose, [left antenna, right antenna], body yaw), angles in
-            radians. Return NEUTRAL_BODY_YAW_RAD if the move doesn't turn
-            the body.
+            (head pose, antennas in ANTENNA_SIDES order (right, left), body
+            yaw), angles in radians. Return NEUTRAL_BODY_YAW_RAD if the move
+            doesn't turn the body.
         """
 
     def _on_start(self) -> None:
@@ -319,17 +322,7 @@ class PhasedMove(Move):
             time.sleep(self.step_s)
 
     def _phase_duration(self, phase: str) -> float:
-        """Return a phase's duration: its sound's length plus any padding.
-
-        Args:
-            phase: Name of the phase.
-
-        Returns:
-            Duration in seconds.
-
-        Raises:
-            FileNotFoundError: If the phase's sound file is missing.
-        """
+        """Return a phase's duration, in seconds: its sound's length plus any padding."""
         padding = self.PHASE_PADDING_S.get(phase, 0.0)
         sound = self.PHASE_SOUNDS[phase]
         if sound is None:
@@ -342,14 +335,7 @@ class PhasedMove(Move):
         return sf.info(str(path)).duration + padding
 
     def _phase_at(self, elapsed_s: float) -> tuple[str, float]:
-        """Return the running phase and the progress within it.
-
-        Args:
-            elapsed_s: Seconds since the move started.
-
-        Returns:
-            (phase name, local progress from 0 to 1).
-        """
+        """Return the running phase and the progress within it, from 0 to 1."""
         phase_start = 0.0
         for phase, phase_end in self.phase_ends_s.items():
             if elapsed_s < phase_end:
@@ -374,7 +360,8 @@ class LibraryMove(Move):
     """
 
     def __init__(self, move_name: str, library: RecordedMoves) -> None:
-        """
+        """Keep which recording to play, and where to find it.
+
         Args:
             move_name: Name of the move in the library.
             library: The library to load it from.
@@ -388,7 +375,7 @@ class LibraryMove(Move):
         return self.move_name
 
     def sound_paths(self) -> list[Path]:
-        # The recording carries its own sound, played by the SDK itself.
+        """List no sound: the recording carries its own, played by the SDK itself."""
         return []
 
     def _perform(self, reachy_mini: ReachyMini) -> None:

@@ -25,7 +25,7 @@ class Stretching(PhasedMove):
         "crouch": None,
         "rise": "rising.wav",
         "tremble": "stretching.wav",
-        "release": "exhale.wav",
+        "release": "release.wav",
     }
     SILENT_PHASE_DURATIONS_S = {"crouch": 0.4}
 

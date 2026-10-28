@@ -1,6 +1,7 @@
-"""Mixed sneeze move: the head comes from a Marionette recording, the
-antennas are coded on top -- they climb with each inhale, then drop on the
-sneeze.
+"""Mixed sneeze move: a recorded head, with coded antennas on top.
+
+The head comes from a Marionette recording. The antennas climb with each
+inhale, then drop on the sneeze.
 
 This is the reference mixed move. See moves/README.md for how to write one.
 """
@@ -44,7 +45,7 @@ class Sneezing(PhasedMove):
     INHALE_PHASES = ("inhale1", "inhale2", "inhale3")
 
     # Both antennas move together, mirrored: one value drives the pair.
-    ANTENNA_START_RAD = NEUTRAL_ANTENNAS_RAD[0]
+    ANTENNA_AT_NEUTRAL_RAD = NEUTRAL_ANTENNAS_RAD[0]
 
     # Inhales: the antennas climb one step per inhale while shaking, then
     # relax a little during the silence that follows.
@@ -59,14 +60,13 @@ class Sneezing(PhasedMove):
     SNEEZE_ANGLE_VARIATION_RAD = np.deg2rad(10.0)
     SNEEZE_DROP_DURATION_S = 0.06  # about 3 ticks at 50 Hz
 
-    def __init__(self, library: RecordedMoves, tick_hz: float = 50.0) -> None:
+    def __init__(self, library: RecordedMoves) -> None:
         """Load the head recording.
 
         Args:
             library: Recorded-moves library holding the head recording.
-            tick_hz: Frequency, in Hz, at which the pose is updated.
         """
-        super().__init__(tick_hz)
+        super().__init__()
         self._recording = library.get(self.RECORDING_NAME)
 
         # Where, in each inhale's progress p, its sound ends and its
@@ -106,12 +106,12 @@ class Sneezing(PhasedMove):
     def _inhale_antenna(self, phase: str, p: float, elapsed_s: float) -> float:
         """Climb one step while shaking, then relax in the silence. p: 0 -> 1."""
         index = self.INHALE_PHASES.index(phase)
-        top = self.ANTENNA_START_RAD + (index + 1) * self.RISE_PER_INHALE_RAD
+        top = self.ANTENNA_AT_NEUTRAL_RAD + (index + 1) * self.RISE_PER_INHALE_RAD
         silence_start_p = self._silence_start_p[phase]
 
         if p < silence_start_p:
             if index == 0:
-                start = self.ANTENNA_START_RAD
+                start = self.ANTENNA_AT_NEUTRAL_RAD
             else:
                 start = top - self.RISE_PER_INHALE_RAD - self.RELAX_IN_SILENCE_RAD
             climb = interpolate(start, top, p / silence_start_p)
@@ -123,10 +123,10 @@ class Sneezing(PhasedMove):
 
     def _sneeze_antenna(self, elapsed_s: float) -> float:
         """Drop at once to this play's sneeze angle, then hold."""
-        since_sneeze_s = elapsed_s - self.phase_ends_s["inhale3"]
+        since_sneeze_s = elapsed_s - self.phase_ends_s[self.INHALE_PHASES[-1]]
         drop = min(since_sneeze_s / self.SNEEZE_DROP_DURATION_S, 1.0)
         last_inhale_end = (
-            self.ANTENNA_START_RAD
+            self.ANTENNA_AT_NEUTRAL_RAD
             + len(self.INHALE_PHASES) * self.RISE_PER_INHALE_RAD
             - self.RELAX_IN_SILENCE_RAD
         )
@@ -134,4 +134,4 @@ class Sneezing(PhasedMove):
 
     def _relief_antenna(self, p: float) -> float:
         """Rise slowly from the sneeze angle back to the start. p: 0 -> 1."""
-        return interpolate(self._sneeze_angle_rad, self.ANTENNA_START_RAD, p)
+        return interpolate(self._sneeze_angle_rad, self.ANTENNA_AT_NEUTRAL_RAD, p)
