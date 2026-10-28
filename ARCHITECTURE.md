@@ -25,42 +25,37 @@ robot.
 
 ## The map
 
-The robot runs one loop. Read it from left to right: something proposes,
-one part chooses, one part executes, and the senses perceive what happened.
-Their facts go back to whoever proposes. The dashed boxes come later (see
-[Where it's going](#where-its-going)).
+Read it from left to right: something proposes, one part chooses, one part
+executes, and the senses perceive what happened. Their facts land in
+`SharedState`, where every proposer reads them: that closes the loop. The
+dashed boxes come later (see [Where it's going](#where-its-going)).
 
 ```mermaid
 flowchart LR
     subgraph decide["1 · Propose"]
         direction TB
-        page["the app's page<br/>(a click)"]
-        idle["IdleManager<br/>(brainstem)"]
-        reflexes["reflexes<br/>(amygdala)"]:::later
-        cortex["deliberation<br/>(prefrontal_cortex)"]:::later
+        page["the app's page:<br/>a requested move"]
+        idle["IdleManager (brainstem):<br/>breathing or an idle move"]
+        reflexes["reflexes (amygdala):<br/>a reflex"]:::later
+        cortex["deliberation (prefrontal_cortex):<br/>a decision"]:::later
     end
     subgraph choose["2 · Choose"]
         selector["ActionSelector<br/>(by priority)"]
     end
     subgraph act["3 · Execute"]
+        direction TB
         controller["RobotController<br/>(control loop, 50 Hz)"] --> robot(["Reachy Mini"])
     end
     subgraph perceive["4 · Perceive"]
         senses["the senses<br/>and their detectors"]
     end
-    state[("SharedState<br/>(facts)")]
+    state[("SharedState<br/>facts, read by<br/>every proposer")]
 
-    page -->|a requested move| selector
-    idle -->|breathing or an idle move| selector
-    reflexes -.->|a reflex| selector
-    cortex -.->|a decision| selector
-    selector -->|one command| controller
-    robot -->|sensor readings| senses
-    senses -->|facts| state
-    controller -->|a move plays, ends| state
-    state -->|facts| idle
-    state -.-> reflexes
-    state -.-> cortex
+    decide -->|proposals| selector
+    selector -->|one command| act
+    act -->|sensor readings| perceive
+    act -->|a move plays, ends| state
+    perceive -->|facts| state
 
     classDef later stroke-dasharray: 5 5,color:#888
 ```
