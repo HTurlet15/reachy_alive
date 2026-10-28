@@ -17,8 +17,9 @@ class Detector(ABC):
     file of its sense's folder, where SenseManager finds it, and write
     _detect: this class hands it the features of the readings the robot
     didn't disturb. The others go to _while_robot_moves, which ignores them
-    unless overridden. Write forget too: SenseManager calls it when the
-    page switches the sense off.
+    unless overridden. Write forget too, and call it from __init__: a new
+    detector is one that just forgot. SenseManager calls it while the page
+    has the sense switched off.
     """
 
     def __init__(self, facts) -> None:
@@ -42,7 +43,9 @@ class Detector(ABC):
 
     @abstractmethod
     def forget(self) -> None:
-        """Forget everything, as if just built: the sense was switched off.
+        """Forget what is going on, as if just built: call it from __init__ too.
+
+        SenseManager calls it while the page has the sense switched off.
 
         Clear the facts of anything going on, such as an antenna pushed: the
         sense can no longer tell whether it still is. Keep past events, such
