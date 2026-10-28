@@ -28,7 +28,9 @@ class InertialSense(Sense):
         super().__init__(reachy_mini, shared_state)
         self._reported_missing_data = False
 
-    def _perceive(self, perceived_at: float, robot_moving_itself: bool) -> InertialFeatures | None:
+    def _extract_features(
+        self, perceived_at: float, robot_moving_itself: bool
+    ) -> InertialFeatures | None:
         """Describe the latest reading, or return None if the inertial unit gives none."""
         reading = self._reachy_mini.imu
         if reading is None:

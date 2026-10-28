@@ -40,7 +40,7 @@ def make_sense(chunks: list, sample_rate_hz: int = SAMPLE_RATE_HZ):
 
 def features_from(sense: HearingSense, readings: int) -> list:
     """Take `readings` readings, 10 ms apart, and return the features of the stretches they gave."""
-    readings = [sense.read_once(i * 0.01) for i in range(readings)]
+    readings = [sense.perceive(i * 0.01) for i in range(readings)]
     return [features for features in readings if features is not None]
 
 
@@ -77,7 +77,7 @@ def test_each_stretch_of_sound_gets_its_own_features():
 def test_the_features_are_dated_by_the_reading_and_timed_by_the_sound():
     sense, _, _ = make_sense(chunks_of(sound(QUIET, 0.04), STRETCH_SAMPLES))
 
-    stretches = [sense.read_once(5.0), sense.read_once(5.5)]
+    stretches = [sense.perceive(5.0), sense.perceive(5.5)]
 
     assert [features.perceived_at for features in stretches] == [5.0, 5.5]
     assert [features.time_listened_s for features in stretches] == pytest.approx([0.02, 0.04])
@@ -86,7 +86,7 @@ def test_the_features_are_dated_by_the_reading_and_timed_by_the_sound():
 def test_a_loud_stretch_reads_loud():
     sense, _, _ = make_sense(chunks_of(sound(LOUD, 0.02), STRETCH_SAMPLES))
 
-    assert sense.read_once(0.0).level_dbfs == pytest.approx(20 * math.log10(LOUD))
+    assert sense.perceive(0.0).level_dbfs == pytest.approx(20 * math.log10(LOUD))
 
 
 def test_small_chunks_are_gathered_into_stretches():
@@ -107,7 +107,7 @@ def test_a_big_chunk_gives_one_stretch_per_reading():
 def test_no_features_without_sound():
     sense, _, _ = make_sense([])
 
-    assert sense.read_once(0.0) is None
+    assert sense.perceive(0.0) is None
 
 
 # The robot's own moves
@@ -117,7 +117,7 @@ def test_the_features_say_when_a_move_plays():
     sense, state, _ = make_sense(chunks_of(sound(QUIET, 0.02), STRETCH_SAMPLES))
     state.set_move_playing(True)
 
-    assert sense.read_once(0.0).robot_moving_itself is True
+    assert sense.perceive(0.0).robot_moving_itself is True
 
 
 def test_the_features_say_when_the_robot_just_moved_itself():
@@ -126,8 +126,8 @@ def test_the_features_say_when_the_robot_just_moved_itself():
     state.set_move_playing(False)
     ended_at = state.last_move_ended_at()
 
-    assert sense.read_once(ended_at + 0.3).robot_moving_itself is True  # within SETTLE_AFTER_MOVE_S
-    assert sense.read_once(ended_at + 1.0).robot_moving_itself is False
+    assert sense.perceive(ended_at + 0.3).robot_moving_itself is True  # within SETTLE_AFTER_MOVE_S
+    assert sense.perceive(ended_at + 1.0).robot_moving_itself is False
 
 
 # Microphones
@@ -153,12 +153,12 @@ def test_sound_left_over_when_switched_off_is_not_read_once_switched_back_on():
     sense, _, reachy_mini = make_sense([])
     sense.open()
     reachy_mini.media.get_audio_sample.side_effect = [sound(LOUD, 0.04)] + [None] * 100
-    sense.read_once(0.0)  # one chunk, two stretches: the first is read, the second waits
+    sense.perceive(0.0)  # one chunk, two stretches: the first is read, the second waits
     sense.close()
 
     sense.open()
 
-    assert sense.read_once(60.0) is None  # read now, it would be dated now
+    assert sense.perceive(60.0) is None  # read now, it would be dated now
 
 
 def microphones_with_a_queue(queued: list, fresh: np.ndarray):
@@ -187,7 +187,7 @@ def test_sound_queued_while_switched_off_is_dropped():
 
     sense.open()
 
-    assert sense.read_once(0.0).level_dbfs == pytest.approx(-60.0)
+    assert sense.perceive(0.0).level_dbfs == pytest.approx(-60.0)
 
 
 def test_dropping_queued_sound_gives_up_after_max_drop_s(monkeypatch):

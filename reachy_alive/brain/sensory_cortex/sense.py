@@ -10,12 +10,13 @@ from reachy_alive.shared_state import SharedState
 class Sense(ABC):
     """Reads one sensor and describes each reading by its features.
 
-    SenseManager opens it, calls read_once every PERIOD_S until the app stops,
+    SenseManager opens it, calls perceive every PERIOD_S until the app stops,
     then closes it, and hands the features to the sense's detectors. When the
     page switches the sense off, SenseManager closes it, and opens it again once
     switched back on: open and close may be called many times. To write a
-    sense, give it a NAME and write _perceive. A sense never drives the robot,
-    and knows nothing of its detectors.
+    sense, give it a NAME and write _extract_features: read the sensor, and
+    describe what it gives as features. A sense never drives the robot, and
+    knows nothing of its detectors.
     """
 
     # What the page calls the sense, to switch it off: "vision", for example.
@@ -64,17 +65,22 @@ class Sense(ABC):
         with nothing kept from before it was switched off.
         """
 
-    def read_once(self, now: float):
-        """Read the sensor once, and return its features, or None if it gave nothing new.
+    def perceive(self, now: float):
+        """Return the features of one reading, or None if the sensor gave nothing new.
+
+        Works out here, the same way for every sense, whether the robot is
+        moving itself, then lets the sense extract its features.
 
         Args:
             now: Time of the reading, in seconds, on time.monotonic()'s clock.
         """
-        return self._perceive(perceived_at=now, robot_moving_itself=self._robot_moving_itself(now))
+        return self._extract_features(
+            perceived_at=now, robot_moving_itself=self._robot_moving_itself(now)
+        )
 
     @abstractmethod
-    def _perceive(self, perceived_at: float, robot_moving_itself: bool):
-        """Read the sensor, and return its features, or None if it gave nothing new.
+    def _extract_features(self, perceived_at: float, robot_moving_itself: bool):
+        """Read the sensor, and describe what it gives as features, or return None if nothing new.
 
         Every sense writes it, and defines its features in its own folder:
         VisionFeatures for the vision sense, for example. Only describes what

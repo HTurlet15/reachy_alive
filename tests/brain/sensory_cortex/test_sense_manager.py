@@ -105,7 +105,7 @@ class ScriptedSense(Sense):
     def close(self) -> None:
         self.events.append("close")
 
-    def _perceive(self, perceived_at: float, robot_moving_itself: bool):
+    def _extract_features(self, perceived_at: float, robot_moving_itself: bool):
         self.events.append("read")
         features = self._features.pop(0)
         if not self._features:
@@ -154,7 +154,7 @@ def test_the_sense_is_opened_before_reading_and_closed_after():
 
 def test_a_sense_that_fails_is_logged_and_closed(caplog):
     stop_event = threading.Event()
-    sense = ScriptedSense([], stop_event)  # no features to give: read_once fails
+    sense = ScriptedSense([], stop_event)  # no features to give: perceive fails
 
     SenseManager.watch(sense, [], stop_event)
 
@@ -220,7 +220,7 @@ class EndlessSense(Sense):
     def close(self) -> None:
         self.events.append("close")
 
-    def _perceive(self, perceived_at: float, robot_moving_itself: bool):
+    def _extract_features(self, perceived_at: float, robot_moving_itself: bool):
         return "features"
 
 

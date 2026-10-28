@@ -64,7 +64,9 @@ class HearingSense(Sense):
         self._reachy_mini.media.start_recording()
         self._drop_sound_queued_while_off()
 
-    def _perceive(self, perceived_at: float, robot_moving_itself: bool) -> HearingFeatures | None:
+    def _extract_features(
+        self, perceived_at: float, robot_moving_itself: bool
+    ) -> HearingFeatures | None:
         """Describe the next stretch of sound, or return None if no full stretch came yet."""
         if not self._has_full_stretch():
             self._add_next_chunk()

@@ -140,7 +140,7 @@ class SenseManager:
     def _read_once(sense: Sense, detectors: list, stop_event: threading.Event) -> None:
         """Read the sense once, hand its features on, and wait for the rest of PERIOD_S."""
         started_at = time.monotonic()
-        features = sense.read_once(started_at)
+        features = sense.perceive(started_at)
         if features is not None:
             SenseManager._hand_features(features, detectors)
         elapsed_s = time.monotonic() - started_at
