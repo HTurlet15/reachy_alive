@@ -35,6 +35,9 @@ class HearingSense(Sense):
     QUEUED_CHUNK_S = 0.005
     # Dropping old sound never takes longer: the sense would sit deaf.
     MAX_DROP_S = 1.0
+    # Read every few milliseconds while switched on: a longer gap between two
+    # readings means the page had switched hearing off.
+    SWITCHED_OFF_GAP_S = 0.5
 
     def __init__(self, reachy_mini: ReachyMini, shared_state: SharedState) -> None:
         """Size the stretches from the microphones' sample rate.
@@ -49,25 +52,28 @@ class HearingSense(Sense):
         self._samples_not_read_yet = np.zeros(0)
         # The sound's own clock, never reset: chunks can arrive late, the sound itself can't.
         self._time_listened_s = 0.0
+        self._last_read_at: float | None = None  # None until the first reading
 
     def is_available(self) -> bool:
         """Return whether the robot has microphones: without any, the sample rate isn't positive."""
         return self._sample_rate_hz > 0
 
-    def open(self) -> None:
-        """Start recording, without the sound left over from before the sense was switched off.
-
-        Read now, that sound would be dated now: a door slammed minutes ago
-        would be heard as a sudden noise.
-        """
-        self._samples_not_read_yet = np.zeros(0)
-        self._reachy_mini.media.start_recording()
-        self._drop_sound_queued_while_off()
-
     def _extract_features(
         self, perceived_at: float, robot_moving_itself: bool
     ) -> HearingFeatures | None:
-        """Describe the next stretch of sound, or return None if no full stretch came yet."""
+        """Describe the next stretch of sound, or return None if no full stretch came yet.
+
+        The first reading starts the recording. After a long gap, hearing was
+        switched off: the sound left over from before is dropped. Read now, it
+        would be dated now, and a door slammed minutes ago would be a sudden noise.
+        """
+        if self._last_read_at is None:
+            self._reachy_mini.media.start_recording()
+        elif perceived_at - self._last_read_at > self.SWITCHED_OFF_GAP_S:
+            self._drop_sound_heard_before()
+        self._last_read_at = perceived_at
+
+
         if not self._has_full_stretch():
             self._add_next_chunk()
         if not self._has_full_stretch():
@@ -82,18 +88,14 @@ class HearingSense(Sense):
             robot_moving_itself=robot_moving_itself,
         )
 
-    def close(self) -> None:
-        """Stop recording."""
-        self._reachy_mini.media.stop_recording()
+    def _drop_sound_heard_before(self) -> None:
+        """Drop the sound not read yet, and the chunks the microphones queued meanwhile.
 
-    def _drop_sound_queued_while_off(self) -> None:
-        """Drop the chunks the microphones queued while the sense was switched off.
-
-        Through WebRTC, when the app runs on a computer, the SDK's stop_recording
-        does nothing: sound keeps queuing, up to 500 chunks. Queued chunks come
-        back at once; the first one that makes us wait is fresh, and the queue
-        is empty.
+        Recording never stops: sound keeps queuing in the SDK, up to 500 chunks.
+        Queued chunks come back at once; the first one that makes us wait is
+        fresh, and the queue is empty.
         """
+        self._samples_not_read_yet = np.zeros(0) #We drop the queue of sound not read yet
         give_up_at = time.monotonic() + self.MAX_DROP_S
         while time.monotonic() < give_up_at:
             asked_at = time.monotonic()

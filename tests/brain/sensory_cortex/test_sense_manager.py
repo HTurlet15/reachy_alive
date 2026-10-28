@@ -89,7 +89,7 @@ def test_every_detector_is_given_the_sense_facts(made_up_sense):
 
 
 class ScriptedSense(Sense):
-    """Gives the features it is told to, then stops the run. Notes when opened and closed."""
+    """Gives the features it is told to, then stops the run. Counts its readings."""
 
     NAME = "scripted"
 
@@ -97,16 +97,10 @@ class ScriptedSense(Sense):
         super().__init__(MagicMock(), SharedState())
         self._features = list(features)
         self._stop_event = stop_event
-        self.events: list[str] = []
-
-    def open(self) -> None:
-        self.events.append("open")
-
-    def close(self) -> None:
-        self.events.append("close")
+        self.readings = 0
 
     def _extract_features(self, perceived_at: float, robot_moving_itself: bool):
-        self.events.append("read")
+        self.readings += 1
         features = self._features.pop(0)
         if not self._features:
             self._stop_event.set()
@@ -143,22 +137,13 @@ def test_a_reading_without_features_is_skipped():
     assert detector.features == ["features"]
 
 
-def test_the_sense_is_opened_before_reading_and_closed_after():
-    stop_event = threading.Event()
-    sense = ScriptedSense(["features 1", "features 2"], stop_event)
-
-    SenseManager.run_sense(sense, [], stop_event)
-
-    assert sense.events == ["open", "read", "read", "close"]
-
-
-def test_a_sense_that_fails_is_logged_and_closed(caplog):
+def test_a_sense_that_fails_is_logged_and_stopped(caplog):
     stop_event = threading.Event()
     sense = ScriptedSense([], stop_event)  # no features to give: perceive fails
 
     SenseManager.run_sense(sense, [], stop_event)
 
-    assert sense.events == ["open", "read", "close"]
+    assert sense.readings == 1
     assert "ScriptedSense failed: stopped" in caplog.text
 
 
@@ -205,20 +190,13 @@ def test_a_sense_without_parts_is_named_after_itself():
 
 
 class EndlessSense(Sense):
-    """Gives features at every reading, until the run stops. Notes when opened and closed."""
+    """Gives features at every reading, until the run stops."""
 
     NAME = "endless"
     PERIOD_S = 0.01
 
     def __init__(self, shared_state: SharedState) -> None:
         super().__init__(MagicMock(), shared_state)
-        self.events: list[str] = []
-
-    def open(self) -> None:
-        self.events.append("open")
-
-    def close(self) -> None:
-        self.events.append("close")
 
     def _extract_features(self, perceived_at: float, robot_moving_itself: bool):
         return "features"
@@ -276,20 +254,19 @@ def running(monkeypatch):
     running.stop()
 
 
-def test_a_sense_switched_off_is_closed_and_its_detectors_forget(running):
+def test_the_detectors_of_a_sense_switched_off_forget(running):
     running.start()
     wait_until(lambda: running.detector.features)
 
     running.switch(False)
 
-    wait_until(lambda: running.sense.events == ["open", "close"])
-    assert running.detector.forgotten == 1
+    wait_until(lambda: running.detector.forgotten >= 1)
 
 
 def test_a_sense_switched_off_is_not_read(running):
     running.start()
     running.switch(False)
-    wait_until(lambda: "close" in running.sense.events)
+    wait_until(lambda: running.detector.forgotten >= 1)
     read_before = len(running.detector.features)
 
     time.sleep(0.05)  # five readings, were it still read
@@ -297,33 +274,21 @@ def test_a_sense_switched_off_is_not_read(running):
     assert len(running.detector.features) == read_before
 
 
-def test_a_sense_switched_back_on_is_opened_again(running):
+def test_a_sense_switched_back_on_is_read_again(running):
     running.start()
     running.switch(False)
-    wait_until(lambda: "close" in running.sense.events)
+    wait_until(lambda: running.detector.forgotten >= 1)
     read_while_off = len(running.detector.features)
 
     running.switch(True)
 
     wait_until(lambda: len(running.detector.features) > read_while_off)
-    assert running.sense.events == ["open", "close", "open"]
 
 
-def test_a_sense_switched_off_from_the_start_is_never_opened(running):
+def test_a_sense_switched_off_from_the_start_is_never_read(running):
     running.switch(False)
     running.start()
 
     time.sleep(0.05)
 
-    assert running.sense.events == []
-    assert running.detector.forgotten == 0  # nothing to forget
-
-
-def test_a_sense_switched_off_is_not_closed_again_when_the_app_stops(running):
-    running.start()
-    running.switch(False)
-    wait_until(lambda: "close" in running.sense.events)
-
-    running.stop()
-
-    assert running.sense.events == ["open", "close"]
+    assert running.detector.features == []

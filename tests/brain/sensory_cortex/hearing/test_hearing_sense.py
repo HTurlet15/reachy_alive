@@ -77,9 +77,9 @@ def test_each_stretch_of_sound_gets_its_own_features():
 def test_the_features_are_dated_by_the_reading_and_timed_by_the_sound():
     sense, _, _ = make_sense(chunks_of(sound(QUIET, 0.04), STRETCH_SAMPLES))
 
-    stretches = [sense.perceive(5.0), sense.perceive(5.5)]
+    stretches = [sense.perceive(5.0), sense.perceive(5.2)]
 
-    assert [features.perceived_at for features in stretches] == [5.0, 5.5]
+    assert [features.perceived_at for features in stretches] == [5.0, 5.2]
     assert [features.time_listened_s for features in stretches] == pytest.approx([0.02, 0.04])
 
 
@@ -127,7 +127,7 @@ def test_the_features_say_when_the_robot_just_moved_itself():
     ended_at = state.last_move_ended_at()
 
     assert sense.perceive(ended_at + 0.3).robot_moving_itself is True  # within SETTLE_AFTER_MOVE_S
-    assert sense.perceive(ended_at + 1.0).robot_moving_itself is False
+    assert sense.perceive(ended_at + 0.6).robot_moving_itself is False
 
 
 # Microphones
@@ -139,26 +139,29 @@ def test_without_microphones_the_sense_is_not_available():
     assert sense.is_available() is False
 
 
-def test_opening_and_closing_start_and_stop_the_recording():
+def test_the_first_reading_starts_the_recording_once():
     sense, _, reachy_mini = make_sense([])
 
-    sense.open()
-    sense.close()
+    sense.perceive(0.0)
+    sense.perceive(0.01)
 
     reachy_mini.media.start_recording.assert_called_once()
-    reachy_mini.media.stop_recording.assert_called_once()
 
 
 def test_sound_left_over_when_switched_off_is_not_read_once_switched_back_on():
-    sense, _, reachy_mini = make_sense([])
-    sense.open()
-    reachy_mini.media.get_audio_sample.side_effect = [sound(LOUD, 0.04)] + [None] * 100
-    sense.perceive(0.0)  # one chunk, two stretches: the first is read, the second waits
-    sense.close()
+    sense, _, _ = make_sense([sound(LOUD, 0.04)])  # one chunk: two stretches
+    sense.perceive(0.0)  # the first stretch is read, the second waits
 
-    sense.open()
+    # Hearing switched off for a minute: no reading meanwhile.
 
     assert sense.perceive(60.0) is None  # read now, it would be dated now
+
+
+def test_a_short_gap_between_readings_keeps_the_sound():
+    sense, _, _ = make_sense([sound(LOUD, 0.04)])
+    sense.perceive(0.0)
+
+    assert sense.perceive(0.1) is not None  # the robot was just slow, not switched off
 
 
 def microphones_with_a_queue(queued: list, fresh: np.ndarray):
@@ -180,24 +183,24 @@ def microphones_with_a_queue(queued: list, fresh: np.ndarray):
 def test_sound_queued_while_switched_off_is_dropped():
     # Through WebRTC, stop_recording does nothing: a noise made while
     # switched off waits in the queue.
-    sense, _, reachy_mini = make_sense([])
+    sense, _, reachy_mini = make_sense([sound(QUIET, 0.02)])
+    sense.perceive(0.0)
     queued = chunks_of(sound(LOUD, 1.0), STRETCH_SAMPLES)
     fresh = sound(QUIET, 0.02)
     reachy_mini.media.get_audio_sample.side_effect = microphones_with_a_queue(queued, fresh)
 
-    sense.open()
-
-    assert sense.perceive(0.0).level_dbfs == pytest.approx(-60.0)
+    assert sense.perceive(60.0).level_dbfs == pytest.approx(-60.0)
 
 
 def test_dropping_queued_sound_gives_up_after_max_drop_s(monkeypatch):
     monkeypatch.setattr(HearingSense, "MAX_DROP_S", 0.05)
-    sense, _, reachy_mini = make_sense([])
+    sense, _, reachy_mini = make_sense([sound(QUIET, 0.02)])
+    sense.perceive(0.0)
     chunk = sound(QUIET, 0.02)
     reachy_mini.media.get_audio_sample.side_effect = itertools.repeat(chunk)  # never empties
     started_at = time.monotonic()
 
-    sense.open()
+    sense.perceive(60.0)
 
     assert time.monotonic() - started_at < 0.5
 

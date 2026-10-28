@@ -39,15 +39,6 @@ def test_a_sense_is_available_and_reads_as_fast_as_it_can_by_default():
     assert sense.PERIOD_S == 0.0
 
 
-def test_opening_and_closing_do_nothing_by_default():
-    sense = MinimalSense(SharedState())
-
-    sense.open()
-    sense.close()
-
-    assert sense.perceive(1.0) is not None
-
-
 def test_a_reading_gives_the_features_dated_by_the_reading():
     features = MinimalSense(SharedState()).perceive(12.0)
 

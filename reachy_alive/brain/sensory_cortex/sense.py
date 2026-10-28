@@ -10,13 +10,12 @@ from reachy_alive.shared_state import SharedState
 class Sense(ABC):
     """Reads one sensor and describes each reading by its features.
 
-    SenseManager opens it, calls perceive every PERIOD_S until the app stops,
-    then closes it, and hands the features to the sense's detectors. When the
-    page switches the sense off, SenseManager closes it, and opens it again once
-    switched back on: open and close may be called many times. To write a
-    sense, give it a NAME and write _extract_features: read the sensor, and
-    describe what it gives as features. A sense never drives the robot, and
-    knows nothing of its detectors.
+    SenseManager calls perceive every PERIOD_S until the app stops, and hands
+    the features to the sense's detectors. While the page has the sense
+    switched off, perceive isn't called. To write a sense, give it a NAME and
+    write _extract_features: read the sensor, and describe what it gives as
+    features. A sense never drives the robot, and knows nothing of its
+    detectors.
     """
 
     # What the page calls the sense, to switch it off: "vision", for example.
@@ -58,13 +57,6 @@ class Sense(ABC):
         """Return whether the sense should run: until the page switches it off, or all its parts."""
         return any(self._shared_state.is_sense_enabled(name) for name in self.names())
 
-    def open(self) -> None:
-        """Get the sensor ready, before the first reading. By default, nothing to do.
-
-        Called again each time the sense is switched back on: start afresh,
-        with nothing kept from before it was switched off.
-        """
-
     def perceive(self, now: float):
         """Return the features of one reading, or None if the sensor gave nothing new.
 
@@ -93,9 +85,6 @@ class Sense(ABC):
                 the robot to be still, to give the features: the sense may
                 perceive the robot itself.
         """
-
-    def close(self) -> None:
-        """Release the sensor, after the last reading. By default, nothing to do."""
 
     def _robot_moving_itself(self, now: float) -> bool:
         """Whether a move plays, or ended less than SETTLE_AFTER_MOVE_S before `now`."""

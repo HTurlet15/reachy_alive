@@ -119,33 +119,22 @@ class SenseManager:
 
         Each turn, while the page has the sense switched on: perceive, hand the
         features to every detector, then wait for the rest of PERIOD_S. Switched
-        off, the sense is closed, so it costs nothing, and its detectors forget
-        what they knew; it is opened again once switched back on. A sense that
-        fails is logged and stopped, and closed all the same. A detector that
-        fails is switched off, so the sense and the other detectors keep going.
+        off, the sense isn't read, so it costs nothing, and its detectors forget
+        what they knew: forgetting again changes nothing. A sense that fails is
+        logged and stopped. A detector that fails is switched off, so the sense
+        and the other detectors keep going.
 
         Args:
             sense: The sense to run.
             detectors: Each has update(features) and forget().
             stop_event: Set externally to stop the sense.
         """
-        sense_name = type(sense).__name__
-        is_open = False
         try:
             while not stop_event.is_set():
                 if not sense.is_enabled():
-                    if is_open:
-                        is_open = False  # first: a close that fails isn't tried again
-                        sense.close()
-                        SenseManager._make_detectors_forget(detectors)
-                        logger.info("%s switched off", sense_name)
+                    SenseManager._make_detectors_forget(detectors)
                     stop_event.wait(SenseManager.OFF_CHECK_S)  # wakes at once on stop
                     continue
-
-                if not is_open:
-                    sense.open()
-                    is_open = True
-                    logger.info("%s switched on", sense_name)
 
                 started_at = time.monotonic()
                 features = sense.perceive(started_at)
@@ -154,10 +143,7 @@ class SenseManager:
                 elapsed_s = time.monotonic() - started_at
                 stop_event.wait(max(0.0, sense.PERIOD_S - elapsed_s))  # wakes at once on stop
         except Exception:
-            logger.exception("%s failed: stopped", sense_name)
-        finally:
-            if is_open:
-                sense.close()
+            logger.exception("%s failed: stopped", type(sense).__name__)
 
     @staticmethod
     def _update_detectors(features, detectors: list) -> None:
