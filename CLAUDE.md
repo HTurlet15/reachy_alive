@@ -88,7 +88,7 @@ If you notice this and want to fix it, don't — say so and move on.
   `HearingSense` starts recording at its first reading and never stops. A gap
   of more than 0.5 s between readings means the page switched hearing off:
   the sound queued meanwhile is dropped, or it would read as a sudden noise.
-- **Logging.** In SDK 1.11 only the daemon configures logging. `main.py`'s
+- **Logging.** In SDK 1.11 to 1.13, only the daemon configures logging. `main.py`'s
   `__main__` block calls `basicConfig` (no `force`) and sets the
   `reachy_alive` logger to INFO; Reachy Mini Control never runs that block.
   Don't override other libraries' logging config.
