@@ -1,19 +1,25 @@
 # Reachy Alive — notes for Claude
 
 An open-source Reachy Mini app that makes the robot feel alive: it breathes,
-plays idle moves, and will perceive and react.
+plays idle moves, perceives, and will react.
 
 **Read first:** [ARCHITECTURE.md](./ARCHITECTURE.md) for how the code is
 organized, its rules, its code map and its roadmap;
 [reachy_alive/moves/README.md](./reachy_alive/moves/README.md) for the Move
-contract and how moves are written. This file only holds what those don't:
+contract and how moves are written;
+[reachy_alive/brain/sensory_cortex/README.md](./reachy_alive/brain/sensory_cortex/README.md)
+for how senses, features and detectors fit, and how detectors are written.
+This file only holds what those don't:
 what not to touch, the internals, the environment, and how to work with me.
 
 ## Current sprint
 
-**B — senses.** It ends once the four senses (inertial unit, touch, hearing,
+**B — senses, finishing.** The four senses (inertial unit, touch, hearing,
 vision) write their facts to `SharedState` and show on the app's page; the
-robot still only breathes. Sprint letters follow the order of the roadmap in
+robot still only breathes. Left: the Space page, then release 1.1.0 (the tag
+publishes the Space). Before C: a hearing feature that tells a clap from
+speech or TV (the height above the background can't). Sprint letters follow
+the order of the roadmap in
 ARCHITECTURE.md: A (v1), B (senses), C (interruptible body), D (reflexes),
 E (deliberation), F (arbitration).
 
@@ -41,6 +47,16 @@ If you notice this and want to fix it, don't — say so and move on.
   No `MixedMove` base class until a second mixed move.
 - **A new idle move interval applies from the next idle move**, not
   immediately: the delay already drawn still runs.
+- **A fact enters `SharedState` only with a planned reaction that uses it.**
+  Raw signal (images, sound) never does: it stays inside its sense.
+- **Moves are registered by hand; detectors are found in their sense's
+  folder.** A move drives the robot, a detector only records facts.
+- **Habituation belongs to the reflexes, not the detectors.** A detector
+  says what happened; a reflex decides whether it's worth reacting to. It
+  moves out of `SuddenNoiseDetector` in sprint D.
+- **`SuddenNoiseDetector.START_THRESHOLD_DB` stays at 30 dB.** Checked on
+  recordings (quiet room, TV, speech; `spike/senses`, `spike/NOTES.md`): no
+  threshold separates a clap from a TV scene change or a first word.
 
 ## Internals the docs don't cover
 
@@ -59,13 +75,19 @@ If you notice this and want to fix it, don't — say so and move on.
   robot, then calls `run()`, where the routes are registered. The app's page
   is served before its routes exist, so it retries `GET /moves` (like
   `untilReady` in Pollen's conversation app).
-- **Who writes `SharedState`.** `last_activity_at`: `RobotController`, when
-  a move ends. `move_playing`: `RobotController`, around each move it plays.
-  `last_bump_at`: `InertialUnitSense`. `move_playing`: `RobotController`, 
-  around each move it plays and while the robot wakes up. `commanded_pose`:
-  `RobotController`, each pose it sends. `last_sudden_noise_at`: `HearingSense`.
-  The idle move interval: the routes 
-  only. antenna_pushed_since: AntennasSense
+- **Who writes `SharedState`.** Each fact has one writer:
+  - `RobotController`: `last_activity_at` and when the last move ended (as
+    a move ends), `move_playing` (around each move, and while the robot
+    wakes up), `commanded_pose` (each pose it sends);
+  - each sense's facts, its detectors: bumps `BumpDetector`, antenna pushes
+    `AntennaPushDetector`, sudden noises `SuddenNoiseDetector`, faces
+    `FacePresenceDetector`;
+  - the routes only: the idle move interval, and the senses switched off.
+- **Hearing never stops recording.** Over WebRTC, the SDK's
+  `stop_recording()` does nothing (pollen-robotics/reachy_mini#1508), so
+  `HearingSense` starts recording at its first reading and never stops. A gap
+  of more than 0.5 s between readings means the page switched hearing off:
+  the sound queued meanwhile is dropped, or it would read as a sudden noise.
 - **Logging.** In SDK 1.11 only the daemon configures logging. `main.py`'s
   `__main__` block calls `basicConfig` (no `force`) and sets the
   `reachy_alive` logger to INFO; Reachy Mini Control never runs that block.
@@ -166,6 +188,10 @@ Key points already learned from them:
   decisions not to re-litigate and the debt not to fix yet.
 - No comment repeating the file's path at the top: the path already shows
   everywhere, and the comment goes stale on the first move.
+- Name what a condition checks: `head_still_rings = ...`, then
+  `if strays_from_gravity and not head_still_rings:`. Keep methods that
+  answer (`would_turn_on`, `is_expected`) apart from methods that change
+  (`update`, `remember`).
 
 ## How to work with me
 
