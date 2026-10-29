@@ -1,7 +1,11 @@
 # Architecture
 
-Why the code is organized the way it is. To install or run the app, see the
-[README](./README.md); to write a move, see [moves/README.md](./reachy_alive/moves/README.md).
+Why the code is organized the way it is. To go further:
+
+- to install or run the app, see the [README](./README.md);
+- to write a move, see [moves/README.md](./reachy_alive/moves/README.md);
+- to write a sense detector, see
+  [sensory_cortex/README.md](./reachy_alive/brain/sensory_cortex/README.md).
 
 ## The idea
 
@@ -19,32 +23,108 @@ would freeze and look dead, the exact opposite of the point. So the layers
 never wait on each other, and none of them can stall the loop that moves the
 robot.
 
-## One tick, step by step
+## The map
 
-The robot runs one loop, 50 times a second, in its own thread. Each pass is
-a *tick*, and every tick goes through the same three steps:
-
-1. **Something proposes.** Today there are two sources: `IdleManager`
-   (breathe, or play an idle move now and then) and the app's page (play the
-   move someone clicked).
-2. **The `ActionSelector` picks one.** A requested move wins over idle.
-3. **The `RobotController` executes it**, and it is the only part that
-   drives the robot.
+Read it from left to right, like one tick: the proposers read the facts,
+something proposes, one part chooses, one part executes, and the senses
+perceive what happened. `SharedState` is drawn twice, but it is one: read on
+the left, written on the right, and read again on the next tick. The dashed
+boxes come later (see [Where it's going](#where-its-going)).
 
 ```mermaid
 flowchart LR
-    page["the app's page"] -->|"POST /moves/{name}/play"| routes["routes.py<br/>(web server thread)"]
-    routes -->|queues the move| queue[["move requests"]]
-    routes -->|changes the idle move interval| state[("SharedState")]
-    imu["InertialUnitSense<br/>(own thread)"] -->|a bump| state
-    queue --> selector["ActionSelector"]
-    idle["IdleManager<br/>(brainstem)"] -->|proposes| selector
-    state -->|interval, idle timer| idle
-    selector -->|one command| controller["RobotController<br/>(control loop)"]
-    controller -->|a move plays, then ends| state
-    controller --> robot(["Reachy Mini"])
-    robot -->|inertial unit readings| imu
+    subgraph decide["1 · Propose"]
+        direction TB
+        page["the app's page:<br/>a requested move"]
+        idle["IdleManager (brainstem):<br/>breathing or an idle move"]
+        reflexes["reflexes (amygdala):<br/>a reflex"]:::later
+        cortex["deliberation (prefrontal_cortex):<br/>a decision"]:::later
+    end
+    subgraph choose["2 · Choose"]
+        selector["ActionSelector<br/>(by priority)"]
+    end
+    subgraph act["3 · Execute"]
+        direction TB
+        controller["RobotController<br/>(control loop, 50 Hz)"] --> robot(["Reachy Mini"])
+    end
+    subgraph perceive["4 · Perceive"]
+        senses["the senses<br/>and their detectors"]
+    end
+    state[("SharedState<br/>(facts written)")]
+    stateRead[("SharedState<br/>(facts read)")]
+
+    stateRead -->|facts| decide
+    decide -->|proposals| selector
+    selector -->|one command| act
+    act -->|sensor readings| perceive
+    act -->|a move plays, ends| state
+    perceive -->|facts| state
+
+    classDef later stroke-dasharray: 5 5,color:#888
 ```
+
+## 1 · Propose
+
+A **decision-maker** says what the robot should do, and nothing more: it
+never drives the robot. There are two today.
+
+- **`IdleManager`** (`brain/brainstem/`) proposes a breathing pose on every
+  tick, and now and then an idle move: a yawn, a sneeze. It picks the next
+  one ahead, with a delay drawn from the interval kept in `SharedState`, and
+  uploads its sounds while the robot keeps breathing.
+- **The app's page** proposes the move someone clicked. Its routes
+  (`routes.py`) run in the web server's own thread: they drop the move in a
+  queue and answer at once. They also change the settings in `SharedState`,
+  such as the idle move interval or a sense switched off.
+
+Reflexes and deliberation will propose too, the same way.
+
+## 2 · Choose
+
+On every tick, the **`ActionSelector`** picks one proposal: the one with the
+highest priority. Today a requested move wins over idle; reflexes will come
+first. The loser isn't consulted, only told: `IdleManager` learns it was
+interrupted, so breathing restarts from neutral.
+
+## 3 · Execute
+
+The **`RobotController`** runs the control loop, 50 times a second, in its
+own thread. Each pass is a **tick**. It is the only part that drives the
+robot: it sends this tick's pose, or plays the chosen move. Playing a move
+holds the loop until the move ends (see [Known debt](#known-debt)). It
+records in `SharedState` that a move is playing, then that it ended: the
+senses read it, and the idle timer restarts from it.
+
+## 4 · Perceive
+
+Four senses run beside the loop, each in its own thread, started by
+`SenseManager`: the inertial unit, touch (the antennas), hearing and vision.
+Each reading of a sensor is described by its features, which the sense's
+detectors turn into facts in `SharedState`: a bump, an antenna pushed, a
+sudden noise, a face in view.
+
+While a move plays, and just after, the robot perceives itself: its motors
+shake the head and make noise. The detectors know it from the efference
+copy, and record nothing then. The app's page shows the facts, and can
+switch a sense off. Nothing reacts to them yet.
+
+How a sense, its features and its detectors fit together is drawn in
+[sensory_cortex/README.md](./reachy_alive/brain/sensory_cortex/README.md).
+
+## SharedState
+
+The facts any module may read at any time, each written by one module only:
+
+- whether a move is playing, and when the last one ended: the
+  `RobotController`;
+- what the senses perceived: their detectors;
+- the settings, such as the idle move interval and the senses switched
+  off: the app's routes.
+
+Orders never go there: a proposal travels as a command, executed once (see
+rule 4).
+
+## Two ticks through the loop
 
 ### Breathing, then an idle move
 
@@ -74,13 +154,6 @@ resumes from neutral.
 - From there, it goes like an idle move: played, its end recorded, then
   breathing again.
 
-### Meanwhile, the senses
-
-The senses run beside the loop, each in its own thread. `InertialUnitSense`
-reads the inertial unit a hundred times a second and records each bump in
-`SharedState`. It ignores what it feels while a move plays and just after:
-the robot's own motion would read as bumps. Nothing reacts to bumps yet.
-
 ### What never happens
 
 Nothing calls a move directly, and no thread but the loop's drives the
@@ -106,9 +179,11 @@ what lets reflexes and deliberation join later without touching the rest.
 - **Efference copy**: what the robot is doing itself, kept as a fact so the
   senses can tell its own motion and sounds from the world's. Today: whether
   a move is playing, waking up included.
-- **Sense**: a module that reads one of the robot's sensors in its own
-  thread and writes what it perceives to `SharedState`, such as a bump.
-  Senses never drive the robot.
+- **Sense**: reads one of the robot's sensors in its own thread, and
+  describes each reading by its **features**, such as how loud a frame of
+  sound is. It never says what they mean, and never drives the robot.
+- **Detector**: reads the features of one sense, and records what they mean
+  as a fact in `SharedState`, such as a sudden noise.
 - **The app's page**: the web page the app serves. It shows up next to
   Reachy Mini Control while the app runs, or at `http://localhost:8042`.
 
@@ -117,12 +192,12 @@ what lets reflexes and deliberation join later without touching the rest.
 ```
 reachy_alive/
 ├── main.py               Builds every part and wires them together; lists the idle moves.
-├── shared_state.py       Facts shared across threads: the idle timer, the idle move interval, whether a move is playing.
-├── routes.py             HTTP routes behind the app's page: list and play moves, read and change settings.
+├── shared_state.py       Facts shared across threads: the idle timer, whether a move is playing, the senses' facts, the settings.
+├── routes.py             HTTP routes behind the app's page: moves, settings, and what the senses perceive.
 ├── control/              From a proposal to the robot: commands, the ActionSelector, the RobotController.
 ├── brain/                The brain regions, sorted by speed (see rule 8).
 │   ├── brainstem/        Automatic behavior: breathing, and IdleManager.
-│   └── sensory_cortex/   The senses: raw signals from the robot into facts.
+│   └── sensory_cortex/   The senses and their detectors: sensor readings into facts. Its README: how to add a detector.
 ├── moves/                The Move contract (base.py), the coded moves, and the guides to write one.
 ├── static/               The app's page: HTML, JavaScript, CSS.
 ├── assets/sounds/        Move sounds, next to the presets that made them.
@@ -155,11 +230,13 @@ readable by anyone, at any time; an order is executed once. Every field of
 pose from the time elapsed, and the loop sends it. Rhythms are in seconds,
 never in ticks, so a move doesn't depend on how fast the loop runs.
 
-**6. Moves are registered by hand, in `main.py`.** Nothing is loaded
-automatically from a folder: each line is a move someone reviewed. What
-review can't catch by eye, tests do: `test_pose_contract.py` samples every
-coded move and fails on a pose that breaks the contract or sends the head
-out of reach.
+**6. Moves are registered by hand, in `main.py`; detectors are found in
+their sense's folder.** A move drives the robot: each line in `main.py` is
+a move someone reviewed. What review can't catch by eye, tests do:
+`test_pose_contract.py` samples every coded move and fails on a pose that
+breaks the contract or sends the head out of reach. A detector only records
+facts, so adding one is adding its `*_detector.py` file: nothing else to
+touch.
 
 **7. Dependencies are explicit, never global.** Anything with a side effect
 when built, such as downloading a move library, is built in `main.py` and
@@ -176,19 +253,7 @@ for what has a biological sense.
 
 ## Where it's going
 
-```mermaid
-flowchart LR
-    senses["sensory_cortex<br/>(perceives)"] -->|writes| state[("SharedState")]
-    state --> brainstem["brainstem<br/>(automatic)"]
-    state --> amygdala["amygdala<br/>(reflexes)"]
-    state --> cortex["prefrontal_cortex<br/>(deliberation)"]
-    page["the app's page<br/>(on demand)"] -->|proposes| selector
-    brainstem -->|proposes| selector["ActionSelector<br/>(chooses)"]
-    amygdala -->|proposes| selector
-    cortex -->|proposes| selector
-    selector -->|one command| controller["RobotController<br/>(control loop)"]
-    controller --> robot(["Reachy Mini"])
-```
+The dashed boxes of [the map](#the-map) are what comes next.
 
 **Done: v1.** The decision/execution split: decision-makers propose, the
 `ActionSelector` chooses, the `RobotController` executes. Idle moves of all
@@ -197,11 +262,12 @@ contributor guides, CI. The app's page plays any move on demand and sets the
 idle move interval. The app is published on its Hugging Face Space and in
 Reachy Mini Control's app store.
 
-**Current: senses.** `sensory_cortex/` gives the robot four senses (inertial
-unit, touch, hearing, vision), each writing timestamped facts to
-`SharedState`. Nothing reacts yet: the robot still just breathes, and the
-app's page shows what it perceives. Each fact is there for a reaction
-planned below; raw signal (images, sound) stays inside its sense.
+**Done: senses.** `sensory_cortex/` gives the robot four senses (inertial
+unit, touch, hearing, vision), whose detectors record timestamped facts in
+`SharedState`: a bump, an antenna pushed, a sudden noise, a face in view.
+Nothing reacts yet: the robot still just breathes, and the app's page shows
+what it perceives, with a switch for each sense. Each fact is there for a
+reaction planned below; raw signal (images, sound) stays inside its sense.
 
 **Next: an interruptible body.** Moves run tick by tick: they return a pose
 each tick, like breathing does, and the command to play a move goes away

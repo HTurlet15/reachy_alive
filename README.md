@@ -18,10 +18,14 @@ tags:
 Reachy Alive aims to turn a Reachy Mini into a real little desk companion.
 It starts with a body that feels alive: the robot breathes, and every now
 and then yawns, stretches, sneezes or hiccups — on its own, like a
-creature, not on command. Perception, reactions and deliberation come
-next, layered on a control loop that never blocks.
+creature, not on command. It also perceives: it feels a bump or an
+antenna pushed, hears a sudden noise, sees a face. Reactions and
+deliberation come next, layered on a control loop that never blocks.
 
 **Want to add a move?** See [CONTRIBUTING.md](./CONTRIBUTING.md).
+
+**Curious how it perceives?** See the
+[sensory cortex](./reachy_alive/brain/sensory_cortex/README.md).
 
 ## Use it
 
@@ -35,15 +39,20 @@ there you can:
 - **play any move on demand** — handy for a demo, or to try one without
   waiting for it;
 - **set how long the robot waits between idle moves.** A new setting
-  applies from the next idle move.
+  applies from the next idle move;
+- **see what it perceives**, in the Senses tab, and switch a sense off,
+  such as a faulty antenna.
 
 Volume and microphone are set in Reachy Mini Control itself.
 
 ## What the robot does today
 
 - **Breathes** continuously while idle.
-- **Feels bumps** through its inertial unit: a knock on it or on its table.
-  Nothing reacts to them yet.
+- **Perceives**, through four senses. Nothing reacts to them yet.
+  - inertial unit: a bump, a knock on it or on its table;
+  - touch: an antenna pushed;
+  - hearing: a sudden noise, like a clap;
+  - vision: a face in view, and how far it is.
 - **Plays an idle move** at random intervals, from three kinds of moves:
   - written in code: `yawning`, `stretching`;
   - recorded by hand in Marionette: `hiccup`;
@@ -52,7 +61,7 @@ Volume and microphone are set in Reachy Mini Control itself.
 - Returns to neutral after every move, so the next one starts from a
   known pose.
 
-Not yet: reactions to what it senses, the other senses, deliberation, memory.
+Not yet: reactions to what it perceives, deliberation, memory.
 
 ## The brain map
 
@@ -68,7 +77,7 @@ biological sense.
 | Module | Biological analogy | Role in the code |
 |---|---|---|
 | `brainstem/` | Automatic regulation — breathing, posture | Idle behavior: continuous breathing, occasional idle moves. **Implemented.** |
-| `sensory_cortex/` | Turns raw signal into percepts | The senses — inertial unit, touch, hearing, vision — writing facts to `SharedState`. **Started**: bumps. |
+| `sensory_cortex/` | Turns raw signal into percepts | The senses — inertial unit, touch, hearing, vision — and their detectors, writing facts to `SharedState`. **Implemented.** |
 | `amygdala/` | Reacts before the cortex has understood | Fast, local, synchronous reflexes. *Planned.* |
 | `prefrontal_cortex/` | Deliberation, personality | Async cloud LLM call, with timeout and fallback. *Planned.* |
 | `hippocampus/` | Episodic memory | What happened, how often, how long ago. *Planned.* |

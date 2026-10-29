@@ -22,9 +22,11 @@ So a good idle move is:
 - **short**: a few seconds, so it punctuates the robot's idle time
   without taking it over.
 
-Seeing, listening and deciding (computer vision, reactions to people,
-the rest of the intelligence) will come in later versions. Bug fixes are
-welcome anytime.
+The robot now perceives too: its senses and their detectors turn what
+it feels, hears and sees into facts (see the
+[sensory cortex](reachy_alive/brain/sensory_cortex/README.md)). New
+detectors will be welcome once the robot reacts: a fact only matters when
+something uses it, and reactions come next. Bug fixes are welcome anytime.
 
 ## Set up
 
