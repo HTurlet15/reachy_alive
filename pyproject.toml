@@ -16,9 +16,10 @@ dependencies = [
     "numpy",
     "pydantic>=2",
     # Installed into the robot's shared apps environment, next to the
-    # daemon's SDK: accept any compatible version rather than force one.
+    # daemon's SDK. 1.13 is the first to download a dataset without a token
+    # (RecordedMoves(token=False)); robots update from Reachy Mini Control.
     # uv.lock pins the exact version used for development.
-    "reachy-mini>=1.11.0,<2",
+    "reachy-mini>=1.13.0,<2",
     "soundfile",
 ]
 keywords = ["reachy-mini-app"]

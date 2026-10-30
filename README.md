@@ -33,7 +33,8 @@ deliberation come next, layered on a control loop that never blocks.
 
 In Reachy Mini Control, install Reachy Alive from the app store, then run
 it. The robot starts breathing, and plays an idle move every 20 to 30
-seconds.
+seconds. It needs a robot on version 1.13 or newer: update it from Reachy
+Mini Control first.
 
 While it runs, the app's page shows up next to Reachy Mini Control. From
 there you can:
