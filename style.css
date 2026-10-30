@@ -218,6 +218,16 @@ section + section {
 	color: var(--muted);
 }
 
+/* What it perceives: four clips, each the robot above its tile, too tall to crop. */
+
+.clips-four {
+	grid-template-columns: repeat(4, 1fr);
+}
+
+.clip-tall {
+	aspect-ratio: 720 / 1558;
+}
+
 /* Try it: a real sequence, so the steps are numbered. */
 
 .steps {
@@ -378,6 +388,7 @@ section.contribute + section {
 	}
 
 	.clips,
+	.clips-four,
 	.steps,
 	.ways,
 	.stages {
