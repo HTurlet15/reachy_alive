@@ -106,7 +106,7 @@ section + section {
 	padding-top: 5rem;
 }
 
-.hero-text p:not(.lead):not(.badge) {
+.hero-text p:not(.lead):not(.badge):not(.coming) {
 	color: var(--muted);
 }
 
@@ -171,6 +171,13 @@ section + section {
 	.breath {
 		animation: none;
 	}
+}
+
+/* What the next version brings, under the hero's text. */
+
+.coming {
+	color: var(--accent-ink);
+	font-weight: 600;
 }
 
 /* Video frames. A pale background shows until the clip loads. */
