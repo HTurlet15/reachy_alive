@@ -55,10 +55,10 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.command in _LIBRARIES:
-        library = RecordedMoves(_LIBRARIES[args.command])
+        library = RecordedMoves(_LIBRARIES[args.command], token=False)
         move = LibraryMove(args.move_name, library)
     elif args.command in _MIXED_MOVES:
-        library = RecordedMoves(_LIBRARIES["recorded"])
+        library = RecordedMoves(_LIBRARIES["recorded"], token=False)
         move = _MIXED_MOVES[args.command](library)
     else:
         move = _CODED_MOVES[args.command]()
