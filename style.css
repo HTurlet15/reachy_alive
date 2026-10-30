@@ -106,7 +106,7 @@ section + section {
 	padding-top: 5rem;
 }
 
-.hero-text p:not(.lead):not(.badge) {
+.hero-text p:not(.lead):not(.badge):not(.coming) {
 	color: var(--muted);
 }
 
@@ -173,6 +173,13 @@ section + section {
 	}
 }
 
+/* What the next version brings, under the hero's text. */
+
+.coming {
+	color: var(--accent-ink);
+	font-weight: 600;
+}
+
 /* Video frames. A pale background shows until the clip loads. */
 
 .clip {
@@ -216,6 +223,16 @@ section + section {
 .note {
 	margin-top: 1.5rem;
 	color: var(--muted);
+}
+
+/* What it perceives: four clips, each the robot above its tile, too tall to crop. */
+
+.clips-four {
+	grid-template-columns: repeat(4, 1fr);
+}
+
+.clip-tall {
+	aspect-ratio: 720 / 1558;
 }
 
 /* Try it: a real sequence, so the steps are numbered. */
@@ -378,6 +395,7 @@ section.contribute + section {
 	}
 
 	.clips,
+	.clips-four,
 	.steps,
 	.ways,
 	.stages {

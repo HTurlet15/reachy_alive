@@ -5,7 +5,7 @@
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<title>Reachy Alive</title>
-	<meta name="description" content="A Reachy Mini that feels alive, even when idle. Open source: teach it a new move." />
+	<meta name="description" content="A Reachy Mini that feels alive, even when idle, and perceives you. Open source: teach it a new move." />
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 	<link rel="stylesheet"
@@ -21,10 +21,12 @@
 				<p class="lead">A Reachy Mini that feels alive, even when idle.</p>
 				<p class="badge">Early, and actively developed</p>
 				<p>
-					It breathes, and every now and then it yawns, stretches, sneezes or
-					hiccups, on its own, like a creature rather than a machine waiting for
-					orders.
+					It breathes, and now and then it yawns, stretches, sneezes or hiccups, on
+					its own, like a creature rather than a machine waiting for orders. And it
+					notices you: a knock on its table, a hand on its antenna, a clap, a face
+					leaning in.
 				</p>
+				<p class="coming">Coming next: reflexes, so it reacts to what it senses.</p>
 				<div class="actions">
 					<a class="button" href="#try-it">Try it on your robot</a>
 					<a class="button button-quiet" href="#contribute">Add a move</a>
@@ -73,6 +75,45 @@
 			<p class="note">Sound on your robot: every move has its own little voice.</p>
 		</section>
 
+		<section class="senses" aria-labelledby="senses-title">
+			<h2 id="senses-title">What it perceives</h2>
+			<div class="clips clips-four">
+				<figure>
+					<div class="clip clip-tall">
+						<video autoplay muted loop playsinline preload="metadata" aria-label="A knock on the table, and its Inertial tile showing a bump">
+							<source src="media/bump.mp4" type="video/mp4" />
+						</video>
+					</div>
+					<figcaption>A bump</figcaption>
+				</figure>
+				<figure>
+					<div class="clip clip-tall">
+						<video autoplay muted loop playsinline preload="metadata" aria-label="A hand pushing an antenna, and its Touch tile showing the push">
+							<source src="media/antenna.mp4" type="video/mp4" />
+						</video>
+					</div>
+					<figcaption>An antenna pushed</figcaption>
+				</figure>
+				<figure>
+					<div class="clip clip-tall">
+						<video autoplay muted loop playsinline preload="metadata" aria-label="A clap next to the robot, and its Hearing tile showing a sudden noise">
+							<source src="media/sudden-noise.mp4" type="video/mp4" />
+						</video>
+					</div>
+					<figcaption>A sudden noise</figcaption>
+				</figure>
+				<figure>
+					<div class="clip clip-tall">
+						<video autoplay muted loop playsinline preload="metadata" aria-label="Someone leaning in, and the robot's Vision tile showing a face">
+							<source src="media/face.mp4" type="video/mp4" />
+						</video>
+					</div>
+					<figcaption>A face</figcaption>
+				</figure>
+			</div>
+			<p class="note">Under each clip, the Senses tab of the app's page, as the robot noticed it.</p>
+		</section>
+
 		<section id="try-it" class="try" aria-labelledby="try-title">
 			<h2 id="try-title">Try it on your robot</h2>
 			<ol class="steps">
@@ -82,13 +123,17 @@
 				</li>
 				<li>
 					<h3>Run it</h3>
-					<p>The robot starts breathing, and plays an idle move every 20 to 30 seconds.</p>
+					<p>
+						The robot starts breathing, plays an idle move every 20 to 30 seconds,
+						and starts perceiving.
+					</p>
 				</li>
 				<li>
 					<h3>Play with it</h3>
 					<p>
-						Its page opens next to Reachy Mini Control. Play any move on demand, or
-						set how long the robot waits between idle moves.
+						Its page opens next to Reachy Mini Control. Play any move on demand, set
+						how long the robot waits between idle moves, and watch what it perceives
+						in the Senses tab, where you can also switch a sense off.
 					</p>
 				</li>
 			</ol>
@@ -128,9 +173,11 @@
 			<h2 id="inside-title">How it works</h2>
 			<p>
 				The code is organized like a nervous system. Breathing and idle moves live in
-				the brainstem; reflexes and deliberation come next, each in the region that
-				fits its speed. One control loop drives the robot, and nothing is allowed to
-				block it: the robot keeps moving while it thinks.
+				the brainstem. The senses live in the sensory cortex: they turn what the
+				robot feels, hears and sees into facts the rest of the brain can use.
+				Reflexes and deliberation come next, each in the region that fits its speed.
+				One control loop drives the robot, and nothing is allowed to block it: the
+				robot keeps moving while it thinks.
 			</p>
 			<p>
 				<a href="https://github.com/HTurlet15/reachy_alive/blob/main/ARCHITECTURE.md" target="_blank" rel="noopener">Read how it's built</a>
@@ -140,13 +187,13 @@
 		<section class="roadmap" aria-labelledby="roadmap-title">
 			<h2 id="roadmap-title">Where it's going</h2>
 			<ol class="stages">
-				<li class="current">
-					<h3>It breathes</h3>
-					<p>Breathing, idle moves, and a page to play them. <strong>Today.</strong></p>
-				</li>
 				<li>
-					<h3>It sees</h3>
-					<p>Camera, motion and faces: the robot starts to perceive the room.</p>
+					<h3>It breathes</h3>
+					<p>Breathing, idle moves, and a page to play them.</p>
+				</li>
+				<li class="current">
+					<h3>It perceives</h3>
+					<p>Four senses: a bump, an antenna pushed, a sudden noise, a face. <strong>Today.</strong></p>
 				</li>
 				<li>
 					<h3>It reacts</h3>
