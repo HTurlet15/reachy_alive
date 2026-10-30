@@ -15,7 +15,7 @@ tags:
 
 [![tests](https://github.com/HTurlet15/reachy_alive/actions/workflows/tests.yml/badge.svg)](https://github.com/HTurlet15/reachy_alive/actions/workflows/tests.yml)
 
-https://github.com/user-attachments/assets/5bb5ca3a-2e7c-4dc5-bd45-3340198567d4
+![Reachy Mini noticing a knock, a hand on its antenna, a clap and a face, each shown on the app's Senses tab](media/senses.gif)
 
 Reachy Alive aims to turn a Reachy Mini into a real little desk companion.
 It starts with a body that feels alive: the robot breathes, and every now
