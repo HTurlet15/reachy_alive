@@ -32,6 +32,9 @@ export async function loadMoves() {
     }
 }
 
+// Fills the form with the app's interval, then lets it be changed. Until then,
+// its fields and button stay greyed out, like the senses' boxes: nothing can
+// be saved before the app has answered.
 export async function loadIdleMoveInterval() {
     const status = document.getElementById("interval-status");
     try {
@@ -43,6 +46,9 @@ export async function loadIdleMoveInterval() {
         const interval = await resp.json();
         document.getElementById("interval-min").value = interval.min_s;
         document.getElementById("interval-max").value = interval.max_s;
+        for (const field of document.getElementById("interval-form").elements) {
+            field.disabled = false;
+        }
     } catch {
         status.textContent = "Backend unreachable";
     }

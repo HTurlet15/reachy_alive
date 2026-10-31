@@ -63,6 +63,11 @@
     cursor: pointer;
 }
 
-.interval button:hover {
+.interval button:hover:enabled {
     background: var(--accent-ink);
+}
+
+.interval button:disabled {
+    opacity: 0.4;
+    cursor: default;
 }
