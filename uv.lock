@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.12'",
@@ -2036,7 +2036,7 @@ wheels = [
 
 [[package]]
 name = "reachy-alive"
-version = "1.1.0"
+version = "1.1.1"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
@@ -2060,7 +2060,7 @@ requires-dist = [
     { name = "fastapi" },
     { name = "numpy" },
     { name = "pydantic", specifier = ">=2" },
-    { name = "reachy-mini", specifier = ">=1.11.0,<2" },
+    { name = "reachy-mini", specifier = ">=1.13.0,<2" },
     { name = "soundfile" },
 ]
 

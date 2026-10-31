@@ -82,8 +82,10 @@ class ReachyAlive(ReachyMiniApp):
 
     def _build_idle_moves(self) -> list[Move]:
         """Build the moves the idle manager picks from."""
-        pollen_emotions = RecordedMoves("pollen-robotics/reachy-mini-emotions-library")
-        reachy_alive_recordings = RecordedMoves("HTurlet15/reachy-alive")
+        # Both datasets are public: no token, or a robot with an expired
+        # Hugging Face login would get a 401 on the first download.
+        pollen_emotions = RecordedMoves("pollen-robotics/reachy-mini-emotions-library", token=False)
+        reachy_alive_recordings = RecordedMoves("HTurlet15/reachy-alive", token=False)
 
         # Recorded by Pollen, played as-is. Excludes waiting, mini-deep-sleep
         # and toc-toc-toc, which wedge the IK solver (pollen-robotics/reachy_mini#1417).
