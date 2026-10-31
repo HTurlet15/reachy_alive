@@ -1,34 +1,24 @@
 // Idle moves tab: play a move on demand, and set the time between idle moves.
 
-import { wait } from "./wait.js";
-
-// The app's routes only exist once the robot is connected and the moves are
-// loaded. Until then, the server answers 404. That takes a few seconds, or
-// minutes on a first start after an update: the page waits as long as it takes.
-const STARTUP_POLL_MS = 2000;
-// Past this, the page says the start is slow, so nobody thinks it is stuck.
-const SLOW_START_MS = 15000;
-const WAKING_UP = "Waking up…";
-const STILL_STARTING = "Still starting… The first start after an update can take a few minutes.";
-// The app serves this page: when nobody answers, the app itself has stopped.
-const APP_STOPPED = "The app has stopped. Start it again from Reachy Mini Control.";
-
 const INTERVAL_URL = "/settings/idle-move-interval";
 
-// Returns once the moves are loaded, i.e. once the app's routes exist.
 export async function loadMoves() {
     const container = document.getElementById("moves");
-    container.textContent = WAKING_UP;
-
-    const names = await fetchMoveNamesWhenReady(container);
-
-    container.textContent = "";
-    for (const name of names) {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.textContent = labelFor(name);
-        button.addEventListener("click", () => requestMove(name));
-        container.appendChild(button);
+    try {
+        const resp = await fetch("/moves");
+        if (!resp.ok) {
+            container.textContent = `Could not load the moves (${resp.status})`;
+            return;
+        }
+        for (const name of await resp.json()) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.textContent = labelFor(name);
+            button.addEventListener("click", () => requestMove(name));
+            container.appendChild(button);
+        }
+    } catch {
+        container.textContent = "Backend unreachable";
     }
 }
 
@@ -58,23 +48,6 @@ export function setUpIntervalForm() {
     document.getElementById("interval-form").addEventListener("submit", saveIdleMoveInterval);
     document.getElementById("interval-min").addEventListener("input", checkIntervalOrder);
     document.getElementById("interval-max").addEventListener("input", checkIntervalOrder);
-}
-
-// Asks until the app answers, and says meanwhile what its answers mean.
-async function fetchMoveNamesWhenReady(container) {
-    const slowAfter = Date.now() + SLOW_START_MS;
-    for (;;) {
-        try {
-            const resp = await fetch("/moves");
-            if (resp.ok) {
-                return await resp.json();
-            }
-            container.textContent = Date.now() < slowAfter ? WAKING_UP : STILL_STARTING;
-        } catch {
-            container.textContent = APP_STOPPED;
-        }
-        await wait(STARTUP_POLL_MS);
-    }
 }
 
 // "hiccup-full" -> "Hiccup full"
