@@ -87,3 +87,9 @@ button:focus-visible {
     margin: 0.75rem 0 0;
     color: var(--muted);
 }
+
+/* Whether the app is up, above the tabs: set apart from the subtitle above. */
+.app-status {
+    font-weight: 600;
+    color: var(--accent-ink);
+}

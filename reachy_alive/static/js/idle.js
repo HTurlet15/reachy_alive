@@ -1,36 +1,30 @@
 // Idle moves tab: play a move on demand, and set the time between idle moves.
 
-import { wait } from "./wait.js";
-
-// The app's routes only exist once the robot is connected and the moves are
-// loaded, a few seconds after this page is shown: retry until then.
-const STARTUP_POLL_MS = 2000;
-const STARTUP_DEADLINE_MS = 90000;
-
 const INTERVAL_URL = "/settings/idle-move-interval";
 
-// Returns whether the moves loaded, i.e. whether the app's routes exist.
 export async function loadMoves() {
     const container = document.getElementById("moves");
-    container.textContent = "Waking up…";
-
-    const names = await fetchMoveNamesUntilReady();
-    if (names === null) {
-        container.textContent = "Could not load moves. Is the app running?";
-        return false;
+    try {
+        const resp = await fetch("/moves");
+        if (!resp.ok) {
+            container.textContent = `Could not load the moves (${resp.status})`;
+            return;
+        }
+        for (const name of await resp.json()) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.textContent = labelFor(name);
+            button.addEventListener("click", () => requestMove(name));
+            container.appendChild(button);
+        }
+    } catch {
+        container.textContent = "Backend unreachable";
     }
-
-    container.textContent = "";
-    for (const name of names) {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.textContent = labelFor(name);
-        button.addEventListener("click", () => requestMove(name));
-        container.appendChild(button);
-    }
-    return true;
 }
 
+// Fills the form with the app's interval, then lets it be changed. Until then,
+// its fields and button stay greyed out, like the senses' boxes: nothing can
+// be saved before the app has answered.
 export async function loadIdleMoveInterval() {
     const status = document.getElementById("interval-status");
     try {
@@ -42,6 +36,9 @@ export async function loadIdleMoveInterval() {
         const interval = await resp.json();
         document.getElementById("interval-min").value = interval.min_s;
         document.getElementById("interval-max").value = interval.max_s;
+        for (const field of document.getElementById("interval-form").elements) {
+            field.disabled = false;
+        }
     } catch {
         status.textContent = "Backend unreachable";
     }
@@ -51,24 +48,6 @@ export function setUpIntervalForm() {
     document.getElementById("interval-form").addEventListener("submit", saveIdleMoveInterval);
     document.getElementById("interval-min").addEventListener("input", checkIntervalOrder);
     document.getElementById("interval-max").addEventListener("input", checkIntervalOrder);
-}
-
-async function fetchMoveNamesUntilReady() {
-    const deadline = Date.now() + STARTUP_DEADLINE_MS;
-    for (;;) {
-        try {
-            const resp = await fetch("/moves");
-            if (resp.ok) {
-                return await resp.json();
-            }
-        } catch {
-            // Server not reachable yet: retry like any other failure.
-        }
-        if (Date.now() >= deadline) {
-            return null;
-        }
-        await wait(STARTUP_POLL_MS);
-    }
 }
 
 // "hiccup-full" -> "Hiccup full"
