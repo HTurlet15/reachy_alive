@@ -3,22 +3,24 @@
 import { wait } from "./wait.js";
 
 // The app's routes only exist once the robot is connected and the moves are
-// loaded, a few seconds after this page is shown: retry until then.
+// loaded. Until then, the server answers 404. That takes a few seconds, or
+// minutes on a first start after an update: the page waits as long as it takes.
 const STARTUP_POLL_MS = 2000;
-const STARTUP_DEADLINE_MS = 90000;
+// Past this, the page says the start is slow, so nobody thinks it is stuck.
+const SLOW_START_MS = 15000;
+const WAKING_UP = "Waking up…";
+const STILL_STARTING = "Still starting… The first start after an update can take a few minutes.";
+// The app serves this page: when nobody answers, the app itself has stopped.
+const APP_STOPPED = "The app has stopped. Start it again from Reachy Mini Control.";
 
 const INTERVAL_URL = "/settings/idle-move-interval";
 
-// Returns whether the moves loaded, i.e. whether the app's routes exist.
+// Returns once the moves are loaded, i.e. once the app's routes exist.
 export async function loadMoves() {
     const container = document.getElementById("moves");
-    container.textContent = "Waking up…";
+    container.textContent = WAKING_UP;
 
-    const names = await fetchMoveNamesUntilReady();
-    if (names === null) {
-        container.textContent = "Could not load moves. Is the app running?";
-        return false;
-    }
+    const names = await fetchMoveNamesWhenReady(container);
 
     container.textContent = "";
     for (const name of names) {
@@ -28,7 +30,6 @@ export async function loadMoves() {
         button.addEventListener("click", () => requestMove(name));
         container.appendChild(button);
     }
-    return true;
 }
 
 export async function loadIdleMoveInterval() {
@@ -53,19 +54,18 @@ export function setUpIntervalForm() {
     document.getElementById("interval-max").addEventListener("input", checkIntervalOrder);
 }
 
-async function fetchMoveNamesUntilReady() {
-    const deadline = Date.now() + STARTUP_DEADLINE_MS;
+// Asks until the app answers, and says meanwhile what its answers mean.
+async function fetchMoveNamesWhenReady(container) {
+    const slowAfter = Date.now() + SLOW_START_MS;
     for (;;) {
         try {
             const resp = await fetch("/moves");
             if (resp.ok) {
                 return await resp.json();
             }
+            container.textContent = Date.now() < slowAfter ? WAKING_UP : STILL_STARTING;
         } catch {
-            // Server not reachable yet: retry like any other failure.
-        }
-        if (Date.now() >= deadline) {
-            return null;
+            container.textContent = APP_STOPPED;
         }
         await wait(STARTUP_POLL_MS);
     }

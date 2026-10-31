@@ -8,11 +8,10 @@ import { setUpTabs } from "./tabs.js";
 async function start() {
     setUpTabs();
     setUpIntervalForm();
-    if (await loadMoves()) {
-        await loadIdleMoveInterval();
-        await setUpSenseSwitches();
-        watchSenses(); // no await: it runs for as long as the page is open
-    }
+    await loadMoves(); // however long the app takes to start
+    await loadIdleMoveInterval();
+    await setUpSenseSwitches();
+    watchSenses(); // no await: it runs for as long as the page is open
 }
 
 start();
