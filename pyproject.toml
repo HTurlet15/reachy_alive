@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "reachy_alive"
-version = "1.1.1"
+version = "1.1.2"
 description = "Turns a Reachy Mini into a desk companion that feels alive."
 readme = "README.md"
 license = "Apache-2.0"
