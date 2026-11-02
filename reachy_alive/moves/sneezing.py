@@ -60,6 +60,9 @@ class Sneezing(PhasedMove):
     SNEEZE_ANGLE_VARIATION_RAD = np.deg2rad(10.0)
     SNEEZE_DROP_DURATION_S = 0.06  # about 3 ticks at 50 Hz
 
+    # evaluate() raises at the recording's last frame: read it just before.
+    RECORDING_END_MARGIN_S = 0.01
+
     def __init__(self, library: RecordedMoves) -> None:
         """Load the head recording.
 
@@ -76,11 +79,11 @@ class Sneezing(PhasedMove):
             for phase in self.INHALE_PHASES
         }
 
-        # Redrawn by _on_start at every play. This default is for callers
+        # Redrawn by start at every play. This default is for callers
         # that read a pose without playing the move, like the tests.
         self._sneeze_angle_rad = self.ANTENNA_SNEEZE_RAD
 
-    def _on_start(self) -> None:
+    def start(self) -> None:
         """Draw this play's sneeze angle."""
         variation = random.uniform(
             -self.SNEEZE_ANGLE_VARIATION_RAD, self.SNEEZE_ANGLE_VARIATION_RAD
@@ -90,8 +93,7 @@ class Sneezing(PhasedMove):
     def _pose_at(
         self, phase: str, p: float, elapsed_s: float
     ) -> tuple[np.ndarray, list[float], float]:
-        # evaluate() raises at the recording's last frame: stop one tick before.
-        t = min(elapsed_s, self._recording.duration - self.step_s)
+        t = min(elapsed_s, self._recording.duration - self.RECORDING_END_MARGIN_S)
         head, _, body_yaw = self._recording.evaluate(t)
 
         if phase in self.INHALE_PHASES:

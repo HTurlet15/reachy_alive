@@ -13,6 +13,7 @@ from reachy_alive.moves.base import (
     LibraryMove,
     Move,
     PhasedMove,
+    SoundCue,
     alternating_sign,
     interpolate,
 )
@@ -146,7 +147,26 @@ def test_phase_durations_come_from_sounds_padding_and_silent_phases(sounds_dir):
     move = _phased_move_class(sounds_dir)()
 
     assert move.phase_ends_s == pytest.approx({"a": 0.15, "hold": 0.45, "b": 0.65})
-    assert move.duration_s == pytest.approx(0.65)
+    assert move.duration == pytest.approx(0.65)
+
+
+def test_each_sound_is_cued_when_its_phase_begins(sounds_dir):
+    move = _phased_move_class(sounds_dir)()
+
+    assert move.sound_cues == (
+        SoundCue(at_s=0.0, path=sounds_dir / "a.wav"),
+        SoundCue(at_s=pytest.approx(0.45), path=sounds_dir / "b.wav"),  # after hold
+    )
+
+
+def test_evaluate_answers_the_pose_of_the_running_phase(sounds_dir):
+    move = _phased_move_class(sounds_dir)()
+
+    head, antennas, body_yaw = move.evaluate(0.3)
+
+    assert move.calls[-1] == ("hold", pytest.approx(0.5), 0.3)  # 0.15 s into 0.3 s
+    np.testing.assert_allclose(head, np.eye(4))
+    assert body_yaw == 0.25
 
 
 @pytest.mark.parametrize(
@@ -184,7 +204,7 @@ def test_invalid_declarations_fail_at_construction(sounds_dir, attributes, error
         _phased_move_class(sounds_dir, **attributes)()
 
 
-def test_perform_fires_each_sound_once_and_streams_the_full_pose(fake_reachy_mini, sounds_dir):
+def test_play_starts_each_sound_once_and_streams_the_full_pose(fake_reachy_mini, sounds_dir):
     move = _phased_move_class(sounds_dir)()
 
     move.play(fake_reachy_mini)
@@ -210,14 +230,14 @@ def test_elapsed_s_runs_through_the_move_while_p_restarts_each_phase(
     assert all(p < 0.2 for p in first_p_of_each_phase.values())
 
 
-def test_on_start_runs_once_per_play_before_the_first_pose(fake_reachy_mini, sounds_dir):
-    # Each entry: how many poses had been computed when _on_start ran.
+def test_start_runs_once_per_play_before_the_first_pose(fake_reachy_mini, sounds_dir):
+    # Each entry: how many poses had been computed when start ran.
     poses_before_start = []
 
-    def _on_start(self):
+    def start(self):
         poses_before_start.append(len(self.calls))
 
-    move = _phased_move_class(sounds_dir, _on_start=_on_start)()
+    move = _phased_move_class(sounds_dir, start=start)()
 
     move.play(fake_reachy_mini)
     poses_in_first_play = len(move.calls)

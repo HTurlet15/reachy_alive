@@ -33,11 +33,11 @@ def test_head_and_body_come_from_the_recording(fake_library, fake_recording):
 
 def test_head_is_never_read_at_or_past_the_recording_end(fake_library, fake_recording):
     sneezing = Sneezing(fake_library)
-    fake_recording.timestamps = [0.0, sneezing.duration_s]  # ends with the phases
+    fake_recording.timestamps = [0.0, sneezing.duration]  # ends with the phases
 
-    sneezing._pose_at("relief", 1.0, elapsed_s=sneezing.duration_s)
+    sneezing._pose_at("relief", 1.0, elapsed_s=sneezing.duration)
 
-    assert fake_recording.evaluated_at[-1] < sneezing.duration_s
+    assert fake_recording.evaluated_at[-1] < sneezing.duration
 
 
 def _antenna(sneezing, phase, p, elapsed_s):
@@ -60,7 +60,7 @@ def test_antennas_dont_jump_between_phases(fake_library, phase_before, phase_aft
 def test_antennas_end_where_go_neutral_expects_them(fake_library):
     sneezing = Sneezing(fake_library)
 
-    antenna = _antenna(sneezing, "relief", 1.0, sneezing.duration_s)
+    antenna = _antenna(sneezing, "relief", 1.0, sneezing.duration)
 
     assert antenna == pytest.approx(Sneezing.ANTENNA_AT_NEUTRAL_RAD)
 

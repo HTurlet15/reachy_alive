@@ -1,7 +1,7 @@
 """Checks every shipped move against the move contract and the robot's limits.
 
-Samples each phase without running the motion loop, so it's fast. Add your
-move to MOVES.
+Samples each move through evaluate() without running the motion loop, so
+it's fast. Add your move to MOVES.
 
 Recorded heads, like Sneezing's Marionette recording, are faked here: their
 height isn't checked. Check them on the robot with `try-move`.
@@ -31,14 +31,10 @@ MOVES = {
 LOWEST_HEAD_Z_M = -0.170
 
 
-def _sampled_poses(move, samples_per_phase=25):
-    """Yield (phase, pose) across the whole move, phase by phase."""
-    phase_start_s = 0.0
-    for phase, phase_end_s in move.phase_ends_s.items():
-        for p in np.linspace(0.0, 1.0, samples_per_phase):
-            elapsed_s = phase_start_s + p * (phase_end_s - phase_start_s)
-            yield phase, move._pose_at(phase, p, elapsed_s)
-        phase_start_s = phase_end_s
+def _sampled_poses(move, samples_per_second=50):
+    """Yield (t, pose) across the whole move, from its start to its end."""
+    for t in np.linspace(0.0, move.duration, int(move.duration * samples_per_second) + 1):
+        yield t, move.evaluate(t)
 
 
 def _shipped_subclasses(base):
@@ -73,7 +69,7 @@ def test_no_move_writes_its_own_execution_loop():
 
     assert not offenders, (
         f"{', '.join(offenders)} define _perform. Subclass PhasedMove or use "
-        "LibraryMove, and draw per-play values in _on_start."
+        "LibraryMove, and draw per-play values in start."
     )
 
 
@@ -81,18 +77,18 @@ def test_no_move_writes_its_own_execution_loop():
 def test_every_pose_follows_the_contract(move_class, fake_library):
     move = MOVES[move_class](fake_library)
 
-    for phase, (head, antennas, body_yaw) in _sampled_poses(move):
-        assert np.shape(head) == (4, 4), phase
-        assert len(antennas) == 2, phase
-        assert np.isscalar(body_yaw), phase
+    for t, (head, antennas, body_yaw) in _sampled_poses(move):
+        assert np.shape(head) == (4, 4), t
+        assert len(antennas) == 2, t
+        assert np.isscalar(body_yaw), t
 
 
 @pytest.mark.parametrize("move_class", MOVES, ids=lambda cls: cls.__name__)
 def test_head_never_goes_below_the_reachable_workspace(move_class, fake_library):
     move = MOVES[move_class](fake_library)
 
-    for phase, (head, _, _) in _sampled_poses(move):
-        assert head[2, 3] >= LOWEST_HEAD_Z_M, phase
+    for t, (head, _, _) in _sampled_poses(move):
+        assert head[2, 3] >= LOWEST_HEAD_Z_M, t
 
 
 def test_no_two_moves_share_a_sound_file_name(fake_library):

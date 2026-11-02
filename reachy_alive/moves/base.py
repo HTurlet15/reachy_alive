@@ -19,6 +19,7 @@ See ``moves/README.md`` for how to make a move.
 import itertools
 import time
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -33,6 +34,19 @@ NEUTRAL_ANTENNAS_RAD = [-0.1745, 0.1745]
 
 # Body facing forward. Moves that don't turn the body return this.
 NEUTRAL_BODY_YAW_RAD = 0.0
+
+
+@dataclass(frozen=True)
+class SoundCue:
+    """A sound a move starts, and when.
+
+    Attributes:
+        at_s: Seconds since the move started.
+        path: Local path of the sound, as listed in ``sound_paths``.
+    """
+
+    at_s: float
+    path: Path
 
 
 def alternating_sign(elapsed_s: float, half_period_s: float) -> int:
@@ -83,6 +97,7 @@ class Move(ABC):
     """
 
     RETURN_DURATION_S = 0.5
+    POSE_STEP_S = 0.02
     SOUNDS_DIR = Path(__file__).resolve().parent.parent / "assets" / "sounds"
 
     # Built by prepare(), reset after each play: None means not prepared.
@@ -205,14 +220,9 @@ class Move(ABC):
 class PhasedMove(Move):
     """A move built as a sequence of phases, each timed by its own sound.
 
-    Declare the phases in ``PHASE_SOUNDS`` and write ``_pose_at``; this
-    class handles the rest -- reading durations from the sound files,
-    tracking which phase is running, firing its sound as it begins, and
-    streaming poses to the robot. To vary something between plays, like a
-    random angle, override ``_on_start``.
-
-    Re-exporting a sound at a different length stretches or shrinks the
-    matching phase, so motion and audio stay in sync.
+    Declare the phases in ``PHASE_SOUNDS`` and write ``_pose_at``; override
+    ``start`` to vary something between plays. Answers the SDK's move
+    contract, ``duration`` and ``evaluate(t)``, plus ``sound_cues``.
     """
 
     # Ordered phases and the sound each one starts with, e.g.
@@ -227,11 +237,8 @@ class PhasedMove(Move):
     # rhythm here rather than by editing the .wav files.
     PHASE_PADDING_S: dict[str, float] = {}
 
-    def __init__(self, tick_hz: float = 50.0) -> None:
-        """Read each phase's duration from its sound file.
-
-        Args:
-            tick_hz: Frequency, in Hz, at which the pose is updated.
+    def __init__(self) -> None:
+        """Read each phase's duration from its sound file, and cue its sound.
 
         Raises:
             ValueError: If no phase is declared, if a phase with no sound
@@ -256,18 +263,42 @@ class PhasedMove(Move):
         if unknown:
             raise ValueError(f"{name}: PHASE_PADDING_S names unknown phases: {sorted(unknown)}")
 
-        # Stretching and Sneezing tremble at 0.02 s per side: keep the pose
-        # updated at 50 Hz or more.
-        self.step_s = 1.0 / tick_hz
-
         durations = [self._phase_duration(phase) for phase in self.PHASE_SOUNDS]
         phase_ends_s = itertools.accumulate(durations)
         self.phase_ends_s = dict(zip(self.PHASE_SOUNDS, phase_ends_s, strict=True))
-        self.duration_s = sum(durations)
+        self.duration = sum(durations)
+
+        # Each phase starts where the one before it ends.
+        phase_starts_s = [0.0, *list(self.phase_ends_s.values())[:-1]]
+        self.sound_cues = tuple(
+            SoundCue(at_s=start_s, path=self.SOUNDS_DIR / sound)
+            for start_s, sound in zip(phase_starts_s, self.PHASE_SOUNDS.values(), strict=True)
+            if sound is not None
+        )
 
     def sound_paths(self) -> list[Path]:
         """List the sounds this move plays, one per phase that has one."""
-        return [self.SOUNDS_DIR / s for s in self.PHASE_SOUNDS.values() if s is not None]
+        return [cue.path for cue in self.sound_cues]
+
+    def start(self) -> None:
+        """Draw what varies between plays, once, before the first pose.
+
+        Override it to draw a random angle, say; store it on self and read
+        it in _pose_at. Does nothing by default.
+        """
+
+    def evaluate(self, t: float) -> tuple[np.ndarray, list[float], float]:
+        """Return the pose t seconds into the move.
+
+        Args:
+            t: Seconds since the move started, 0 to ``duration``.
+
+        Returns:
+            (head pose, antennas in ANTENNA_SIDES order (right, left), body
+            yaw), angles in radians.
+        """
+        phase, phase_progress = self._phase_at(t)
+        return self._pose_at(phase, phase_progress, t)
 
     @abstractmethod
     def _pose_at(
@@ -292,34 +323,21 @@ class PhasedMove(Move):
             doesn't turn the body.
         """
 
-    def _on_start(self) -> None:
-        """Called once at the start of every play, before the first pose.
-
-        Override it to draw what should vary between plays, like a random
-        angle; store it on self and read it in _pose_at. Does nothing by
-        default.
-        """
-
     def _perform(self, reachy_mini: ReachyMini) -> None:
-        """Run the move, firing each phase's sound as the phase begins."""
-        # Before the clock starts, so the preparation never eats into the
-        # first phase.
-        self._on_start()
-        start = time.monotonic()
-        previous_phase = None
+        """Run the move, starting each sound on its cue."""
+        # Before the clock starts, so the draws never eat into the first phase.
+        self.start()
+        cues_left = list(self.sound_cues)
+        started_at = time.monotonic()
 
-        while (elapsed_s := time.monotonic() - start) < self.duration_s:
-            phase, phase_progress = self._phase_at(elapsed_s)
+        while (t := time.monotonic() - started_at) < self.duration:
+            while cues_left and cues_left[0].at_s <= t:
+                self.play_sound(reachy_mini, cues_left.pop(0).path)
 
-            # Local, so nothing carries over between plays.
-            if phase != previous_phase:
-                self._play_phase_sound(reachy_mini, phase)
-                previous_phase = phase
-
-            head, antennas, body_yaw = self._pose_at(phase, phase_progress, elapsed_s)
+            head, antennas, body_yaw = self.evaluate(t)
             reachy_mini.set_target(head=head, antennas=antennas, body_yaw=body_yaw)
 
-            time.sleep(self.step_s)
+            time.sleep(self.POSE_STEP_S)
 
     def _phase_duration(self, phase: str) -> float:
         """Return a phase's duration, in seconds: its sound's length plus any padding."""
@@ -344,12 +362,6 @@ class PhasedMove(Move):
 
         # elapsed_s can overshoot the last phase by a fraction of a tick.
         return list(self.phase_ends_s)[-1], 1.0
-
-    def _play_phase_sound(self, reachy_mini: ReachyMini, phase: str) -> None:
-        """Play the sound a phase starts with, if it has one."""
-        sound = self.PHASE_SOUNDS[phase]
-        if sound is not None:
-            self.play_sound(reachy_mini, self.SOUNDS_DIR / sound)
 
 
 class LibraryMove(Move):
