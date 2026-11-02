@@ -1,5 +1,6 @@
 """RobotController: the control loop, the only part of the app that drives the robot."""
 
+import logging
 import time
 
 from reachy_mini import ReachyMini
@@ -7,6 +8,8 @@ from reachy_mini import ReachyMini
 from reachy_alive.control.action_selector import ActionSelector
 from reachy_alive.control.commands import Command, HoldPose, PlayMove
 from reachy_alive.shared_state import CommandedPose, SharedState
+
+logger = logging.getLogger(__name__)
 
 
 class RobotController:
@@ -18,9 +21,14 @@ class RobotController:
     for it, waking up and going to sleep included. Decision-makers never
     drive the robot. Moves do talk to the robot, but only while
     RobotController executes a PlayMove, from this loop's thread.
+
+    Each tick is due at a fixed time, every TICK_S. A tick that runs late is
+    followed at once by the next one, never by a burst catching up: the
+    slots already gone are skipped, and logged.
     """
 
     TICK_HZ = 50.0
+    TICK_S = 1.0 / TICK_HZ
 
     def __init__(self, action_selector: ActionSelector) -> None:
         """Keep the selector.
@@ -48,11 +56,15 @@ class RobotController:
 
         try:
             t0 = time.monotonic()
+            tick_due_at = t0
             while not stop_event.is_set():
                 t = time.monotonic() - t0
                 command = self.action_selector.decide(t, shared_state, reachy_mini)
                 self._execute(command, reachy_mini, shared_state)
-                time.sleep(1.0 / self.TICK_HZ)
+                if isinstance(command, PlayMove):
+                    # The move held the loop on purpose: not a late tick.
+                    tick_due_at = time.monotonic()
+                tick_due_at = self._wait_for_next_tick(tick_due_at + self.TICK_S)
         finally:
             shared_state.set_move_playing(True)
             reachy_mini.goto_sleep()
@@ -76,3 +88,19 @@ class RobotController:
             shared_state.mark_activity()
         else:
             raise TypeError(f"Unknown command: {command!r}")
+
+    def _wait_for_next_tick(self, due_at: float) -> float:
+        """Sleep until the next tick is due, and return when it was due.
+
+        Skips, and logs, the slots that went by while this tick ran late.
+        """
+        now = time.monotonic()
+        if now < due_at:
+            time.sleep(due_at - now)
+            return due_at
+
+        late_s = now - due_at
+        skipped_ticks = int(late_s // self.TICK_S)
+        if skipped_ticks:
+            logger.warning("Skipped %d ticks (%.0f ms late)", skipped_ticks, late_s * 1000)
+        return due_at + skipped_ticks * self.TICK_S

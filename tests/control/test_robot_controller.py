@@ -149,3 +149,74 @@ def test_going_to_sleep_counts_as_a_move_playing(fake_reachy_mini):
     run_one_tick(HoldPose(head=np.eye(4), antennas=np.zeros(2)), fake_reachy_mini, state)
 
     assert playing_while_going_to_sleep == [True]
+
+
+class FakeClock:
+    """Stands in for the time module: time moves only when told, or when slept."""
+
+    def __init__(self, now: float) -> None:
+        self.now = now
+        self.slept_s: list[float] = []
+
+    def monotonic(self) -> float:
+        return self.now
+
+    def sleep(self, seconds: float) -> None:
+        self.slept_s.append(seconds)
+        self.now += seconds
+
+
+@pytest.fixture
+def clock(monkeypatch):
+    """Freeze RobotController's clock at 0 s."""
+    fake = FakeClock(now=0.0)
+    monkeypatch.setattr("reachy_alive.control.robot_controller.time", fake)
+    return fake
+
+
+def test_an_early_tick_sleeps_until_the_next_one_is_due(clock):
+    clock.now = 0.015
+
+    due_at = RobotController(MagicMock())._wait_for_next_tick(0.020)
+
+    assert clock.slept_s == [pytest.approx(0.005)]
+    assert due_at == 0.020
+
+
+def test_a_tick_late_by_less_than_one_slot_is_followed_at_once(clock, caplog):
+    clock.now = 0.030
+
+    due_at = RobotController(MagicMock())._wait_for_next_tick(0.020)
+
+    assert clock.slept_s == []
+    assert due_at == 0.020  # the next one is due at 40 ms
+    assert caplog.records == []
+
+
+def test_a_tick_late_by_a_whole_slot_skips_it_and_says_so(clock, caplog):
+    clock.now = 0.045
+
+    due_at = RobotController(MagicMock())._wait_for_next_tick(0.020)
+
+    assert clock.slept_s == []
+    assert due_at == pytest.approx(0.040)  # 20 ms gone, the next one is due at 60 ms
+    assert "Skipped 1 ticks (25 ms late)" in caplog.text
+
+
+def test_a_long_stall_is_followed_by_one_tick_not_a_burst(clock, caplog):
+    clock.now = 0.200
+
+    due_at = RobotController(MagicMock())._wait_for_next_tick(0.020)
+
+    assert clock.slept_s == []
+    assert due_at == pytest.approx(0.200)  # the next one is due at 220 ms
+    assert "Skipped 9 ticks" in caplog.text
+
+
+def test_a_move_holding_the_loop_is_not_a_late_tick(fake_reachy_mini, caplog):
+    move = MagicMock()
+    move.play.side_effect = lambda _: time.sleep(0.1)  # five ticks long
+
+    run_one_tick(PlayMove(move), fake_reachy_mini)
+
+    assert "Skipped" not in caplog.text
