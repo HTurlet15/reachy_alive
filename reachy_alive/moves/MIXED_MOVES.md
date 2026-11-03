@@ -40,7 +40,7 @@ def __init__(self, library: RecordedMoves) -> None:
     self._recording = library.get("sneezing")
 
 def _pose_at(self, phase, p, elapsed_s):
-    t = min(elapsed_s, self._recording.duration - self.step_s)
+    t = min(elapsed_s, self._recording.duration - RECORDING_END_MARGIN_S)
     head, _, body_yaw = self._recording.evaluate(t)
     antenna = ...
     return head, [antenna, -antenna], body_yaw
@@ -49,14 +49,15 @@ def _pose_at(self, phase, p, elapsed_s):
 Read the recording with `elapsed_s`, not `p`: the recording is one
 continuous timeline, while `p` restarts at every phase. The `min` matters
 on the last tick: `evaluate()` raises if asked for the recording's last
-frame, so the head stops one tick (20 ms) before it.
+frame, so the head stops `RECORDING_END_MARGIN_S` (10 ms, from `base.py`)
+before it, like the SDK's own `play_move`.
 
 The recording's own sound is never played — `PhasedMove` plays the phase
 sounds, so there's no double audio.
 
 Code what a hand can't do: a fast shake, a drop in a few ticks, a
 variation between plays. `sneezing.py` draws its drop angle in
-`_on_start()` — see [Vary between plays](CODED_MOVES.md#3-vary-between-plays).
+`start()` — see [Vary between plays](CODED_MOVES.md#3-vary-between-plays).
 
 ## Register it
 
