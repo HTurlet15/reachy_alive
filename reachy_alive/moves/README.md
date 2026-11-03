@@ -10,12 +10,12 @@ for the way you build yours.
 
 ## What the robot does with your move
 
-The robot calls the move's `play()`, when idle picks it or when someone
-clicks it on the app's page, which:
+When the app starts, it uploads your move's sounds to the robot, once.
+Then the robot calls the move's `play()`, when idle picks it or when
+someone clicks it on the app's page, which:
 
-1. uploads its sounds to the robot, while it's still at rest
-2. runs the move
-3. returns the robot to neutral
+1. runs the move
+2. returns the robot to neutral
 
 So you never clean up after yourself, and the next behavior always starts
 from a known pose.
