@@ -68,10 +68,10 @@ flowchart LR
 A **decision-maker** says what the robot should do, and nothing more: it
 never drives the robot. There are two today.
 
-- **`IdleManager`** (`brain/brainstem/`) proposes a breathing pose on every
-  tick, and now and then an idle move: a yawn, a sneeze. It picks the next
-  one ahead, with a delay drawn from the interval kept in `SharedState`, and
-  uploads its sounds while the robot keeps breathing.
+- **`IdleManager`** (`brain/brainstem/`) proposes, now and then, an idle
+  move: a yawn, a sneeze. It picks the next one ahead, with a delay drawn
+  from the interval kept in `SharedState`, and uploads its sounds while the
+  robot keeps breathing. The rest of the time, it proposes nothing.
 - **The app's page** proposes the move someone clicked. Its routes
   (`routes.py`) run in the web server's own thread: they drop the move in a
   queue and answer at once. They also change the settings in `SharedState`,
@@ -83,8 +83,8 @@ Reflexes and deliberation will propose too, the same way.
 
 On every tick, the **`ActionSelector`** picks one proposal: the one with the
 highest priority. Today a requested move wins over idle; reflexes will come
-first. The loser isn't consulted, only told: `IdleManager` learns it was
-interrupted, so breathing restarts from neutral.
+first. When nobody proposes a move, the robot breathes: the selector keeps
+the breathing's clock, and starts it again from neutral after every move.
 
 ## 3 · Execute
 
@@ -128,8 +128,9 @@ rule 4).
 
 ### Breathing, then an idle move
 
-On most ticks, `IdleManager` proposes a breathing pose, and the
-`RobotController` sends it to the robot. On the next tick, the next pose.
+On most ticks, nobody proposes a move: the `ActionSelector` hands the
+`RobotController` the next breathing pose, and it sends it to the robot. On
+the next tick, the next pose.
 
 Meanwhile, `IdleManager` has already picked its next idle move, say a yawn,
 and a delay drawn from the interval kept in `SharedState` (20 to 30 s by
@@ -147,9 +148,9 @@ resumes from neutral.
 - The page sends `POST /moves/sneezing/play`. The web server runs in its own
   thread: the route checks the name, drops the move in a queue, and answers
   at once. It never touches the robot.
-- On the next tick, the `ActionSelector` finds the request. It tells
-  `IdleManager` it was interrupted, so breathing will restart from neutral,
-  and hands the sneeze to the `RobotController`.
+- On the next tick, the `ActionSelector` finds the request, and hands the
+  sneeze to the `RobotController`. Breathing will start again from neutral
+  after it.
 - If several clicks arrive during one move, only the latest plays.
 - From there, it goes like an idle move: played, its end recorded, then
   breathing again.
