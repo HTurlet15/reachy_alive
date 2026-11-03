@@ -48,7 +48,7 @@ class SoundCue:
 
     Attributes:
         at_s: Seconds since the move started.
-        path: Local path of the sound, as listed in ``sound_paths``.
+        path: Local path of the sound, as the move's ``sound_cues`` name it.
     """
 
     at_s: float
@@ -112,9 +112,6 @@ class Move(ABC):
     duration: float
     sound_cues: tuple[SoundCue, ...] = ()
 
-    # Built by prepare(), reset after each play: None means not prepared.
-    _remote_sounds: dict[str, str] | None = None
-
     @property
     def name(self) -> str:
         """Identifier of the move, used in logs and by the app's page.
@@ -129,53 +126,17 @@ class Move(ABC):
             name += char.lower()
         return name
 
-    def play(self, reachy_mini: ReachyMini) -> None:
+    def play(self, reachy_mini: ReachyMini, robot_sounds: dict[Path, str]) -> None:
         """Play this move, then return the robot to neutral.
 
         Args:
             reachy_mini: Connected robot instance.
+            robot_sounds: What the robot's play_sound() takes for each sound,
+                as upload_sounds() made it.
         """
-        if self._remote_sounds is None:
-            self.prepare(reachy_mini)
-        try:
-            last_pose_sent = self._perform(reachy_mini)
-            if last_pose_sent is not None:
-                ReturningToNeutral(last_pose_sent)._perform(reachy_mini)
-        finally:
-            # When the app runs on a laptop against a Wireless robot, the
-            # robot keeps uploads in one folder, by file name alone: any move
-            # or app may overwrite ours before the next play, which re-uploads.
-            self._remote_sounds = None
-
-    def prepare(self, reachy_mini: ReachyMini) -> None:
-        """Upload this move's sounds ahead of time, so play() starts without a pause.
-
-        Builds a table mapping each local sound file to what play_sound()
-        should be given. There are two cases, depending on where the robot
-        runs:
-
-        - Wireless: the audio backend is a WebRTC client, which has an
-          ``upload_sound`` method. Playing a local file would upload it over
-          HTTP mid-move and freeze the motion, so each file is uploaded
-          now, and the table points to its copy on the robot.
-        - Local backend (simulation, Lite): files are read directly from
-          disk, so there's nothing to upload. Each file points to itself.
-
-        The table has the same shape either way, so play_sound() works the
-        same on both.
-
-        Optional: play() calls this itself if it wasn't done beforehand.
-        Moves never call it.
-
-        Args:
-            reachy_mini: Connected robot instance.
-        """
-        audio = reachy_mini.media.audio
-        paths = [str(path) for path in self.sound_paths()]
-        if hasattr(audio, "upload_sound"):
-            self._remote_sounds = {path: audio.upload_sound(path) for path in paths}
-        else:
-            self._remote_sounds = {path: path for path in paths}
+        last_pose_sent = self._perform(reachy_mini, robot_sounds)
+        if last_pose_sent is not None:
+            ReturningToNeutral(last_pose_sent)._perform(reachy_mini, robot_sounds)
 
     def start(self) -> None:
         """Draw what varies between plays, once, before the first pose.
@@ -196,27 +157,9 @@ class Move(ABC):
             yaw), angles in radians.
         """
 
-    def sound_paths(self) -> list[Path]:
-        """List the local sound files this move plays, the ones prepare() uploads."""
-        return [cue.path for cue in self.sound_cues]
-
-    def play_sound(self, reachy_mini: ReachyMini, path: Path) -> None:
-        """Play one of this move's sounds, from the copy made by prepare().
-
-        Args:
-            reachy_mini: Connected robot instance.
-            path: Local path of the sound, as listed in ``sound_paths``.
-
-        Raises:
-            KeyError: If the sound isn't listed in ``sound_paths``.
-        """
-        try:
-            sound = self._remote_sounds[str(path)]
-        except KeyError:
-            raise KeyError(f"{path} is not listed in sound_paths()") from None
-        reachy_mini.media.play_sound(sound)
-
-    def _perform(self, reachy_mini: ReachyMini) -> tuple[np.ndarray, list[float], float] | None:
+    def _perform(
+        self, reachy_mini: ReachyMini, robot_sounds: dict[Path, str]
+    ) -> tuple[np.ndarray, list[float], float] | None:
         """Run the move, starting each sound on its cue, and return the last pose sent."""
         # Before the clock starts, so the draws never eat into the first pose.
         self.start()
@@ -226,7 +169,7 @@ class Move(ABC):
 
         while (t := time.monotonic() - started_at) < self.duration:
             while cues_left and cues_left[0].at_s <= t:
-                self.play_sound(reachy_mini, cues_left.pop(0).path)
+                reachy_mini.media.play_sound(robot_sounds[cues_left.pop(0).path])
 
             last_pose_sent = self.evaluate(t)
             head, antennas, body_yaw = last_pose_sent

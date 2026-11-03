@@ -70,8 +70,8 @@ never drives the robot. There are two today.
 
 - **`IdleManager`** (`brain/brainstem/`) proposes, now and then, an idle
   move: a yawn, a sneeze. It picks the next one ahead, with a delay drawn
-  from the interval kept in `SharedState`, and uploads its sounds while the
-  robot keeps breathing. The rest of the time, it proposes nothing.
+  from the interval kept in `SharedState`. The rest of the time, it proposes
+  nothing.
 - **The app's page** proposes the move someone clicked. Its routes
   (`routes.py`) run in the web server's own thread: they drop the move in a
   queue and answer at once. They also change the settings in `SharedState`,
@@ -134,9 +134,10 @@ the next tick, the next pose.
 
 Meanwhile, `IdleManager` has already picked its next idle move, say a yawn,
 and a delay drawn from the interval kept in `SharedState` (20 to 30 s by
-default, adjustable from the app's page). It uploads the yawn's sounds in
-the background while the robot keeps breathing. Once the delay has passed
-since the last move ended, it proposes the yawn instead of a pose.
+default, adjustable from the app's page). Its sounds are already on the
+robot: the app uploads every move's sounds once, when it starts. Once the
+delay has passed since the last move ended, it proposes the yawn instead of
+a pose.
 
 The `RobotController` plays it. The loop waits for the whole move to finish
 (see [Known debt](#known-debt)), then records in `SharedState` that a move
@@ -306,8 +307,3 @@ follows from it:
 Target: moves return a pose each tick, like breathing does, and the loop
 sends every pose itself. Scheduled as its own step, the interruptible body,
 right before reflexes, which need interruption.
-
-**A move requested from the app's page isn't prepared ahead.** Its sounds
-upload just before it plays, which can add a short pause on a Wireless
-robot. Idle moves don't have it: `IdleManager` prepares them while the robot
-breathes.

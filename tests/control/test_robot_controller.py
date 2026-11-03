@@ -23,7 +23,7 @@ def run_one_tick(command, reachy_mini, shared_state=None) -> None:
     action_selector = MagicMock()
     action_selector.decide.side_effect = decide
 
-    RobotController(action_selector).run(
+    RobotController(action_selector, robot_sounds={}).run(
         reachy_mini, shared_state or SharedState(), stop_event
     )
 
@@ -31,9 +31,9 @@ def test_records_the_move_as_playing_only_while_it_plays(fake_reachy_mini):
     state = SharedState()
     playing_during_play = []
     move = MagicMock()
-    move.play.side_effect = lambda _: playing_during_play.append(state.is_move_playing())
+    move.play.side_effect = lambda *_: playing_during_play.append(state.is_move_playing())
 
-    RobotController(MagicMock())._execute(PlayMove(move), fake_reachy_mini, state)
+    RobotController(MagicMock(), robot_sounds={})._execute(PlayMove(move), fake_reachy_mini, state)
 
     assert playing_during_play == [True]  # seen from inside the move
     assert state.is_move_playing() is False  # and over once it has ended
@@ -45,7 +45,8 @@ def test_move_stops_playing_even_when_the_move_fails(fake_reachy_mini):
     move.play.side_effect = RuntimeError("the move failed")
 
     with pytest.raises(RuntimeError):
-        RobotController(MagicMock())._execute(PlayMove(move), fake_reachy_mini, state)
+        controller = RobotController(MagicMock(), robot_sounds={})
+        controller._execute(PlayMove(move), fake_reachy_mini, state)
 
     assert state.is_move_playing() is False
 
@@ -54,7 +55,7 @@ def test_restarts_idle_timer_once_the_move_has_ended(fake_reachy_mini):
     state.last_activity_at = time.monotonic() - 50.0
     timer_during_play = []
     move = MagicMock()
-    move.play.side_effect = lambda _: timer_during_play.append(
+    move.play.side_effect = lambda *_: timer_during_play.append(
         state.seconds_since_last_activity()
     )
 
@@ -89,7 +90,7 @@ def test_play_move_command_plays_the_move(fake_reachy_mini):
 
     run_one_tick(PlayMove(move), fake_reachy_mini)
 
-    move.play.assert_called_once_with(fake_reachy_mini)
+    move.play.assert_called_once_with(fake_reachy_mini, {})
     fake_reachy_mini.set_target.assert_not_called()
 
 
@@ -177,7 +178,7 @@ def clock(monkeypatch):
 def test_an_early_tick_sleeps_until_the_next_one_is_due(clock):
     clock.now = 0.015
 
-    due_at = RobotController(MagicMock())._wait_for_next_tick(0.020)
+    due_at = RobotController(MagicMock(), robot_sounds={})._wait_for_next_tick(0.020)
 
     assert clock.slept_s == [pytest.approx(0.005)]
     assert due_at == 0.020
@@ -186,7 +187,7 @@ def test_an_early_tick_sleeps_until_the_next_one_is_due(clock):
 def test_a_tick_late_by_less_than_one_slot_is_followed_at_once(clock, caplog):
     clock.now = 0.030
 
-    due_at = RobotController(MagicMock())._wait_for_next_tick(0.020)
+    due_at = RobotController(MagicMock(), robot_sounds={})._wait_for_next_tick(0.020)
 
     assert clock.slept_s == []
     assert due_at == 0.020  # the next one is due at 40 ms
@@ -196,7 +197,7 @@ def test_a_tick_late_by_less_than_one_slot_is_followed_at_once(clock, caplog):
 def test_a_tick_late_by_a_whole_slot_skips_it_and_says_so(clock, caplog):
     clock.now = 0.045
 
-    due_at = RobotController(MagicMock())._wait_for_next_tick(0.020)
+    due_at = RobotController(MagicMock(), robot_sounds={})._wait_for_next_tick(0.020)
 
     assert clock.slept_s == []
     assert due_at == pytest.approx(0.040)  # 20 ms gone, the next one is due at 60 ms
@@ -206,7 +207,7 @@ def test_a_tick_late_by_a_whole_slot_skips_it_and_says_so(clock, caplog):
 def test_a_long_stall_is_followed_by_one_tick_not_a_burst(clock, caplog):
     clock.now = 0.200
 
-    due_at = RobotController(MagicMock())._wait_for_next_tick(0.020)
+    due_at = RobotController(MagicMock(), robot_sounds={})._wait_for_next_tick(0.020)
 
     assert clock.slept_s == []
     assert due_at == pytest.approx(0.200)  # the next one is due at 220 ms
@@ -215,7 +216,7 @@ def test_a_long_stall_is_followed_by_one_tick_not_a_burst(clock, caplog):
 
 def test_a_move_holding_the_loop_is_not_a_late_tick(fake_reachy_mini, caplog):
     move = MagicMock()
-    move.play.side_effect = lambda _: time.sleep(0.1)  # five ticks long
+    move.play.side_effect = lambda *_: time.sleep(0.1)  # five ticks long
 
     run_one_tick(PlayMove(move), fake_reachy_mini)
 
