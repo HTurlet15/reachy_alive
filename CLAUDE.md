@@ -165,7 +165,7 @@ Key points already learned from them:
   anything mid-interpolation.
 - `set_target()` only inside a single control loop at 50-100 Hz. Multiple
   scattered `set_target()` calls is a documented anti-pattern — `set_target()`
-  lives in `RobotController`, plus `PhasedMove._perform` until moves run
+  lives in `RobotController`, plus `Move._perform` until moves run
   tick by tick.
 - `enable_motors()` pins targets to the present pose, so call it before any
   `set_target`.

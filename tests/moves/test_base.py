@@ -13,6 +13,7 @@ from reachy_alive.moves.base import (
     LibraryMove,
     Move,
     PhasedMove,
+    SoundCue,
     alternating_sign,
     interpolate,
 )
@@ -21,16 +22,15 @@ from reachy_alive.moves.base import (
 
 
 class _SoundMove(Move):
-    """Minimal move that plays one sound."""
+    """Minimal move: holds still for a few ticks, with one sound at the start."""
+
+    duration = 0.05
 
     def __init__(self, path: Path) -> None:
-        self.path = path
+        self.sound_cues = (SoundCue(at_s=0.0, path=path),)
 
-    def sound_paths(self) -> list[Path]:
-        return [self.path]
-
-    def _perform(self, reachy_mini) -> None:
-        self.play_sound(reachy_mini, self.path)
+    def evaluate(self, t):
+        return np.eye(4), [0.0, 0.0], 0.0
 
 
 def test_play_plays_the_uploaded_copy_of_a_sound(fake_reachy_mini):
@@ -81,11 +81,10 @@ def test_play_returns_head_antennas_and_body_to_neutral(fake_reachy_mini):
 
 def test_name_joins_class_name_words_with_hyphens():
     class DeepBreath(Move):
-        def _perform(self, reachy_mini):
-            pass
+        duration = 0.0
 
-        def sound_paths(self):
-            return []
+        def evaluate(self, t):
+            return np.eye(4), [0.0, 0.0], 0.0
 
     assert DeepBreath().name == "deep-breath"
 
@@ -146,7 +145,26 @@ def test_phase_durations_come_from_sounds_padding_and_silent_phases(sounds_dir):
     move = _phased_move_class(sounds_dir)()
 
     assert move.phase_ends_s == pytest.approx({"a": 0.15, "hold": 0.45, "b": 0.65})
-    assert move.duration_s == pytest.approx(0.65)
+    assert move.duration == pytest.approx(0.65)
+
+
+def test_each_sound_is_cued_when_its_phase_begins(sounds_dir):
+    move = _phased_move_class(sounds_dir)()
+
+    assert move.sound_cues == (
+        SoundCue(at_s=0.0, path=sounds_dir / "a.wav"),
+        SoundCue(at_s=pytest.approx(0.45), path=sounds_dir / "b.wav"),  # after hold
+    )
+
+
+def test_evaluate_answers_the_pose_of_the_running_phase(sounds_dir):
+    move = _phased_move_class(sounds_dir)()
+
+    head, antennas, body_yaw = move.evaluate(0.3)
+
+    assert move.calls[-1] == ("hold", pytest.approx(0.5), 0.3)  # 0.15 s into 0.3 s
+    np.testing.assert_allclose(head, np.eye(4))
+    assert body_yaw == 0.25
 
 
 @pytest.mark.parametrize(
@@ -184,7 +202,7 @@ def test_invalid_declarations_fail_at_construction(sounds_dir, attributes, error
         _phased_move_class(sounds_dir, **attributes)()
 
 
-def test_perform_fires_each_sound_once_and_streams_the_full_pose(fake_reachy_mini, sounds_dir):
+def test_play_starts_each_sound_once_and_streams_the_full_pose(fake_reachy_mini, sounds_dir):
     move = _phased_move_class(sounds_dir)()
 
     move.play(fake_reachy_mini)
@@ -210,14 +228,14 @@ def test_elapsed_s_runs_through_the_move_while_p_restarts_each_phase(
     assert all(p < 0.2 for p in first_p_of_each_phase.values())
 
 
-def test_on_start_runs_once_per_play_before_the_first_pose(fake_reachy_mini, sounds_dir):
-    # Each entry: how many poses had been computed when _on_start ran.
+def test_start_runs_once_per_play_before_the_first_pose(fake_reachy_mini, sounds_dir):
+    # Each entry: how many poses had been computed when start ran.
     poses_before_start = []
 
-    def _on_start(self):
+    def start(self):
         poses_before_start.append(len(self.calls))
 
-    move = _phased_move_class(sounds_dir, _on_start=_on_start)()
+    move = _phased_move_class(sounds_dir, start=start)()
 
     move.play(fake_reachy_mini)
     poses_in_first_play = len(move.calls)
@@ -229,11 +247,69 @@ def test_on_start_runs_once_per_play_before_the_first_pose(fake_reachy_mini, sou
 # --- LibraryMove --------------------------------------------------------
 
 
-def test_library_move_plays_the_recording_with_its_own_sound(fake_reachy_mini):
+@pytest.fixture
+def recording():
+    """A one-second recording with a sound, as the SDK's library returns it."""
+    recording = MagicMock()
+    recording.duration = 1.0
+    recording.sound_path = Path("/cache/hiccup-full.wav")
+    recording.evaluate.return_value = (np.eye(4), np.zeros(2), 0.0)
+    return recording
+
+
+def test_library_move_lasts_as_long_as_its_recording(recording):
     library = MagicMock()
+    library.get.return_value = recording
+
+    move = LibraryMove("hiccup-full", library)
+
+    library.get.assert_called_once_with("hiccup-full")
+    assert move.duration == 1.0
+
+
+def test_library_move_cues_the_recording_sound_at_its_start(recording):
+    library = MagicMock()
+    library.get.return_value = recording
+
+    move = LibraryMove("hiccup-full", library)
+
+    assert move.sound_cues == (SoundCue(at_s=0.0, path=recording.sound_path),)
+
+
+def test_library_move_without_sound_cues_nothing(recording):
+    recording.sound_path = None
+    library = MagicMock()
+    library.get.return_value = recording
+
+    assert LibraryMove("hiccup-full", library).sound_cues == ()
+
+
+def test_library_move_uploads_its_sound_ahead_like_any_move(fake_reachy_mini, recording):
+    library = MagicMock()
+    library.get.return_value = recording
+
+    LibraryMove("hiccup-full", library).prepare(fake_reachy_mini)
+
+    fake_reachy_mini.media.audio.upload_sound.assert_called_once_with("/cache/hiccup-full.wav")
+
+
+def test_library_move_never_reads_the_recording_at_its_last_frame(recording):
+    library = MagicMock()
+    library.get.return_value = recording
+
+    LibraryMove("hiccup-full", library).evaluate(1.0)
+
+    (t,), _ = recording.evaluate.call_args
+    assert t < 1.0
+
+
+def test_library_move_plays_through_our_loop_not_the_sdk(fake_reachy_mini, recording):
+    recording.duration = 0.05
+    library = MagicMock()
+    library.get.return_value = recording
 
     LibraryMove("hiccup-full", library).play(fake_reachy_mini)
 
-    library.get.assert_called_once_with("hiccup-full")
-    fake_reachy_mini.play_move.assert_called_once_with(library.get.return_value, sound=True)
-    fake_reachy_mini.media.audio.upload_sound.assert_not_called()
+    fake_reachy_mini.play_move.assert_not_called()
+    assert fake_reachy_mini.set_target.called
+    fake_reachy_mini.media.play_sound.assert_called_once()

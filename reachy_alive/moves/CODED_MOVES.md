@@ -49,6 +49,9 @@ A phase with no sound (`None`) needs a duration in
 `SILENT_PHASE_DURATIONS_S`. To add a beat of silence after a sound, use
 `PHASE_PADDING_S` rather than editing the `.wav`.
 
+Re-exporting a sound at a different length stretches or shrinks its
+phase, so motion and audio stay in sync.
+
 ## 2. One pose per phase
 
 On every tick, `PhasedMove` works out which phase is running and how far
@@ -105,7 +108,7 @@ serves two cases:
 
 Optional. A move that plays exactly the same every time looks
 mechanical. To vary something from one play to the next — an angle, an
-amplitude — draw it in `_on_start()`, store it on `self`, and read it in
+amplitude — draw it in `start()`, store it on `self`, and read it in
 `_pose_at`:
 
 ```python
@@ -113,12 +116,12 @@ def __init__(self) -> None:
     super().__init__()
     self._drop_angle_rad = self.DROP_ANGLE_RAD
 
-def _on_start(self) -> None:
+def start(self) -> None:
     self._drop_angle_rad = self.DROP_ANGLE_RAD + random.uniform(-0.1, 0.1)
 ```
 
-`PhasedMove` calls `_on_start()` once at the start of every play, before
-the first pose. Draw there, not elsewhere:
+`start()` runs once at the start of every play, before the first pose.
+Draw there, not elsewhere:
 
 - not in `_pose_at`, which runs on every tick: the value would change
   50 times a second;
@@ -126,7 +129,7 @@ the first pose. Draw there, not elsewhere:
   would get the same value.
 
 Keep a default in `__init__`, as above: the tests read poses without
-playing the move, so `_on_start()` never runs for them.
+playing the move, so `start()` never runs for them.
 
 `sneezing.py` uses this to vary how far its antennas drop.
 
