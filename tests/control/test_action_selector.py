@@ -20,7 +20,7 @@ def idle_proposing(move):
 
 def decide(selector, fake_reachy_mini, t=1.0):
     """Let the selector decide once, at t, with a fresh SharedState."""
-    return selector.decide(t=t, shared_state=SharedState(), reachy_mini=fake_reachy_mini)
+    return selector.decide(t=t, shared_state=SharedState())
 
 
 def test_plays_the_idle_move_idle_proposes(fake_reachy_mini):

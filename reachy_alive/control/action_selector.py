@@ -3,8 +3,6 @@
 import logging
 import queue
 
-from reachy_mini import ReachyMini
-
 from reachy_alive.brain.brainstem.breathing import get_breathing_pose
 from reachy_alive.brain.brainstem.idle_manager import IdleManager
 from reachy_alive.control.commands import Command, HoldPose, PlayMove
@@ -34,15 +32,12 @@ class ActionSelector:
         # When the current stretch of breathing began; None until the next tick.
         self._breathing_started_at_s: float | None = None
 
-    def decide(
-        self, t: float, shared_state: SharedState, reachy_mini: ReachyMini
-    ) -> Command:
+    def decide(self, t: float, shared_state: SharedState) -> Command:
         """Return this tick's command.
 
         Args:
             t: Elapsed time in seconds since the control loop started.
             shared_state: Shared blackboard, passed through to IdleManager.
-            reachy_mini: Robot instance, passed through to IdleManager.
 
         Returns:
             PlayMove for a requested move, otherwise for an idle move that is
@@ -52,7 +47,7 @@ class ActionSelector:
         if move is not None:
             logger.info("Playing %s (requested)", move.name)
         else:
-            move = self._idle_manager.propose(shared_state, reachy_mini)
+            move = self._idle_manager.propose(shared_state)
 
         if move is not None:
             # Every move ends at neutral, where breathing starts.

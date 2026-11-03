@@ -2,6 +2,7 @@
 
 import logging
 import time
+from pathlib import Path
 
 from reachy_mini import ReachyMini
 
@@ -30,13 +31,16 @@ class RobotController:
     TICK_HZ = 50.0
     TICK_S = 1.0 / TICK_HZ
 
-    def __init__(self, action_selector: ActionSelector) -> None:
-        """Keep the selector.
+    def __init__(self, action_selector: ActionSelector, robot_sounds: dict[Path, str]) -> None:
+        """Keep the selector, and where the robot finds each sound.
 
         Args:
             action_selector: Chooses the command for each tick.
+            robot_sounds: What the robot's play_sound() takes for each sound,
+                as upload_sounds() made it.
         """
         self.action_selector = action_selector
+        self.robot_sounds = robot_sounds
 
     def run(self, reachy_mini: ReachyMini, shared_state: SharedState, stop_event) -> None:
         """Run the control loop until stop_event is set.
@@ -59,7 +63,7 @@ class RobotController:
             tick_due_at = t0
             while not stop_event.is_set():
                 t = time.monotonic() - t0
-                command = self.action_selector.decide(t, shared_state, reachy_mini)
+                command = self.action_selector.decide(t, shared_state)
                 self._execute(command, reachy_mini, shared_state)
                 if isinstance(command, PlayMove):
                     # The move held the loop on purpose: not a late tick.
@@ -82,7 +86,7 @@ class RobotController:
         elif isinstance(command, PlayMove):
             shared_state.set_move_playing(True)
             try:
-                command.move.play(reachy_mini)
+                command.move.play(reachy_mini, self.robot_sounds)
             finally:
                 shared_state.set_move_playing(False)
             shared_state.mark_activity()

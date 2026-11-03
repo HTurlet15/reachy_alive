@@ -4,11 +4,13 @@ Runs the real motion loop without mocking time.sleep, so the test lasts as
 long as the move itself.
 """
 
+from reachy_alive.moves.robot_sounds import upload_sounds
 from reachy_alive.moves.stretching import Stretching
 
 
 def test_play_uploads_sounds_streams_poses_and_returns_to_neutral(fake_reachy_mini):
-    Stretching().play(fake_reachy_mini)
+    move = Stretching()
+    move.play(fake_reachy_mini, upload_sounds([move], fake_reachy_mini))
 
     assert fake_reachy_mini.media.audio.upload_sound.call_count == 3
     assert fake_reachy_mini.media.play_sound.call_count == 3  # rising, stretching, release

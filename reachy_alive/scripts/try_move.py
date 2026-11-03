@@ -19,6 +19,7 @@ from reachy_mini.motion.recorded_move import RecordedMoves
 from reachy_mini.utils import create_head_pose
 
 from reachy_alive.moves.base import NEUTRAL_ANTENNAS_RAD, NEUTRAL_BODY_YAW_RAD, LibraryMove
+from reachy_alive.moves.robot_sounds import upload_sounds
 from reachy_alive.moves.sneezing import Sneezing
 from reachy_alive.moves.stretching import Stretching
 from reachy_alive.moves.yawning import Yawning
@@ -74,7 +75,7 @@ def main() -> None:
                 body_yaw=NEUTRAL_BODY_YAW_RAD,
                 duration=2.0,
             )
-            move.play(mini)
+            move.play(mini, upload_sounds([move], mini))
         finally:
             mini.goto_sleep()
             mini.disable_motors()

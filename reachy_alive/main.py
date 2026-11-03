@@ -12,6 +12,7 @@ from reachy_alive.brain.sensory_cortex.sense_manager import SenseManager
 from reachy_alive.control.action_selector import ActionSelector
 from reachy_alive.control.robot_controller import RobotController
 from reachy_alive.moves.base import LibraryMove, Move
+from reachy_alive.moves.robot_sounds import upload_sounds
 from reachy_alive.moves.sneezing import Sneezing
 from reachy_alive.moves.stretching import Stretching
 from reachy_alive.moves.yawning import Yawning
@@ -46,6 +47,10 @@ class ReachyAlive(ReachyMiniApp):
         if len(idle_moves_by_name) != len(idle_moves):
             raise ValueError("Two moves share the same name")
 
+        # Every sound is made playable now, once: no move uploads anything
+        # while it plays, whether idle picks it or the page asks for it.
+        robot_sounds = upload_sounds(idle_moves, reachy_mini)
+
         # The senses, each in its own thread: they read the robot and write
         # facts to shared_state, never driving it. Built before the routes,
         # which need their names; started after.
@@ -70,7 +75,7 @@ class ReachyAlive(ReachyMiniApp):
         # a requested move over idle, RobotController drives the robot.
         idle_manager = IdleManager(idle_moves)
         action_selector = ActionSelector(idle_manager, move_requests)
-        robot_controller = RobotController(action_selector)
+        robot_controller = RobotController(action_selector, robot_sounds)
 
         # The control loop, in this thread, until the app stops. The senses
         # stop first: the robot closes once run() returns.
