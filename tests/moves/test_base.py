@@ -22,16 +22,15 @@ from reachy_alive.moves.base import (
 
 
 class _SoundMove(Move):
-    """Minimal move that plays one sound."""
+    """Minimal move: holds still for a few ticks, with one sound at the start."""
+
+    duration = 0.05
 
     def __init__(self, path: Path) -> None:
-        self.path = path
+        self.sound_cues = (SoundCue(at_s=0.0, path=path),)
 
-    def sound_paths(self) -> list[Path]:
-        return [self.path]
-
-    def _perform(self, reachy_mini) -> None:
-        self.play_sound(reachy_mini, self.path)
+    def evaluate(self, t):
+        return np.eye(4), [0.0, 0.0], 0.0
 
 
 def test_play_plays_the_uploaded_copy_of_a_sound(fake_reachy_mini):
@@ -82,11 +81,10 @@ def test_play_returns_head_antennas_and_body_to_neutral(fake_reachy_mini):
 
 def test_name_joins_class_name_words_with_hyphens():
     class DeepBreath(Move):
-        def _perform(self, reachy_mini):
-            pass
+        duration = 0.0
 
-        def sound_paths(self):
-            return []
+        def evaluate(self, t):
+            return np.eye(4), [0.0, 0.0], 0.0
 
     assert DeepBreath().name == "deep-breath"
 
@@ -249,11 +247,69 @@ def test_start_runs_once_per_play_before_the_first_pose(fake_reachy_mini, sounds
 # --- LibraryMove --------------------------------------------------------
 
 
-def test_library_move_plays_the_recording_with_its_own_sound(fake_reachy_mini):
+@pytest.fixture
+def recording():
+    """A one-second recording with a sound, as the SDK's library returns it."""
+    recording = MagicMock()
+    recording.duration = 1.0
+    recording.sound_path = Path("/cache/hiccup-full.wav")
+    recording.evaluate.return_value = (np.eye(4), np.zeros(2), 0.0)
+    return recording
+
+
+def test_library_move_lasts_as_long_as_its_recording(recording):
     library = MagicMock()
+    library.get.return_value = recording
+
+    move = LibraryMove("hiccup-full", library)
+
+    library.get.assert_called_once_with("hiccup-full")
+    assert move.duration == 1.0
+
+
+def test_library_move_cues_the_recording_sound_at_its_start(recording):
+    library = MagicMock()
+    library.get.return_value = recording
+
+    move = LibraryMove("hiccup-full", library)
+
+    assert move.sound_cues == (SoundCue(at_s=0.0, path=recording.sound_path),)
+
+
+def test_library_move_without_sound_cues_nothing(recording):
+    recording.sound_path = None
+    library = MagicMock()
+    library.get.return_value = recording
+
+    assert LibraryMove("hiccup-full", library).sound_cues == ()
+
+
+def test_library_move_uploads_its_sound_ahead_like_any_move(fake_reachy_mini, recording):
+    library = MagicMock()
+    library.get.return_value = recording
+
+    LibraryMove("hiccup-full", library).prepare(fake_reachy_mini)
+
+    fake_reachy_mini.media.audio.upload_sound.assert_called_once_with("/cache/hiccup-full.wav")
+
+
+def test_library_move_never_reads_the_recording_at_its_last_frame(recording):
+    library = MagicMock()
+    library.get.return_value = recording
+
+    LibraryMove("hiccup-full", library).evaluate(1.0)
+
+    (t,), _ = recording.evaluate.call_args
+    assert t < 1.0
+
+
+def test_library_move_plays_through_our_loop_not_the_sdk(fake_reachy_mini, recording):
+    recording.duration = 0.05
+    library = MagicMock()
+    library.get.return_value = recording
 
     LibraryMove("hiccup-full", library).play(fake_reachy_mini)
 
-    library.get.assert_called_once_with("hiccup-full")
-    fake_reachy_mini.play_move.assert_called_once_with(library.get.return_value, sound=True)
-    fake_reachy_mini.media.audio.upload_sound.assert_not_called()
+    fake_reachy_mini.play_move.assert_not_called()
+    assert fake_reachy_mini.set_target.called
+    fake_reachy_mini.media.play_sound.assert_called_once()

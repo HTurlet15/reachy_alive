@@ -14,7 +14,7 @@ import numpy as np
 import pytest
 
 import reachy_alive.moves as moves_package
-from reachy_alive.moves.base import LibraryMove, Move, PhasedMove
+from reachy_alive.moves.base import Move, PhasedMove
 from reachy_alive.moves.sneezing import Sneezing
 from reachy_alive.moves.stretching import Stretching
 from reachy_alive.moves.yawning import Yawning
@@ -61,9 +61,9 @@ def test_every_phased_move_is_in_moves():
 
 
 def test_no_move_writes_its_own_execution_loop():
-    # _perform is the internal loop, due to change. Defining it means either
-    # subclassing Move directly or overriding PhasedMove's loop.
-    moves = _shipped_subclasses(Move) - {PhasedMove, LibraryMove}
+    # _perform is Move's internal loop, due to change. Defining it means
+    # overriding it: every move only says its poses, through evaluate.
+    moves = _shipped_subclasses(Move)
 
     offenders = sorted(cls.__name__ for cls in moves if "_perform" in vars(cls))
 

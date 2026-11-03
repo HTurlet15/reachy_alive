@@ -13,6 +13,7 @@ from reachy_mini.motion.recorded_move import RecordedMoves
 
 from reachy_alive.moves.base import (
     NEUTRAL_ANTENNAS_RAD,
+    RECORDING_END_MARGIN_S,
     Move,
     PhasedMove,
     alternating_sign,
@@ -60,9 +61,6 @@ class Sneezing(PhasedMove):
     SNEEZE_ANGLE_VARIATION_RAD = np.deg2rad(10.0)
     SNEEZE_DROP_DURATION_S = 0.06  # about 3 ticks at 50 Hz
 
-    # evaluate() raises at the recording's last frame: read it just before.
-    RECORDING_END_MARGIN_S = 0.01
-
     def __init__(self, library: RecordedMoves) -> None:
         """Load the head recording.
 
@@ -93,7 +91,7 @@ class Sneezing(PhasedMove):
     def _pose_at(
         self, phase: str, p: float, elapsed_s: float
     ) -> tuple[np.ndarray, list[float], float]:
-        t = min(elapsed_s, self._recording.duration - self.RECORDING_END_MARGIN_S)
+        t = min(elapsed_s, self._recording.duration - RECORDING_END_MARGIN_S)
         head, _, body_yaw = self._recording.evaluate(t)
 
         if phase in self.INHALE_PHASES:
