@@ -25,8 +25,10 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 from reachy_mini import ReachyMini
+from reachy_mini.motion.goto import GotoMove
 from reachy_mini.motion.recorded_move import RecordedMoves
 from reachy_mini.utils import create_head_pose
+from reachy_mini.utils.interpolation import InterpolationTechnique
 
 # The SDK's own neutral is offset ~10° off vertical, not [0.0, 0.0] --
 # straight up is where antennas jitter (upstream hardware limit).
@@ -101,7 +103,6 @@ class Move(ABC):
     and will change.
     """
 
-    RETURN_DURATION_S = 0.5
     # Stretching and Sneezing tremble at 0.02 s per side: play() sends a pose
     # at least that often.
     POSE_STEP_S = 0.02
@@ -137,8 +138,9 @@ class Move(ABC):
         if self._remote_sounds is None:
             self.prepare(reachy_mini)
         try:
-            self._perform(reachy_mini)
-            self.go_neutral(reachy_mini)
+            last_pose_sent = self._perform(reachy_mini)
+            if last_pose_sent is not None:
+                ReturningToNeutral(last_pose_sent)._perform(reachy_mini)
         finally:
             # When the app runs on a laptop against a Wireless robot, the
             # robot keeps uploads in one folder, by file name alone: any move
@@ -214,38 +216,25 @@ class Move(ABC):
             raise KeyError(f"{path} is not listed in sound_paths()") from None
         reachy_mini.media.play_sound(sound)
 
-    def go_neutral(self, reachy_mini: ReachyMini, duration: float | None = None) -> None:
-        """Move the robot to the neutral head, antenna and body pose.
-
-        Interpolated, so it's safe from any starting pose. Call it yourself
-        mid-move if returning to neutral is part of the choreography.
-
-        Args:
-            reachy_mini: Connected robot instance.
-            duration: Movement duration in seconds. Defaults to RETURN_DURATION_S.
-        """
-        reachy_mini.goto_target(
-            head=create_head_pose(),
-            antennas=NEUTRAL_ANTENNAS_RAD,
-            body_yaw=NEUTRAL_BODY_YAW_RAD,
-            duration=duration or self.RETURN_DURATION_S,
-        )
-
-    def _perform(self, reachy_mini: ReachyMini) -> None:
-        """Run the move, starting each sound on its cue."""
+    def _perform(self, reachy_mini: ReachyMini) -> tuple[np.ndarray, list[float], float] | None:
+        """Run the move, starting each sound on its cue, and return the last pose sent."""
         # Before the clock starts, so the draws never eat into the first pose.
         self.start()
         cues_left = list(self.sound_cues)
+        last_pose_sent = None
         started_at = time.monotonic()
 
         while (t := time.monotonic() - started_at) < self.duration:
             while cues_left and cues_left[0].at_s <= t:
                 self.play_sound(reachy_mini, cues_left.pop(0).path)
 
-            head, antennas, body_yaw = self.evaluate(t)
+            last_pose_sent = self.evaluate(t)
+            head, antennas, body_yaw = last_pose_sent
             reachy_mini.set_target(head=head, antennas=antennas, body_yaw=body_yaw)
 
             time.sleep(self.POSE_STEP_S)
+
+        return last_pose_sent
 
 
 class PhasedMove(Move):
@@ -390,3 +379,37 @@ class LibraryMove(Move):
     def evaluate(self, t: float) -> tuple[np.ndarray, list[float], float]:
         """Return the recorded pose t seconds in."""
         return self._recording.evaluate(min(t, self.duration - RECORDING_END_MARGIN_S))
+
+
+class ReturningToNeutral(Move):
+    """Eases the robot back to the neutral pose, from wherever it is.
+
+    The same path as the SDK's goto_target, which plays this GotoMove too;
+    here it runs one pose at a time, like any move.
+    """
+
+    DURATION_S = 0.5
+
+    def __init__(self, from_pose: tuple[np.ndarray, list[float], float]) -> None:
+        """Plan the way back to neutral.
+
+        Args:
+            from_pose: (head pose, antennas, body yaw) to start from: the last
+                pose sent to the robot.
+        """
+        head, antennas, body_yaw = from_pose
+        self._goto = GotoMove(
+            start_head_pose=head,
+            target_head_pose=create_head_pose(),
+            start_antennas=np.array(antennas),
+            target_antennas=np.array(NEUTRAL_ANTENNAS_RAD),
+            start_body_yaw=body_yaw,
+            target_body_yaw=NEUTRAL_BODY_YAW_RAD,
+            duration=self.DURATION_S,
+            method=InterpolationTechnique.MIN_JERK,
+        )
+        self.duration = self._goto.duration
+
+    def evaluate(self, t: float) -> tuple[np.ndarray, list[float], float]:
+        """Return the pose t seconds into the way back."""
+        return self._goto.evaluate(t)

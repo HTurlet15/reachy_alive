@@ -13,6 +13,7 @@ from reachy_alive.moves.base import (
     LibraryMove,
     Move,
     PhasedMove,
+    ReturningToNeutral,
     SoundCue,
     alternating_sign,
     interpolate,
@@ -70,13 +71,29 @@ def test_play_sound_rejects_a_sound_missing_from_sound_paths(fake_reachy_mini):
         move.play_sound(fake_reachy_mini, Path("/local/other.wav"))
 
 
-def test_play_returns_head_antennas_and_body_to_neutral(fake_reachy_mini):
+def test_play_streams_its_way_back_to_neutral(fake_reachy_mini):
     _SoundMove(Path("/local/sneeze.wav")).play(fake_reachy_mini)
 
-    kwargs = fake_reachy_mini.goto_target.call_args.kwargs
-    np.testing.assert_allclose(kwargs["head"], np.eye(4))
-    assert kwargs["antennas"] == NEUTRAL_ANTENNAS_RAD
-    assert kwargs["body_yaw"] == NEUTRAL_BODY_YAW_RAD
+    last = fake_reachy_mini.set_target.call_args.kwargs
+    np.testing.assert_allclose(last["head"], np.eye(4), atol=1e-3)
+    np.testing.assert_allclose(last["antennas"], NEUTRAL_ANTENNAS_RAD, atol=1e-3)
+    assert last["body_yaw"] == pytest.approx(NEUTRAL_BODY_YAW_RAD, abs=1e-3)
+    fake_reachy_mini.goto_target.assert_not_called()
+
+
+def test_the_way_back_starts_from_the_last_pose_sent(fake_reachy_mini):
+    class _TurnedAway(_SoundMove):
+        def evaluate(self, t):
+            return np.eye(4), [0.5, -0.5], 0.3 + t  # never the same pose twice
+
+    _TurnedAway(Path("/local/sneeze.wav")).play(fake_reachy_mini)
+
+    calls = [call.kwargs for call in fake_reachy_mini.set_target.call_args_list]
+    yaws = [call["body_yaw"] for call in calls]
+    last_of_move = max(range(len(yaws)), key=lambda i: yaws[i])  # the yaw only grows
+    first_of_return = calls[last_of_move + 1]
+    assert first_of_return["body_yaw"] == pytest.approx(yaws[last_of_move], abs=1e-3)
+    np.testing.assert_allclose(first_of_return["antennas"], [0.5, -0.5], atol=1e-3)
 
 
 def test_name_joins_class_name_words_with_hyphens():
@@ -208,8 +225,9 @@ def test_play_starts_each_sound_once_and_streams_the_full_pose(fake_reachy_mini,
     move.play(fake_reachy_mini)
 
     assert fake_reachy_mini.media.play_sound.call_count == 2  # a and b; hold is silent
-    assert fake_reachy_mini.set_target.called
-    for call in fake_reachy_mini.set_target.call_args_list:
+    poses_of_the_move = fake_reachy_mini.set_target.call_args_list[: len(move.calls)]
+    assert poses_of_the_move
+    for call in poses_of_the_move:  # the way back to neutral follows them
         assert call.kwargs["body_yaw"] == 0.25
 
 
@@ -313,3 +331,27 @@ def test_library_move_plays_through_our_loop_not_the_sdk(fake_reachy_mini, recor
     fake_reachy_mini.play_move.assert_not_called()
     assert fake_reachy_mini.set_target.called
     fake_reachy_mini.media.play_sound.assert_called_once()
+
+
+# --- ReturningToNeutral -------------------------------------------------
+
+
+def test_returning_to_neutral_goes_from_its_start_to_neutral():
+    from_pose = (np.eye(4), [0.6, -0.6], 0.4)
+    move = ReturningToNeutral(from_pose)
+
+    head, antennas, body_yaw = move.evaluate(0.0)
+    np.testing.assert_allclose(antennas, [0.6, -0.6])
+    assert body_yaw == pytest.approx(0.4)
+
+    head, antennas, body_yaw = move.evaluate(move.duration)
+    np.testing.assert_allclose(head, np.eye(4), atol=1e-9)
+    np.testing.assert_allclose(antennas, NEUTRAL_ANTENNAS_RAD)
+    assert body_yaw == pytest.approx(NEUTRAL_BODY_YAW_RAD)
+
+
+def test_returning_to_neutral_lasts_half_a_second_and_is_silent():
+    move = ReturningToNeutral((np.eye(4), [0.0, 0.0], 0.0))
+
+    assert move.duration == 0.5
+    assert move.sound_cues == ()

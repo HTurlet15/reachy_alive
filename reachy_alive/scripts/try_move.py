@@ -16,8 +16,9 @@ import argparse
 
 from reachy_mini import ReachyMini
 from reachy_mini.motion.recorded_move import RecordedMoves
+from reachy_mini.utils import create_head_pose
 
-from reachy_alive.moves.base import LibraryMove
+from reachy_alive.moves.base import NEUTRAL_ANTENNAS_RAD, NEUTRAL_BODY_YAW_RAD, LibraryMove
 from reachy_alive.moves.sneezing import Sneezing
 from reachy_alive.moves.stretching import Stretching
 from reachy_alive.moves.yawning import Yawning
@@ -66,7 +67,13 @@ def main() -> None:
     with ReachyMini() as mini:
         mini.enable_motors()
         try:
-            move.go_neutral(mini, duration=2.0)
+            # From the sleep pose: ease into neutral before the move streams poses.
+            mini.goto_target(
+                head=create_head_pose(),
+                antennas=NEUTRAL_ANTENNAS_RAD,
+                body_yaw=NEUTRAL_BODY_YAW_RAD,
+                duration=2.0,
+            )
             move.play(mini)
         finally:
             mini.goto_sleep()

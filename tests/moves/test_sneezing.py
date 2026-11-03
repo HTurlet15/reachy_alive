@@ -19,7 +19,7 @@ def test_play_uploads_sounds_streams_poses_and_returns_to_neutral(
     assert fake_reachy_mini.media.play_sound.call_count == 5  # one per phase
     assert fake_reachy_mini.set_target.called
     fake_reachy_mini.play_move.assert_not_called()  # the recording's own sound
-    fake_reachy_mini.goto_target.assert_called_once()  # play()'s return to neutral
+    fake_reachy_mini.goto_target.assert_not_called()  # the return is streamed too
 
 
 def test_head_and_body_come_from_the_recording(fake_library, fake_recording):
@@ -57,7 +57,7 @@ def test_antennas_dont_jump_between_phases(fake_library, phase_before, phase_aft
     assert start_of_after == pytest.approx(end_of_before)
 
 
-def test_antennas_end_where_go_neutral_expects_them(fake_library):
+def test_antennas_end_at_neutral_before_the_way_back(fake_library):
     sneezing = Sneezing(fake_library)
 
     antenna = _antenna(sneezing, "relief", 1.0, sneezing.duration)
