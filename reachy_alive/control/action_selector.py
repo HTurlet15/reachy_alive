@@ -76,14 +76,18 @@ class ActionSelector:
 
     def _choose_move_by_priority(self, t: float) -> None:
         """Start the proposal with the highest priority, if any: a request, otherwise idle."""
+        #From the app's page
         move = self._latest_requested_move()
         if move is not None:
             logger.info("Playing %s (requested)", move.name)
+        #From the idle manager
         else:
             move = self._idle_manager.propose()
+        #If nobody proposed a move
         if move is None:
             return
 
+        #Draw variations of the move, so it doesn't always look the same.
         move.draw_variations()
         self._returning_to_neutral = False
         self._start_cutting(move, t)

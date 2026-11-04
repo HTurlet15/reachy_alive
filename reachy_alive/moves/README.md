@@ -11,11 +11,8 @@ for the way you build yours.
 ## What the robot does with your move
 
 When the app starts, it uploads your move's sounds to the robot, once.
-Then the robot calls the move's `play()`, when idle picks it or when
-someone clicks it on the app's page, which:
-
-1. runs the move
-2. returns the robot to neutral
+Then, when idle picks it or someone clicks it on the app's page, the app
+plays it one pose per tick, and eases the robot back to neutral after it.
 
 So you never clean up after yourself, and the next behavior always starts
 from a known pose.
@@ -109,7 +106,7 @@ there.
 **Your move starts from neutral — keep it that way.** `set_target`
 doesn't interpolate. Streaming it from a pose far away — the sleep pose
 after a fresh boot, say — asks for a huge instant jump, which strains the
-motors. `play()` and `try-move` make sure you start from neutral; don't
+motors. The app and `try-move` make sure you start from neutral; don't
 bypass them.
 
 **Never send the head below z = -170 mm.** Below that, the robot's
