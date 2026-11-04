@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 
 import numpy as np
 
+from reachy_alive.brain.brainstem.idle_manager import IdleManager
 from reachy_alive.control.action_selector import ActionSelector
 from reachy_alive.control.robot_controller import RobotController
 from reachy_alive.moves.base import NEUTRAL_ANTENNAS_RAD, SoundCue
@@ -25,8 +26,8 @@ def idle_proposing(move):
 class Loop:
     """Runs a selector tick by tick, sending each command to a fake robot."""
 
-    def __init__(self, idle_manager, fake_reachy_mini, requests=None) -> None:
-        self.state = SharedState()
+    def __init__(self, idle_manager, fake_reachy_mini, requests=None, state=None) -> None:
+        self.state = state or SharedState()
         self.requests = requests or queue.Queue()
         self.selector = ActionSelector(idle_manager, self.requests, self.state)
         self.controller = RobotController(self.selector, robot_sounds={SNEEZE: "/robot/sneeze.wav"})
@@ -163,3 +164,21 @@ def test_the_end_of_a_move_restarts_the_idle_timer(fake_reachy_mini):
 
     assert loop.state.last_move_ended_at() is not None
     assert not loop.state.is_move_playing()
+
+
+def test_the_robot_rests_for_the_whole_delay_between_two_idle_moves(fake_reachy_mini):
+    # The real IdleManager: with a mock, the idle moves once ran back to back.
+    state = SharedState()
+    state.set_idle_move_interval_range_s(5.0, 5.0)
+    loop = Loop(IdleManager([StillMove(duration=2.0)], state), fake_reachy_mini, state=state)
+
+    times = np.round(np.arange(0.0, 20.0, 0.02), 2)
+    commands = [loop.tick(t) for t in times]
+    starts = [
+        float(t)
+        for t, before, now in zip(times[1:], commands[:-1], commands[1:], strict=True)
+        if now.from_move and not before.from_move
+    ]
+
+    # 2 s of move, 0.5 s of way back, then 5 s of rest again.
+    assert starts == [5.0, 12.5]

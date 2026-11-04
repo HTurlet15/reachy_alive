@@ -67,8 +67,8 @@ E (deliberation), F (arbitration).
   is served before its routes exist, so it retries `GET /moves` (like
   `untilReady` in Pollen's conversation app).
 - **Who writes `SharedState`.** Each fact has one writer:
-  - `RobotController`: `last_activity_at` and when the last move ended (as
-    a move ends), `move_playing` (around each move, and while the robot
+  - `RobotController`: when the last move ended (as a move ends),
+    `move_playing` (around each move, and while the robot
     wakes up), `commanded_pose` (each pose it sends);
   - each sense's facts, its detectors: bumps `BumpDetector`, antenna pushes
     `AntennaPushDetector`, sudden noises `SuddenNoiseDetector`, faces

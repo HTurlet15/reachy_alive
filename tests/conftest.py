@@ -66,7 +66,7 @@ def fake_library(fake_recording):
 class NoIdleMoves:
     """Stands in for IdleManager: proposes nothing."""
 
-    def propose(self):
+    def propose(self, resting_for_s):
         return None
 
 

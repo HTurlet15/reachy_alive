@@ -28,14 +28,6 @@ def run_one_tick(command, reachy_mini, shared_state=None) -> None:
         reachy_mini, shared_state or SharedState(), stop_event
     )
 
-def test_robot_command_leaves_the_idle_timer_alone(fake_reachy_mini):
-    state = SharedState()
-    state.last_activity_at = time.monotonic() - 50.0
-
-    run_one_tick(RobotCommand(head=np.eye(4), antennas=np.zeros(2)), fake_reachy_mini, state)
-
-    assert state.seconds_since_last_activity() >= 50.0
-
 def test_robot_command_sends_the_pose_to_the_robot(fake_reachy_mini):
     head = np.eye(4)
     antennas = np.array([-0.17, 0.17])
@@ -203,25 +195,22 @@ def test_a_pose_from_a_move_counts_as_a_move_playing(fake_reachy_mini):
     assert state.is_move_playing() is True
 
 
-def test_the_first_pose_after_a_move_ends_it_and_restarts_the_idle_timer(fake_reachy_mini):
+def test_the_first_pose_after_a_move_ends_it(fake_reachy_mini):
     state = SharedState()
-    state.last_activity_at = time.monotonic() - 50.0
     controller = RobotController(MagicMock(), robot_sounds={})
     from_move = RobotCommand(head=np.eye(4), antennas=np.zeros(2), from_move=True)
     breathing = RobotCommand(head=np.eye(4), antennas=np.zeros(2))
 
     controller._execute(from_move, fake_reachy_mini, state)
-    assert state.seconds_since_last_activity() >= 50.0  # not while the move plays
+    assert state.last_move_ended_at() is None  # not while the move plays
     controller._execute(breathing, fake_reachy_mini, state)
 
     assert state.is_move_playing() is False
     assert state.last_move_ended_at() is not None
-    assert state.seconds_since_last_activity() < 0.1
 
 
-def test_breathing_alone_never_restarts_the_idle_timer(fake_reachy_mini):
+def test_breathing_alone_never_ends_a_move(fake_reachy_mini):
     state = SharedState()
-    state.last_activity_at = time.monotonic() - 50.0
     controller = RobotController(MagicMock(), robot_sounds={})
 
     for _ in range(3):
@@ -229,5 +218,4 @@ def test_breathing_alone_never_restarts_the_idle_timer(fake_reachy_mini):
             RobotCommand(head=np.eye(4), antennas=np.zeros(2)), fake_reachy_mini, state
         )
 
-    assert state.seconds_since_last_activity() >= 50.0
     assert state.last_move_ended_at() is None

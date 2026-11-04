@@ -36,7 +36,7 @@ class ReachyAlive(ReachyMiniApp):
             reachy_mini: Connected robot instance.
             stop_event: Set by the SDK to stop the app.
         """
-        # Facts shared across threads: the idle timer, the page's settings,
+        # Facts shared across threads: what the robot does, the page's settings,
         # what the robot senses.
         shared_state = SharedState()
 

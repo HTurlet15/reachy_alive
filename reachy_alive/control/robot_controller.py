@@ -92,13 +92,9 @@ class RobotController:
 
     @staticmethod
     def _record_whether_a_move_plays(from_move: bool, shared_state: SharedState) -> None:
-        """Record when a move starts and ends; its end restarts the idle timer."""
-        move_was_playing = shared_state.is_move_playing()
-        if from_move == move_was_playing:
-            return
-        shared_state.set_move_playing(from_move)
-        if move_was_playing:
-            shared_state.mark_activity()
+        """Record when a move starts and ends, as the senses need to know."""
+        if from_move != shared_state.is_move_playing():
+            shared_state.set_move_playing(from_move)
 
     def _wait_for_next_tick(self, due_at: float) -> float:
         """Sleep until the next tick is due, and return when it was due.

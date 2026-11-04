@@ -50,7 +50,7 @@ _LIBRARIES = {
 class _NoIdleMoves:
     """Stands in for IdleManager: proposes nothing, so only the requested move plays."""
 
-    def propose(self) -> None:
+    def propose(self, resting_for_s: float) -> None:
         return None
 
 

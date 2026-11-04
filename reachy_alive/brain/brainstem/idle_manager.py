@@ -16,24 +16,28 @@ class IdleManager:
     plays it, and proposes nothing the rest of the time. Idle moves come at
     random intervals, within the range set in SharedState. Each delay is
     drawn as soon as it starts running: a new range applies from the next
-    idle move on. It only reads the idle timer: RobotController restarts it
-    whenever a move ends.
+    idle move on. It reads no clock: the ActionSelector tells it how long the
+    robot has been resting.
     """
 
     def __init__(self, idle_moves: list[Move], shared_state: SharedState) -> None:
         """Set up the idle move pool.
 
         Args:
-            idle_moves: Moves to pick from when the idle timer fires.
-            shared_state: Read the idle timer and the idle move interval.
+            idle_moves: Moves to pick from when an idle move is due.
+            shared_state: Read the idle move interval.
         """
         self._idle_moves = idle_moves
         self._shared_state = shared_state
         # Drawn on the first tick, then again after each idle move.
         self._delay_s: float | None = None
 
-    def propose(self) -> Move | None:
+    def propose(self, resting_for_s: float) -> Move | None:
         """Return an idle move if one is due now.
+
+        Args:
+            resting_for_s: How long the robot has been resting, since its
+                last move ended.
 
         Returns:
             A random idle move once the delay has run out, otherwise None.
@@ -41,7 +45,7 @@ class IdleManager:
         if self._delay_s is None:
             self._delay_s = random.uniform(*self._shared_state.idle_move_interval_range_s())
 
-        if self._shared_state.seconds_since_last_activity() < self._delay_s:
+        if resting_for_s < self._delay_s:
             return None
 
         self._delay_s = None
