@@ -20,29 +20,28 @@ class IdleManager:
     whenever a move ends.
     """
 
-    def __init__(self, idle_moves: list[Move]) -> None:
+    def __init__(self, idle_moves: list[Move], shared_state: SharedState) -> None:
         """Set up the idle move pool.
 
         Args:
             idle_moves: Moves to pick from when the idle timer fires.
+            shared_state: Read the idle timer and the idle move interval.
         """
         self._idle_moves = idle_moves
+        self._shared_state = shared_state
         # Drawn on the first tick, then again after each idle move.
         self._delay_s: float | None = None
 
-    def propose(self, shared_state: SharedState) -> Move | None:
+    def propose(self) -> Move | None:
         """Return an idle move if one is due now.
-
-        Args:
-            shared_state: Read the idle timer and the idle move interval.
 
         Returns:
             A random idle move once the delay has run out, otherwise None.
         """
         if self._delay_s is None:
-            self._delay_s = random.uniform(*shared_state.idle_move_interval_range_s())
+            self._delay_s = random.uniform(*self._shared_state.idle_move_interval_range_s())
 
-        if shared_state.seconds_since_last_activity() < self._delay_s:
+        if self._shared_state.seconds_since_last_activity() < self._delay_s:
             return None
 
         self._delay_s = None

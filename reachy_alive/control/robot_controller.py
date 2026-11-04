@@ -63,7 +63,7 @@ class RobotController:
             tick_due_at = t0
             while not stop_event.is_set():
                 t = time.monotonic() - t0
-                command = self.action_selector.decide(t, shared_state)
+                command = self.action_selector.decide(t)
                 self._execute(command, reachy_mini, shared_state)
                 if isinstance(command, PlayMove):
                     # The move held the loop on purpose: not a late tick.

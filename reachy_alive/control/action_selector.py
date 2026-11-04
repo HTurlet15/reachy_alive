@@ -20,24 +20,27 @@ class ActionSelector:
     one move, only the latest plays.
     """
 
-    def __init__(self, idle_manager: IdleManager, move_requests: queue.Queue) -> None:
-        """Keep where proposals come from.
+    def __init__(
+        self, idle_manager: IdleManager, move_requests: queue.Queue, shared_state: SharedState
+    ) -> None:
+        """Keep where proposals come from, and the facts the robot's moves need.
 
         Args:
             idle_manager: Proposes an idle move now and then.
             move_requests: Moves requested from the app's page.
+            shared_state: Shared blackboard.
         """
         self._idle_manager = idle_manager
         self._move_requests = move_requests
+        self._shared_state = shared_state
         # When the current stretch of breathing began; None until the next tick.
         self._breathing_started_at_s: float | None = None
 
-    def decide(self, t: float, shared_state: SharedState) -> Command:
+    def decide(self, t: float) -> Command:
         """Return this tick's command.
 
         Args:
             t: Elapsed time in seconds since the control loop started.
-            shared_state: Shared blackboard, passed through to IdleManager.
 
         Returns:
             PlayMove for a requested move, otherwise for an idle move that is
@@ -47,7 +50,7 @@ class ActionSelector:
         if move is not None:
             logger.info("Playing %s (requested)", move.name)
         else:
-            move = self._idle_manager.propose(shared_state)
+            move = self._idle_manager.propose()
 
         if move is not None:
             # Every move ends at neutral, where breathing starts.

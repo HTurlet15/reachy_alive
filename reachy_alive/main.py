@@ -73,8 +73,8 @@ class ReachyAlive(ReachyMiniApp):
 
         # Decide, choose, execute: IdleManager proposes, ActionSelector picks
         # a requested move over idle, RobotController drives the robot.
-        idle_manager = IdleManager(idle_moves)
-        action_selector = ActionSelector(idle_manager, move_requests)
+        idle_manager = IdleManager(idle_moves, shared_state)
+        action_selector = ActionSelector(idle_manager, move_requests, shared_state)
         robot_controller = RobotController(action_selector, robot_sounds)
 
         # The control loop, in this thread, until the app stops. The senses
