@@ -10,8 +10,6 @@ from pathlib import Path
 
 import numpy as np
 
-from reachy_alive.moves.base import Move
-
 
 @dataclass(frozen=True)
 class RobotCommand:
@@ -36,22 +34,3 @@ class RobotCommand:
     body_yaw: float | None = None
     sounds: tuple[Path, ...] = ()
     from_move: bool = False
-
-
-@dataclass(frozen=True)
-class PlayMove:
-    """Play a discrete move to completion.
-
-    Transitional: this command exists because Move.play() blocks the
-    control loop. Once moves run tick by tick, they will return a pose
-    each tick like breathing does, and this command will go away.
-
-    Attributes:
-        move: The move to play.
-    """
-
-    move: Move
-
-
-# Anything a decision-maker can return for one tick.
-Command = RobotCommand | PlayMove

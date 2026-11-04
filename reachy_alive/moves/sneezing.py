@@ -77,11 +77,11 @@ class Sneezing(PhasedMove):
             for phase in self.INHALE_PHASES
         }
 
-        # Redrawn by start at every play. This default is for callers
+        # Redrawn by draw_variations at every play. This default is for callers
         # that read a pose without playing the move, like the tests.
         self._sneeze_angle_rad = self.ANTENNA_SNEEZE_RAD
 
-    def start(self) -> None:
+    def draw_variations(self) -> None:
         """Draw this play's sneeze angle."""
         variation = random.uniform(
             -self.SNEEZE_ANGLE_VARIATION_RAD, self.SNEEZE_ANGLE_VARIATION_RAD

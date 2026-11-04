@@ -1,21 +1,18 @@
 """Unit tests for Sneezing.
 
-The head comes from a fake recording (see conftest.py). The play test runs
-the real motion loop without mocking time.sleep, so it lasts as long as
-the move itself.
+The head comes from a fake recording (see conftest.py). The play test goes
+through the ActionSelector and the controller, on a simulated clock.
 """
 
 import pytest
 
-from reachy_alive.moves.robot_sounds import upload_sounds
 from reachy_alive.moves.sneezing import Sneezing
 
 
 def test_play_uploads_sounds_streams_poses_and_returns_to_neutral(
-    fake_reachy_mini, fake_library
+    play, fake_reachy_mini, fake_library
 ):
-    move = Sneezing(fake_library)
-    move.play(fake_reachy_mini, upload_sounds([move], fake_reachy_mini))
+    play(Sneezing(fake_library))
 
     assert fake_reachy_mini.media.audio.upload_sound.call_count == 5
     assert fake_reachy_mini.media.play_sound.call_count == 5  # one per phase

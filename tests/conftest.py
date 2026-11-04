@@ -1,9 +1,16 @@
 """Shared pytest fixtures."""
 
+import queue
 from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
+
+from reachy_alive.control.action_selector import ActionSelector
+from reachy_alive.control.robot_controller import RobotController
+from reachy_alive.moves.base import Move
+from reachy_alive.moves.robot_sounds import upload_sounds
+from reachy_alive.shared_state import SharedState
 
 
 @pytest.fixture
@@ -54,3 +61,55 @@ def fake_library(fake_recording):
     library = MagicMock()
     library.get.return_value = fake_recording
     return library
+
+
+class NoIdleMoves:
+    """Stands in for IdleManager: proposes nothing."""
+
+    def propose(self):
+        return None
+
+
+@pytest.fixture
+def play(fake_reachy_mini):
+    """Play a move on ``fake_reachy_mini`` as the app does, on a simulated clock.
+
+    The ActionSelector cuts it into ticks and the RobotController sends them,
+    every 20 ms, through the move and its way back to neutral, without
+    waiting. Returns the commands sent, in order.
+    """
+
+    def play_move(move, tick_s=0.02):
+        state = SharedState()
+        requests = queue.Queue()
+        requests.put(move)
+        selector = ActionSelector(NoIdleMoves(), requests, state)
+        controller = RobotController(selector, upload_sounds([move], fake_reachy_mini))
+        commands = []
+        t = 0.0
+        while (command := selector.decide(t)).from_move:  # until breathing again
+            controller._execute(command, fake_reachy_mini, state)
+            commands.append(command)
+            t += tick_s
+        return commands
+
+    return play_move
+
+
+class StillMove(Move):
+    """A move that holds one pose, to test whoever plays moves."""
+
+    HEAD = np.eye(4)
+    ANTENNAS = [0.3, -0.3]
+    BODY_YAW_RAD = 0.2
+
+    def __init__(self, duration: float = 0.1, sound_cues=()) -> None:
+        self.duration = duration
+        self.sound_cues = tuple(sound_cues)
+        self.draws = 0
+
+    def draw_variations(self) -> None:
+        self.draws += 1
+
+    def evaluate(self, t):
+        return self.HEAD, self.ANTENNAS, self.BODY_YAW_RAD
