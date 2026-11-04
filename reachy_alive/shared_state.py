@@ -16,15 +16,22 @@ DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S = (20.0, 30.0)
 class CommandedPose:
     """A pose RobotController sent to the robot: its efference copy.
 
+    A fact, kept for anyone to read at any time: the touch sense compares it
+    with where the antennas really are, and the way back to neutral starts
+    from it. Unlike the RobotCommand it comes from, it says when it was sent,
+    and holds no sound.
+
     Attributes:
         at: Monotonic clock reading (time.monotonic()) of when it was sent.
         head: 4x4 head pose matrix.
         antennas: Antenna angles, in radians.
+        body_yaw: Body yaw, in radians; None when the body was left where it was.
     """
 
     at: float
     head: np.ndarray
     antennas: np.ndarray
+    body_yaw: float | None = None
 
 
 class VisionFacts:

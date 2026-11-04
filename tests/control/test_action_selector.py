@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 import numpy as np
 
 from reachy_alive.control.action_selector import ActionSelector
-from reachy_alive.control.commands import HoldPose, PlayMove
+from reachy_alive.control.commands import PlayMove, RobotCommand
 from reachy_alive.moves.base import NEUTRAL_ANTENNAS_RAD
 from reachy_alive.shared_state import SharedState
 
@@ -38,7 +38,7 @@ def test_breathes_when_nobody_proposes_a_move(fake_reachy_mini):
 
     command = decide(selector, fake_reachy_mini)
 
-    assert isinstance(command, HoldPose)
+    assert isinstance(command, RobotCommand)
 
 
 def test_a_requested_move_wins_over_idle(fake_reachy_mini):

@@ -5,7 +5,7 @@ import queue
 
 from reachy_alive.brain.brainstem.breathing import get_breathing_pose
 from reachy_alive.brain.brainstem.idle_manager import IdleManager
-from reachy_alive.control.commands import Command, HoldPose, PlayMove
+from reachy_alive.control.commands import Command, PlayMove, RobotCommand
 from reachy_alive.moves.base import Move
 from reachy_alive.shared_state import SharedState
 
@@ -67,9 +67,9 @@ class ActionSelector:
             except queue.Empty:
                 return latest
 
-    def _breathe(self, t: float) -> HoldPose:
+    def _breathe(self, t: float) -> RobotCommand:
         """Return this tick's breathing pose, starting a new stretch after a move."""
         if self._breathing_started_at_s is None:
             self._breathing_started_at_s = t
         head, antennas = get_breathing_pose(t - self._breathing_started_at_s)
-        return HoldPose(head=head, antennas=antennas)
+        return RobotCommand(head=head, antennas=antennas)

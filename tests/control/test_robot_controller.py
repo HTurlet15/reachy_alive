@@ -2,12 +2,13 @@
 
 import threading
 import time
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
 
-from reachy_alive.control.commands import HoldPose, PlayMove
+from reachy_alive.control.commands import PlayMove, RobotCommand
 from reachy_alive.control.robot_controller import RobotController
 from reachy_alive.shared_state import SharedState
 
@@ -65,19 +66,19 @@ def test_restarts_idle_timer_once_the_move_has_ended(fake_reachy_mini):
     assert state.seconds_since_last_activity() < 0.1  # reset once it has ended
 
 
-def test_hold_pose_leaves_the_idle_timer_alone(fake_reachy_mini):
+def test_robot_command_leaves_the_idle_timer_alone(fake_reachy_mini):
     state = SharedState()
     state.last_activity_at = time.monotonic() - 50.0
 
-    run_one_tick(HoldPose(head=np.eye(4), antennas=np.zeros(2)), fake_reachy_mini, state)
+    run_one_tick(RobotCommand(head=np.eye(4), antennas=np.zeros(2)), fake_reachy_mini, state)
 
     assert state.seconds_since_last_activity() >= 50.0
 
-def test_hold_pose_sends_the_pose_to_the_robot(fake_reachy_mini):
+def test_robot_command_sends_the_pose_to_the_robot(fake_reachy_mini):
     head = np.eye(4)
     antennas = np.array([-0.17, 0.17])
 
-    run_one_tick(HoldPose(head=head, antennas=antennas), fake_reachy_mini)
+    run_one_tick(RobotCommand(head=head, antennas=antennas), fake_reachy_mini)
 
     fake_reachy_mini.set_target.assert_called_once()
     sent = fake_reachy_mini.set_target.call_args.kwargs
@@ -113,19 +114,19 @@ def test_waking_up_counts_as_a_move_playing(fake_reachy_mini):
         state.is_move_playing()
     )
 
-    run_one_tick(HoldPose(head=np.eye(4), antennas=np.zeros(2)), fake_reachy_mini, state)
+    run_one_tick(RobotCommand(head=np.eye(4), antennas=np.zeros(2)), fake_reachy_mini, state)
 
     assert playing_during_wake_up == [True]
     assert playing_once_awake == [False]  # back to poses, before going to sleep
 
 
-def test_hold_pose_records_the_pose_it_sends(fake_reachy_mini):
+def test_robot_command_records_the_pose_it_sends(fake_reachy_mini):
     state = SharedState()
     head = np.eye(4)
     antennas = np.array([-0.17, 0.17])
     before = time.monotonic()
 
-    run_one_tick(HoldPose(head=head, antennas=antennas), fake_reachy_mini, state)
+    run_one_tick(RobotCommand(head=head, antennas=antennas), fake_reachy_mini, state)
 
     pose = state.last_commanded_pose()
     assert pose.head is head
@@ -147,7 +148,7 @@ def test_going_to_sleep_counts_as_a_move_playing(fake_reachy_mini):
     state.is_move_playing()
     )
 
-    run_one_tick(HoldPose(head=np.eye(4), antennas=np.zeros(2)), fake_reachy_mini, state)
+    run_one_tick(RobotCommand(head=np.eye(4), antennas=np.zeros(2)), fake_reachy_mini, state)
 
     assert playing_while_going_to_sleep == [True]
 
@@ -221,3 +222,70 @@ def test_a_move_holding_the_loop_is_not_a_late_tick(fake_reachy_mini, caplog):
     run_one_tick(PlayMove(move), fake_reachy_mini)
 
     assert "Skipped" not in caplog.text
+
+
+def test_robot_command_starts_its_sounds_from_where_the_robot_finds_them(fake_reachy_mini):
+    sneeze = Path("/local/sneeze.wav")
+    controller = RobotController(MagicMock(), robot_sounds={sneeze: "/robot/sneeze.wav"})
+    command = RobotCommand(head=np.eye(4), antennas=np.zeros(2), sounds=(sneeze,))
+
+    controller._execute(command, fake_reachy_mini, SharedState())
+
+    fake_reachy_mini.media.play_sound.assert_called_once_with("/robot/sneeze.wav")
+
+
+def test_breathing_leaves_the_body_where_it_is(fake_reachy_mini):
+    run_one_tick(RobotCommand(head=np.eye(4), antennas=np.zeros(2)), fake_reachy_mini)
+
+    assert fake_reachy_mini.set_target.call_args.kwargs["body_yaw"] is None
+
+
+def test_robot_command_records_the_body_yaw_it_sends(fake_reachy_mini):
+    state = SharedState()
+
+    run_one_tick(
+        RobotCommand(head=np.eye(4), antennas=np.zeros(2), body_yaw=0.3), fake_reachy_mini, state
+    )
+
+    assert state.last_commanded_pose().body_yaw == 0.3
+
+
+def test_a_pose_from_a_move_counts_as_a_move_playing(fake_reachy_mini):
+    state = SharedState()
+    controller = RobotController(MagicMock(), robot_sounds={})
+
+    controller._execute(
+        RobotCommand(head=np.eye(4), antennas=np.zeros(2), from_move=True), fake_reachy_mini, state
+    )
+
+    assert state.is_move_playing() is True
+
+
+def test_the_first_pose_after_a_move_ends_it_and_restarts_the_idle_timer(fake_reachy_mini):
+    state = SharedState()
+    state.last_activity_at = time.monotonic() - 50.0
+    controller = RobotController(MagicMock(), robot_sounds={})
+    from_move = RobotCommand(head=np.eye(4), antennas=np.zeros(2), from_move=True)
+    breathing = RobotCommand(head=np.eye(4), antennas=np.zeros(2))
+
+    controller._execute(from_move, fake_reachy_mini, state)
+    assert state.seconds_since_last_activity() >= 50.0  # not while the move plays
+    controller._execute(breathing, fake_reachy_mini, state)
+
+    assert state.is_move_playing() is False
+    assert state.last_move_ended_at() is not None
+    assert state.seconds_since_last_activity() < 0.1
+
+
+def test_breathing_alone_never_restarts_the_idle_timer(fake_reachy_mini):
+    state = SharedState()
+    state.last_activity_at = time.monotonic() - 50.0
+    controller = RobotController(MagicMock(), robot_sounds={})
+
+    for _ in range(3):
+        controller._execute(
+            RobotCommand(head=np.eye(4), antennas=np.zeros(2)), fake_reachy_mini, state
+        )
+
+    assert state.seconds_since_last_activity() >= 50.0
+    assert state.last_move_ended_at() is None

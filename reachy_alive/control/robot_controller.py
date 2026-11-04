@@ -7,7 +7,7 @@ from pathlib import Path
 from reachy_mini import ReachyMini
 
 from reachy_alive.control.action_selector import ActionSelector
-from reachy_alive.control.commands import Command, HoldPose, PlayMove
+from reachy_alive.control.commands import Command, PlayMove, RobotCommand
 from reachy_alive.shared_state import CommandedPose, SharedState
 
 logger = logging.getLogger(__name__)
@@ -78,11 +78,8 @@ class RobotController:
         self, command: Command, reachy_mini: ReachyMini, shared_state: SharedState
     ) -> None:
         """Carry out one command on the robot, recording what it sends."""
-        if isinstance(command, HoldPose):
-            reachy_mini.set_target(head=command.head, antennas=command.antennas)
-            shared_state.record_commanded_pose(
-                CommandedPose(at=time.monotonic(), head=command.head, antennas=command.antennas)
-            )
+        if isinstance(command, RobotCommand):
+            self._send(command, reachy_mini, shared_state)
         elif isinstance(command, PlayMove):
             shared_state.set_move_playing(True)
             try:
@@ -92,6 +89,36 @@ class RobotController:
             shared_state.mark_activity()
         else:
             raise TypeError(f"Unknown command: {command!r}")
+
+    def _send(
+        self, command: RobotCommand, reachy_mini: ReachyMini, shared_state: SharedState
+    ) -> None:
+        """Start the command's sounds, send its pose, and record both what it sent and why."""
+        # Each sound is due now: it is only in the command on its tick.
+        for sound in command.sounds:
+            reachy_mini.media.play_sound(self.robot_sounds[sound])
+        reachy_mini.set_target(
+            head=command.head, antennas=command.antennas, body_yaw=command.body_yaw
+        )
+        shared_state.record_commanded_pose(
+            CommandedPose(
+                at=time.monotonic(),
+                head=command.head,
+                antennas=command.antennas,
+                body_yaw=command.body_yaw,
+            )
+        )
+        self._record_whether_a_move_plays(command.from_move, shared_state)
+
+    @staticmethod
+    def _record_whether_a_move_plays(from_move: bool, shared_state: SharedState) -> None:
+        """Record when a move starts and ends; its end restarts the idle timer."""
+        move_was_playing = shared_state.is_move_playing()
+        if from_move == move_was_playing:
+            return
+        shared_state.set_move_playing(from_move)
+        if move_was_playing:
+            shared_state.mark_activity()
 
     def _wait_for_next_tick(self, due_at: float) -> float:
         """Sleep until the next tick is due, and return when it was due.
