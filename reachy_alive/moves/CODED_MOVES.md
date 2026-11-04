@@ -26,8 +26,8 @@ class YourMove(PhasedMove):
         ...
 ```
 
-You never call `_pose_at()` yourself: `PhasedMove` calls it on every tick,
-and plays each phase's sound as the phase begins.
+You never call `_pose_at()` yourself: the app asks for the pose on every
+tick, and starts each phase's sound as the phase begins.
 
 ## 1. The phases
 
@@ -108,7 +108,7 @@ serves two cases:
 
 Optional. A move that plays exactly the same every time looks
 mechanical. To vary something from one play to the next — an angle, an
-amplitude — draw it in `start()`, store it on `self`, and read it in
+amplitude — draw it in `draw_variations()`, store it on `self`, and read it in
 `_pose_at`:
 
 ```python
@@ -116,11 +116,11 @@ def __init__(self) -> None:
     super().__init__()
     self._drop_angle_rad = self.DROP_ANGLE_RAD
 
-def start(self) -> None:
+def draw_variations(self) -> None:
     self._drop_angle_rad = self.DROP_ANGLE_RAD + random.uniform(-0.1, 0.1)
 ```
 
-`start()` runs once at the start of every play, before the first pose.
+`draw_variations()` runs once at the start of every play, before the first pose.
 Draw there, not elsewhere:
 
 - not in `_pose_at`, which runs on every tick: the value would change
@@ -129,7 +129,7 @@ Draw there, not elsewhere:
   would get the same value.
 
 Keep a default in `__init__`, as above: the tests read poses without
-playing the move, so `start()` never runs for them.
+playing the move, so `draw_variations()` never runs for them.
 
 `sneezing.py` uses this to vary how far its antennas drop.
 

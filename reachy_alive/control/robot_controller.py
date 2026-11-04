@@ -7,7 +7,7 @@ from pathlib import Path
 from reachy_mini import ReachyMini
 
 from reachy_alive.control.action_selector import ActionSelector
-from reachy_alive.control.commands import Command, HoldPose, PlayMove
+from reachy_alive.control.commands import RobotCommand
 from reachy_alive.shared_state import CommandedPose, SharedState
 
 logger = logging.getLogger(__name__)
@@ -19,9 +19,8 @@ class RobotController:
     It makes no decisions of its own: each tick, it asks the ActionSelector
     for a command and carries it out. It records in SharedState each pose it
     sends (its efference copy), and when a move plays and ends, whoever asked
-    for it, waking up and going to sleep included. Decision-makers never
-    drive the robot. Moves do talk to the robot, but only while
-    RobotController executes a PlayMove, from this loop's thread.
+    for it, waking up and going to sleep included. It also starts the sounds
+    each command names: it is the only part that talks to the robot.
 
     Each tick is due at a fixed time, every TICK_S. A tick that runs late is
     followed at once by the next one, never by a burst catching up: the
@@ -63,11 +62,8 @@ class RobotController:
             tick_due_at = t0
             while not stop_event.is_set():
                 t = time.monotonic() - t0
-                command = self.action_selector.decide(t, shared_state)
+                command = self.action_selector.decide(t)
                 self._execute(command, reachy_mini, shared_state)
-                if isinstance(command, PlayMove):
-                    # The move held the loop on purpose: not a late tick.
-                    tick_due_at = time.monotonic()
                 tick_due_at = self._wait_for_next_tick(tick_due_at + self.TICK_S)
         finally:
             shared_state.set_move_playing(True)
@@ -75,23 +71,30 @@ class RobotController:
             reachy_mini.disable_motors()
 
     def _execute(
-        self, command: Command, reachy_mini: ReachyMini, shared_state: SharedState
+        self, command: RobotCommand, reachy_mini: ReachyMini, shared_state: SharedState
     ) -> None:
-        """Carry out one command on the robot, recording what it sends."""
-        if isinstance(command, HoldPose):
-            reachy_mini.set_target(head=command.head, antennas=command.antennas)
-            shared_state.record_commanded_pose(
-                CommandedPose(at=time.monotonic(), head=command.head, antennas=command.antennas)
+        """Start the command's sounds, send its pose, and record both what it sent and why."""
+        # Each sound is due now: it is only in the command on its tick.
+        for sound in command.sounds:
+            reachy_mini.media.play_sound(self.robot_sounds[sound])
+        reachy_mini.set_target(
+            head=command.head, antennas=command.antennas, body_yaw=command.body_yaw
+        )
+        shared_state.record_commanded_pose(
+            CommandedPose(
+                at=time.monotonic(),
+                head=command.head,
+                antennas=command.antennas,
+                body_yaw=command.body_yaw,
             )
-        elif isinstance(command, PlayMove):
-            shared_state.set_move_playing(True)
-            try:
-                command.move.play(reachy_mini, self.robot_sounds)
-            finally:
-                shared_state.set_move_playing(False)
-            shared_state.mark_activity()
-        else:
-            raise TypeError(f"Unknown command: {command!r}")
+        )
+        self._record_whether_a_move_plays(command.from_move, shared_state)
+
+    @staticmethod
+    def _record_whether_a_move_plays(from_move: bool, shared_state: SharedState) -> None:
+        """Record when a move starts and ends, as the senses need to know."""
+        if from_move != shared_state.is_move_playing():
+            shared_state.set_move_playing(from_move)
 
     def _wait_for_next_tick(self, due_at: float) -> float:
         """Sleep until the next tick is due, and return when it was due.

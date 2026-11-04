@@ -14,7 +14,7 @@ import numpy as np
 import pytest
 
 import reachy_alive.moves as moves_package
-from reachy_alive.moves.base import Move, PhasedMove
+from reachy_alive.moves.base import PhasedMove
 from reachy_alive.moves.sneezing import Sneezing
 from reachy_alive.moves.stretching import Stretching
 from reachy_alive.moves.yawning import Yawning
@@ -58,19 +58,6 @@ def test_every_phased_move_is_in_moves():
     missing = sorted(cls.__name__ for cls in shipped - MOVES.keys())
 
     assert not missing, f"{', '.join(missing)} not in MOVES, at the top of {__file__}"
-
-
-def test_no_move_writes_its_own_execution_loop():
-    # _perform is Move's internal loop, due to change. Defining it means
-    # overriding it: every move only says its poses, through evaluate.
-    moves = _shipped_subclasses(Move)
-
-    offenders = sorted(cls.__name__ for cls in moves if "_perform" in vars(cls))
-
-    assert not offenders, (
-        f"{', '.join(offenders)} define _perform. Subclass PhasedMove or use "
-        "LibraryMove, and draw per-play values in start."
-    )
 
 
 @pytest.mark.parametrize("move_class", MOVES, ids=lambda cls: cls.__name__)

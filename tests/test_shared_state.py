@@ -16,26 +16,6 @@ FACE = SeenFace(x=0.1, y=-0.2, distance_m=1.0)
 FACE_MOVED = SeenFace(x=0.5, y=-0.2, distance_m=1.2)
 
 
-def test_seconds_since_last_activity_starts_near_zero():
-    state = SharedState()
-    assert state.seconds_since_last_activity() < 0.1
-
-
-def test_mark_activity_resets_the_timer():
-    state = SharedState()
-    state.last_activity_at = time.monotonic() - 50.0
-
-    state.mark_activity()
-
-    assert state.seconds_since_last_activity() < 0.1
-
-
-def test_seconds_since_last_activity_increases_over_time():
-    state = SharedState()
-    state.last_activity_at = time.monotonic() - 5.0
-    assert state.seconds_since_last_activity() >= 5.0
-
-
 def test_idle_move_interval_starts_at_the_default():
     assert SharedState().idle_move_interval_range_s() == DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S
 

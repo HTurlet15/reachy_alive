@@ -14,22 +14,14 @@ what not to touch, the internals, the environment, and how to work with me.
 
 ## Current sprint
 
-**B — senses, finishing.** The four senses (inertial unit, touch, hearing,
-vision) write their facts to `SharedState` and show on the app's page; the
-robot still only breathes. Left: the Space page, then release 1.1.0 (the tag
-publishes the Space). Before C: a hearing feature that tells a clap from
-speech or TV (the height above the background can't). Sprint letters follow
+**C — interruptible body, finishing.** Moves run tick by tick: the
+`ActionSelector` cuts each one into a pose per tick, and the `RobotController`
+sends every pose and sound; nothing new shows on the robot. Left: the review
+leftovers, then the release. Next: gaze layered over breathing, then
+reflexes. Sprint letters follow
 the order of the roadmap in
 ARCHITECTURE.md: A (v1), B (senses), C (interruptible body), D (reflexes),
 E (deliberation), F (arbitration).
-
-## Known debt — do NOT fix yet
-
-Playing a move blocks the control loop for the whole move: a move can't be
-interrupted, `PlayMove` exists, and moves still talk to the robot while they
-play. Target: moves return a pose each tick and `PlayMove` goes away.
-**Scheduled for sprint C**, with reflexes, which need interruption anyway.
-If you notice this and want to fix it, don't — say so and move on.
 
 ## Design decisions not to re-litigate
 
@@ -75,8 +67,8 @@ If you notice this and want to fix it, don't — say so and move on.
   is served before its routes exist, so it retries `GET /moves` (like
   `untilReady` in Pollen's conversation app).
 - **Who writes `SharedState`.** Each fact has one writer:
-  - `RobotController`: `last_activity_at` and when the last move ended (as
-    a move ends), `move_playing` (around each move, and while the robot
+  - `RobotController`: when the last move ended (as a move ends),
+    `move_playing` (around each move, and while the robot
     wakes up), `commanded_pose` (each pose it sends);
   - each sense's facts, its detectors: bumps `BumpDetector`, antenna pushes
     `AntennaPushDetector`, sudden noises `SuddenNoiseDetector`, faces
@@ -164,8 +156,7 @@ Key points already learned from them:
   anything mid-interpolation.
 - `set_target()` only inside a single control loop at 50-100 Hz. Multiple
   scattered `set_target()` calls is a documented anti-pattern — `set_target()`
-  lives in `RobotController`, plus `Move._perform` until moves run
-  tick by tick.
+  lives in `RobotController` only.
 - `enable_motors()` pins targets to the present pose, so call it before any
   `set_target`.
 - Use `time.monotonic()`, never `time.time()`.
@@ -184,7 +175,7 @@ Key points already learned from them:
 - Docs change in the same PR as the code they describe. ARCHITECTURE.md holds
   the only code map and the only roadmap: update them there, never copy them.
 - Before any refactor, reread ARCHITECTURE.md and this file: they hold the
-  decisions not to re-litigate and the debt not to fix yet.
+  decisions not to re-litigate.
 - No comment repeating the file's path at the top: the path already shows
   everywhere, and the comment goes stale on the first move.
 - Name what a condition checks: `head_still_rings = ...`, then

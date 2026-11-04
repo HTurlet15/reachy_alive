@@ -2,8 +2,8 @@
 
 Unit tests can verify that a move calls the SDK correctly, but not
 that it looks right (correct tilt direction, amplitude, timing). This
-script triggers one move directly, without going through IdleManager or
-the full control loop.
+script plays one move through the app's own control loop, exactly as the
+app plays it, without idle moves around it.
 
 Usage:
     uv run try-move stretching
@@ -13,16 +13,21 @@ Usage:
 """
 
 import argparse
+import queue
+import threading
 
 from reachy_mini import ReachyMini
 from reachy_mini.motion.recorded_move import RecordedMoves
-from reachy_mini.utils import create_head_pose
 
-from reachy_alive.moves.base import NEUTRAL_ANTENNAS_RAD, NEUTRAL_BODY_YAW_RAD, LibraryMove
+from reachy_alive.control.action_selector import ActionSelector
+from reachy_alive.control.commands import RobotCommand
+from reachy_alive.control.robot_controller import RobotController
+from reachy_alive.moves.base import LibraryMove
 from reachy_alive.moves.robot_sounds import upload_sounds
 from reachy_alive.moves.sneezing import Sneezing
 from reachy_alive.moves.stretching import Stretching
 from reachy_alive.moves.yawning import Yawning
+from reachy_alive.shared_state import SharedState
 
 # Moves written in code. Add yours here.
 _CODED_MOVES = {
@@ -41,6 +46,30 @@ _LIBRARIES = {
     "pollen": "pollen-robotics/reachy-mini-emotions-library",
     "recorded": "HTurlet15/reachy-alive",
 }
+
+class _NoIdleMoves:
+    """Stands in for IdleManager: proposes nothing, so only the requested move plays."""
+
+    def propose(self, resting_for_s: float) -> None:
+        return None
+
+
+class _StopAfterTheMove:
+    """Wraps the ActionSelector: stops the loop once the move and its way back are over."""
+
+    def __init__(self, selector: ActionSelector, stop_event: threading.Event) -> None:
+        self._selector = selector
+        self._stop_event = stop_event
+        self._move_seen = False
+
+    def decide(self, t: float) -> RobotCommand:
+        command = self._selector.decide(t)
+        if command.from_move:
+            self._move_seen = True
+        elif self._move_seen:
+            self._stop_event.set()
+        return command
+
 
 def main() -> None:
     """Parse CLI arguments, connect to the robot, and play the chosen move."""
@@ -65,20 +94,18 @@ def main() -> None:
     else:
         move = _CODED_MOVES[args.command]()
 
+    # The control loop wakes the robot up first, and puts it back to sleep
+    # once the move and its way back to neutral are over.
     with ReachyMini() as mini:
-        mini.enable_motors()
-        try:
-            # From the sleep pose: ease into neutral before the move streams poses.
-            mini.goto_target(
-                head=create_head_pose(),
-                antennas=NEUTRAL_ANTENNAS_RAD,
-                body_yaw=NEUTRAL_BODY_YAW_RAD,
-                duration=2.0,
-            )
-            move.play(mini, upload_sounds([move], mini))
-        finally:
-            mini.goto_sleep()
-            mini.disable_motors()
+        shared_state = SharedState()
+        requests: queue.Queue = queue.Queue()
+        requests.put(move)
+        stop_event = threading.Event()
+        selector = ActionSelector(_NoIdleMoves(), requests, shared_state)
+        controller = RobotController(
+            _StopAfterTheMove(selector, stop_event), upload_sounds([move], mini)
+        )
+        controller.run(mini, shared_state, stop_event)
 
 
 if __name__ == "__main__":

@@ -16,15 +16,22 @@ DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S = (20.0, 30.0)
 class CommandedPose:
     """A pose RobotController sent to the robot: its efference copy.
 
+    A fact, kept for anyone to read at any time: the touch sense compares it
+    with where the antennas really are, and the way back to neutral starts
+    from it. Unlike the RobotCommand it comes from, it says when it was sent,
+    and holds no sound.
+
     Attributes:
         at: Monotonic clock reading (time.monotonic()) of when it was sent.
         head: 4x4 head pose matrix.
         antennas: Antenna angles, in radians.
+        body_yaw: Body yaw, in radians; None when the body was left where it was.
     """
 
     at: float
     head: np.ndarray
     antennas: np.ndarray
+    body_yaw: float | None = None
 
 
 class VisionFacts:
@@ -171,9 +178,6 @@ class SharedState:
 
     Attributes:
         lock: Guards all reads/writes to prevent race conditions.
-        last_activity_at: Monotonic clock reading (time.monotonic()) of when
-            the last move ended, whoever asked for the move. Starts at the
-            app's launch.
         vision: What the robot sees.
         inertial: What the robot feels through its inertial unit.
         touch: What the robot feels through its antennas.
@@ -183,7 +187,6 @@ class SharedState:
     def __init__(self) -> None:
         """Start with nothing known yet: no move, no pose sent, default settings."""
         self.lock = threading.Lock()
-        self.last_activity_at: float = time.monotonic()
         self.vision = VisionFacts()
         self.inertial = InertialFacts()
         self.touch = TouchFacts()
@@ -193,22 +196,6 @@ class SharedState:
         self._commanded_pose: CommandedPose | None = None
         self._idle_move_interval_range_s = DEFAULT_IDLE_MOVE_INTERVAL_RANGE_S
         self._disabled_senses: set[str] = set()
-
-    # Idle timer. Written by RobotController, when a move ends.
-
-    def mark_activity(self) -> None:
-        """Record that something notable just happened, resetting the idle timer."""
-        with self.lock:
-            self.last_activity_at = time.monotonic()
-
-    def seconds_since_last_activity(self) -> float:
-        """Time elapsed since the last notable activity, or since the app's launch.
-
-        Returns:
-            Seconds since the last activity.
-        """
-        with self.lock:
-            return time.monotonic() - self.last_activity_at
 
     # Efference copy: what the robot is doing itself. Written by
     # RobotController.

@@ -36,47 +36,45 @@ class _SoundMove(Move):
 
 
 SNEEZE = Path("/local/sneeze.wav")
-ROBOT_SOUNDS = {SNEEZE: "/robot/sneeze.wav"}  # as upload_sounds() makes it
 
 
-def test_play_plays_each_sound_from_where_the_robot_finds_it(fake_reachy_mini):
-    _SoundMove(SNEEZE).play(fake_reachy_mini, ROBOT_SOUNDS)
+def test_each_sound_plays_from_where_the_robot_finds_it(play, fake_reachy_mini):
+    fake_reachy_mini.media.audio.upload_sound.return_value = "/robot/sneeze.wav"
+
+    play(_SoundMove(SNEEZE))
 
     fake_reachy_mini.media.play_sound.assert_called_once_with("/robot/sneeze.wav")
 
 
-def test_playing_never_uploads(fake_reachy_mini):
-    move = _SoundMove(SNEEZE)
+def test_a_move_uploads_nothing_while_it_plays(play, fake_reachy_mini):
+    play(_SoundMove(SNEEZE))
 
-    move.play(fake_reachy_mini, ROBOT_SOUNDS)
-    move.play(fake_reachy_mini, ROBOT_SOUNDS)
-
-    fake_reachy_mini.media.audio.upload_sound.assert_not_called()
+    # The only upload is the app's, before the move: one per sound.
+    assert fake_reachy_mini.media.audio.upload_sound.call_count == 1
 
 
-def test_play_streams_its_way_back_to_neutral(fake_reachy_mini):
-    _SoundMove(SNEEZE).play(fake_reachy_mini, ROBOT_SOUNDS)
+def test_every_move_ends_with_its_way_back_to_neutral(play, fake_reachy_mini):
+    commands = play(_SoundMove(SNEEZE))
 
-    last = fake_reachy_mini.set_target.call_args.kwargs
-    np.testing.assert_allclose(last["head"], np.eye(4), atol=1e-3)
-    np.testing.assert_allclose(last["antennas"], NEUTRAL_ANTENNAS_RAD, atol=1e-3)
-    assert last["body_yaw"] == pytest.approx(NEUTRAL_BODY_YAW_RAD, abs=1e-3)
+    last = commands[-1]
+    np.testing.assert_allclose(last.head, np.eye(4), atol=1e-3)
+    np.testing.assert_allclose(last.antennas, NEUTRAL_ANTENNAS_RAD, atol=1e-3)
+    assert last.body_yaw == pytest.approx(NEUTRAL_BODY_YAW_RAD, abs=1e-3)
     fake_reachy_mini.goto_target.assert_not_called()
 
 
-def test_the_way_back_starts_from_the_last_pose_sent(fake_reachy_mini):
+def test_the_way_back_starts_from_the_last_pose_sent(play):
     class _TurnedAway(_SoundMove):
         def evaluate(self, t):
             return np.eye(4), [0.5, -0.5], 0.3 + t  # never the same pose twice
 
-    _TurnedAway(SNEEZE).play(fake_reachy_mini, ROBOT_SOUNDS)
+    commands = play(_TurnedAway(SNEEZE))
 
-    calls = [call.kwargs for call in fake_reachy_mini.set_target.call_args_list]
-    yaws = [call["body_yaw"] for call in calls]
+    yaws = [command.body_yaw for command in commands]
     last_of_move = max(range(len(yaws)), key=lambda i: yaws[i])  # the yaw only grows
-    first_of_return = calls[last_of_move + 1]
-    assert first_of_return["body_yaw"] == pytest.approx(yaws[last_of_move], abs=1e-3)
-    np.testing.assert_allclose(first_of_return["antennas"], [0.5, -0.5], atol=1e-3)
+    first_of_return = commands[last_of_move + 1]
+    assert first_of_return.body_yaw == pytest.approx(yaws[last_of_move], abs=1e-3)
+    np.testing.assert_allclose(first_of_return.antennas, [0.5, -0.5], atol=1e-3)
 
 
 def test_name_joins_class_name_words_with_hyphens():
@@ -202,24 +200,21 @@ def test_invalid_declarations_fail_at_construction(sounds_dir, attributes, error
         _phased_move_class(sounds_dir, **attributes)()
 
 
-def test_play_starts_each_sound_once_and_streams_the_full_pose(fake_reachy_mini, sounds_dir):
+def test_each_sound_plays_once_and_every_pose_comes_whole(play, fake_reachy_mini, sounds_dir):
     move = _phased_move_class(sounds_dir)()
 
-    move.play(fake_reachy_mini, upload_sounds([move], fake_reachy_mini))
+    commands = play(move)
 
     assert fake_reachy_mini.media.play_sound.call_count == 2  # a and b; hold is silent
-    poses_of_the_move = fake_reachy_mini.set_target.call_args_list[: len(move.calls)]
+    poses_of_the_move = commands[: len(move.calls)]  # the way back to neutral follows them
     assert poses_of_the_move
-    for call in poses_of_the_move:  # the way back to neutral follows them
-        assert call.kwargs["body_yaw"] == 0.25
+    assert all(command.body_yaw == 0.25 for command in poses_of_the_move)
 
 
-def test_elapsed_s_runs_through_the_move_while_p_restarts_each_phase(
-    fake_reachy_mini, sounds_dir
-):
+def test_elapsed_s_runs_through_the_move_while_p_restarts_each_phase(play, sounds_dir):
     move = _phased_move_class(sounds_dir)()
 
-    move.play(fake_reachy_mini, upload_sounds([move], fake_reachy_mini))
+    play(move)
 
     elapsed = [elapsed_s for _, _, elapsed_s in move.calls]
     assert elapsed == sorted(elapsed)
@@ -229,21 +224,20 @@ def test_elapsed_s_runs_through_the_move_while_p_restarts_each_phase(
     assert all(p < 0.2 for p in first_p_of_each_phase.values())
 
 
-def test_start_runs_once_per_play_before_the_first_pose(fake_reachy_mini, sounds_dir):
-    # Each entry: how many poses had been computed when start ran.
-    poses_before_start = []
+def test_variations_are_drawn_once_per_play_before_the_first_pose(play, sounds_dir):
+    # Each entry: how many poses had been computed when the draw happened.
+    poses_before_each_draw = []
 
-    def start(self):
-        poses_before_start.append(len(self.calls))
+    def draw_variations(self):
+        poses_before_each_draw.append(len(self.calls))
 
-    move = _phased_move_class(sounds_dir, start=start)()
+    move = _phased_move_class(sounds_dir, draw_variations=draw_variations)()
 
-    robot_sounds = upload_sounds([move], fake_reachy_mini)
-    move.play(fake_reachy_mini, robot_sounds)
+    play(move)
     poses_in_first_play = len(move.calls)
-    move.play(fake_reachy_mini, robot_sounds)
+    play(move)
 
-    assert poses_before_start == [0, poses_in_first_play]
+    assert poses_before_each_draw == [0, poses_in_first_play]
 
 
 # --- LibraryMove --------------------------------------------------------
@@ -305,13 +299,12 @@ def test_library_move_never_reads_the_recording_at_its_last_frame(recording):
     assert t < 1.0
 
 
-def test_library_move_plays_through_our_loop_not_the_sdk(fake_reachy_mini, recording):
+def test_library_move_plays_through_our_loop_not_the_sdk(play, fake_reachy_mini, recording):
     recording.duration = 0.05
     library = MagicMock()
     library.get.return_value = recording
 
-    move = LibraryMove("hiccup-full", library)
-    move.play(fake_reachy_mini, upload_sounds([move], fake_reachy_mini))
+    play(LibraryMove("hiccup-full", library))
 
     fake_reachy_mini.play_move.assert_not_called()
     assert fake_reachy_mini.set_target.called

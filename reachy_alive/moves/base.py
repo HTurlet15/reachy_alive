@@ -6,8 +6,9 @@ There are two supported ways to write a move:
 - ``LibraryMove``: a move recorded in a Hugging Face dataset.
 
 Every move is a ``Move``: it answers the SDK's move contract, ``duration``
-and ``evaluate(t)``, plus the sounds it starts, ``sound_cues``. Don't
-subclass ``Move`` directly: its execution loop is internal and will change.
+and ``evaluate(t)``, plus the sounds it starts, ``sound_cues``. A move only
+describes itself: the ActionSelector cuts it into one pose per tick, and
+only the RobotController talks to the robot.
 
 Two helpers shape motion: ``interpolate`` eases a value from one pose to
 another, ``alternating_sign`` times shakes and trembles. Keep alternations
@@ -17,14 +18,12 @@ See ``moves/README.md`` for how to make a move.
 """
 
 import itertools
-import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
 import soundfile as sf
-from reachy_mini import ReachyMini
 from reachy_mini.motion.goto import GotoMove
 from reachy_mini.motion.recorded_move import RecordedMoves
 from reachy_mini.utils import create_head_pose
@@ -95,17 +94,12 @@ class Move(ABC):
 
     A move says what it does: it lasts ``duration`` seconds, ``evaluate(t)``
     gives its pose at any time, and ``sound_cues`` the sounds it starts.
-    ``play`` handles everything around it: uploading the sounds before,
-    streaming the poses, returning to neutral after.
+    Before each play, ``draw_variations`` draws what changes from one play
+    to the next.
 
-    To write a move, subclass ``PhasedMove`` or use ``LibraryMove``,
-    never ``Move`` itself: ``_perform`` is the internal execution loop,
-    and will change.
+    To write a move, subclass ``PhasedMove`` or use ``LibraryMove``.
     """
 
-    # Stretching and Sneezing tremble at 0.02 s per side: play() sends a pose
-    # at least that often.
-    POSE_STEP_S = 0.02
     SOUNDS_DIR = Path(__file__).resolve().parent.parent / "assets" / "sounds"
 
     # Set by every move when it's built.
@@ -126,19 +120,7 @@ class Move(ABC):
             name += char.lower()
         return name
 
-    def play(self, reachy_mini: ReachyMini, robot_sounds: dict[Path, str]) -> None:
-        """Play this move, then return the robot to neutral.
-
-        Args:
-            reachy_mini: Connected robot instance.
-            robot_sounds: What the robot's play_sound() takes for each sound,
-                as upload_sounds() made it.
-        """
-        last_pose_sent = self._perform(reachy_mini, robot_sounds)
-        if last_pose_sent is not None:
-            ReturningToNeutral(last_pose_sent)._perform(reachy_mini, robot_sounds)
-
-    def start(self) -> None:
+    def draw_variations(self) -> None:
         """Draw what varies between plays, once, before the first pose.
 
         Override it to draw a random angle, say; store it on self and read
@@ -157,34 +139,12 @@ class Move(ABC):
             yaw), angles in radians.
         """
 
-    def _perform(
-        self, reachy_mini: ReachyMini, robot_sounds: dict[Path, str]
-    ) -> tuple[np.ndarray, list[float], float] | None:
-        """Run the move, starting each sound on its cue, and return the last pose sent."""
-        # Before the clock starts, so the draws never eat into the first pose.
-        self.start()
-        cues_left = list(self.sound_cues)
-        last_pose_sent = None
-        started_at = time.monotonic()
-
-        while (t := time.monotonic() - started_at) < self.duration:
-            while cues_left and cues_left[0].at_s <= t:
-                reachy_mini.media.play_sound(robot_sounds[cues_left.pop(0).path])
-
-            last_pose_sent = self.evaluate(t)
-            head, antennas, body_yaw = last_pose_sent
-            reachy_mini.set_target(head=head, antennas=antennas, body_yaw=body_yaw)
-
-            time.sleep(self.POSE_STEP_S)
-
-        return last_pose_sent
-
 
 class PhasedMove(Move):
     """A move built as a sequence of phases, each timed by its own sound.
 
     Declare the phases in ``PHASE_SOUNDS`` and write ``_pose_at``; override
-    ``start`` to vary something between plays. Answers the SDK's move
+    ``draw_variations`` to vary something between plays. Answers the SDK's move
     contract, ``duration`` and ``evaluate(t)``, plus ``sound_cues``.
     """
 

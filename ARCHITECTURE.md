@@ -36,7 +36,7 @@ flowchart LR
     subgraph decide["1 · Propose"]
         direction TB
         page["the app's page:<br/>a requested move"]
-        idle["IdleManager (brainstem):<br/>breathing or an idle move"]
+        idle["IdleManager (brainstem):<br/>an idle move"]
         reflexes["reflexes (amygdala):<br/>a reflex"]:::later
         cortex["deliberation (prefrontal_cortex):<br/>a decision"]:::later
     end
@@ -69,8 +69,8 @@ A **decision-maker** says what the robot should do, and nothing more: it
 never drives the robot. There are two today.
 
 - **`IdleManager`** (`brain/brainstem/`) proposes, now and then, an idle
-  move: a yawn, a sneeze. It picks the next one ahead, with a delay drawn
-  from the interval kept in `SharedState`. The rest of the time, it proposes
+  move: a yawn, a sneeze, once the robot has rested for a delay drawn from
+  the interval kept in `SharedState`. The rest of the time, it proposes
   nothing.
 - **The app's page** proposes the move someone clicked. Its routes
   (`routes.py`) run in the web server's own thread: they drop the move in a
@@ -81,19 +81,22 @@ Reflexes and deliberation will propose too, the same way.
 
 ## 2 · Choose
 
-On every tick, the **`ActionSelector`** picks one proposal: the one with the
-highest priority. Today a requested move wins over idle; reflexes will come
-first. When nobody proposes a move, the robot breathes: the selector keeps
-the breathing's clock, and starts it again from neutral after every move.
+On every tick, the **`ActionSelector`** keeps the move playing, or sets the
+next one, highest priority first: a move that just ended eases back to
+neutral, then a requested move wins over idle; reflexes will come first. It
+cuts the move into one command per tick, its pose and the sounds due. When
+there is no move to play, the robot breathes: the selector keeps the
+breathing's clock, starts it again from neutral after every move, and tells
+`IdleManager` how long the robot has been resting.
 
 ## 3 · Execute
 
 The **`RobotController`** runs the control loop, 50 times a second, in its
 own thread. Each pass is a **tick**. It is the only part that drives the
-robot: it sends this tick's pose, or plays the chosen move. Playing a move
-holds the loop until the move ends (see [Known debt](#known-debt)). It
-records in `SharedState` that a move is playing, then that it ended: the
-senses read it, and the idle timer restarts from it.
+robot: each tick, it sends the pose it was handed and starts the sounds
+due, then records the pose (its efference copy). It never waits on a move:
+every tick, the selector is asked again. It also records in `SharedState`
+that a move is playing, then that it ended: the senses read it.
 
 ## 4 · Perceive
 
@@ -132,25 +135,25 @@ On most ticks, nobody proposes a move: the `ActionSelector` hands the
 `RobotController` the next breathing pose, and it sends it to the robot. On
 the next tick, the next pose.
 
-Meanwhile, `IdleManager` has already picked its next idle move, say a yawn,
-and a delay drawn from the interval kept in `SharedState` (20 to 30 s by
-default, adjustable from the app's page). Its sounds are already on the
+Meanwhile, `IdleManager` has drawn a delay from the interval kept in
+`SharedState` (20 to 30 s by default, adjustable from the app's page), and
+picks a move when it is due, say a yawn. Its sounds are already on the
 robot: the app uploads every move's sounds once, when it starts. Once the
-delay has passed since the last move ended, it proposes the yawn instead of
-a pose.
+robot has been resting for that delay, as the `ActionSelector` tells it, it
+proposes the yawn.
 
-The `RobotController` plays it. The loop waits for the whole move to finish
-(see [Known debt](#known-debt)), then records in `SharedState` that a move
-just ended, which restarts the idle timer. On the next tick, breathing
-resumes from neutral.
+The `ActionSelector` cuts the yawn into ticks: each one carries its pose and
+the sounds due then, and the `RobotController` sends it. Half a second of
+way back to neutral follows, cut the same way. Then breathing resumes from
+neutral, and the robot's rest starts again from zero.
 
 ### Someone clicks "Sneezing"
 
 - The page sends `POST /moves/sneezing/play`. The web server runs in its own
   thread: the route checks the name, drops the move in a queue, and answers
   at once. It never touches the robot.
-- On the next tick, the `ActionSelector` finds the request, and hands the
-  sneeze to the `RobotController`. Breathing will start again from neutral
+- On the next tick, the `ActionSelector` finds the request, and starts
+  cutting the sneeze into ticks. Breathing will start again from neutral
   after it.
 - If several clicks arrive during one move, only the latest plays.
 - From there, it goes like an idle move: played, its end recorded, then
@@ -194,7 +197,7 @@ what lets reflexes and deliberation join later without touching the rest.
 ```
 reachy_alive/
 ├── main.py               Builds every part and wires them together; lists the idle moves.
-├── shared_state.py       Facts shared across threads: the idle timer, whether a move is playing, the senses' facts, the settings.
+├── shared_state.py       Facts shared across threads: whether a move is playing, the senses' facts, the settings.
 ├── routes.py             HTTP routes behind the app's page: moves, settings, and what the senses perceive.
 ├── control/              From a proposal to the robot: commands, the ActionSelector, the RobotController.
 ├── brain/                The brain regions, sorted by speed (see rule 8).
@@ -216,8 +219,7 @@ server has its own thread, and deliberation will be asynchronous. The loop
 keeps moving the robot while the rest thinks.
 
 **2. One component executes.** Only the `RobotController` drives the robot,
-from the loop's thread. Moves do talk to the robot, but only while the
-`RobotController` plays them. Reading a sensor isn't driving: the senses
+from the loop's thread. Moves only describe themselves. Reading a sensor isn't driving: the senses
 read the robot from their own threads.
 
 **3. One component chooses.** Decision-makers only propose; the
@@ -271,11 +273,12 @@ Nothing reacts yet: the robot still just breathes, and the app's page shows
 what it perceives, with a switch for each sense. Each fact is there for a
 reaction planned below; raw signal (images, sound) stays inside its sense.
 
-**Next: an interruptible body.** Moves run tick by tick: they return a pose
-each tick, like breathing does, and the command to play a move goes away
-(see [Known debt](#known-debt)). Gaze joins as a continuous motion layered
-over breathing, with the mechanism to aim the head at a point. Nothing new
-shows: the robot must behave exactly as before.
+**Done: an interruptible body.** Moves run tick by tick: the
+`ActionSelector` cuts each one into a pose per tick, and could stop it on any
+tick. Nothing new shows: the robot behaves as before.
+
+**Next: gaze.** A continuous motion layered over breathing, with the
+mechanism to aim the head at a point.
 
 **Then: reflexes.** `amygdala/`: fast, local reactions to the senses' facts,
 which interrupt whatever the robot is doing. The `ActionSelector` puts
@@ -293,17 +296,3 @@ someone, rather than reflexively glance.
 **Later: memory.** `hippocampus/`: the cortex writes what it judged, the
 amygdala reads it back in milliseconds. The robot's fast reaction becomes
 right because it was slow once.
-
-## Known debt
-
-**Playing a move blocks the loop for the whole move.** Everything below
-follows from it:
-
-- a move can't be interrupted, not even by a future reflex;
-- moves still talk to the robot themselves while they play (rule 2's
-  exception);
-- the command to play a move exists only because of it.
-
-Target: moves return a pose each tick, like breathing does, and the loop
-sends every pose itself. Scheduled as its own step, the interruptible body,
-right before reflexes, which need interruption.
