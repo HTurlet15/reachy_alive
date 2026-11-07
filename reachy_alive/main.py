@@ -11,6 +11,7 @@ from reachy_alive.brain.brainstem.idle_manager import IdleManager
 from reachy_alive.brain.sensory_cortex.sense_manager import SenseManager
 from reachy_alive.control.action_selector import ActionSelector
 from reachy_alive.control.robot_controller import RobotController
+from reachy_alive.control.sound_player import SoundPlayer
 from reachy_alive.moves.base import LibraryMove, Move
 from reachy_alive.moves.robot_sounds import upload_sounds
 from reachy_alive.moves.sneezing import Sneezing
@@ -75,7 +76,9 @@ class ReachyAlive(ReachyMiniApp):
         # a requested move over idle, RobotController drives the robot.
         idle_manager = IdleManager(idle_moves, shared_state)
         action_selector = ActionSelector(idle_manager, move_requests, shared_state)
-        robot_controller = RobotController(action_selector, robot_sounds)
+        robot_controller = RobotController(
+            action_selector, SoundPlayer(reachy_mini, robot_sounds)
+        )
 
         # The control loop, in this thread, until the app stops. The senses
         # stop first: the robot closes once run() returns.

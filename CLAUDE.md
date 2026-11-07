@@ -57,8 +57,10 @@ E (deliberation), F (arbitration).
   the move. On the robot itself, the local backend has no `upload_sound` and
   reads files from disk. So the app makes every sound playable once, at
   startup: `upload_sounds()` (`moves/robot_sounds.py`) returns a table from
-  each local path to what `play_sound()` takes, and the `RobotController`
-  holds it. Moves never upload: they only list their `sound_cues`. The daemon
+  each local path to what `play_sound()` takes, and the `SoundPlayer`
+  (`control/sound_player.py`) holds it. `play_sound()` returns only once the
+  sound has started (20 to 45 ms on the robot, 55 to 85 ms from a laptop,
+  #82): the `SoundPlayer` calls it from its own thread, never the loop. Moves never upload: they only list their `sound_cues`. The daemon
   keeps uploads in `/tmp/reachy_mini_sounds/`, by file name alone, until it
   restarts (its `routers/media.py`, SDK 1.13): no two moves may share a sound
   file name (a test checks it). A failed upload stops the app at startup.
