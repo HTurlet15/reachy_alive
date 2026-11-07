@@ -285,11 +285,9 @@ Nothing new shows: the robot behaves as before, with fewer freezes.
 which interrupt whatever the robot is doing. The `ActionSelector` puts
 reflexes first. Innate triggers only, two of them to start. The milestone
 the project is built for: the robot perceives and reacts, without waiting
-on anything slow.
-
-**Then: gaze.** A continuous motion layered over breathing, with the
-mechanism to aim the head at a point. Reflexes decide when to glance; this
-is how the head gets there smoothly.
+on anything slow. It starts with gaze: a continuous motion layered over
+breathing, with the mechanism to aim the head at a point. Reflexes decide
+when to glance; gaze is how the head gets there smoothly.
 
 **Then: deliberation.** `prefrontal_cortex/`: an asynchronous cloud LLM
 call, with a timeout and a fallback. This is what decides to *look at*
