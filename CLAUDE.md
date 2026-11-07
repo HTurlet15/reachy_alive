@@ -17,8 +17,8 @@ what not to touch, the internals, the environment, and how to work with me.
 **C — interruptible body, released in v1.2.0.** Moves run tick by tick:
 the `ActionSelector` cuts each one into a pose per tick, the
 `RobotController` sends every pose, and its `SoundPlayer` starts the sounds;
-nothing new shows on the robot. Next: D, reflexes, then gaze layered over
-breathing (C/2). Sprint letters follow the order of the roadmap in
+nothing new shows on the robot. Next: D, reflexes, starting with gaze
+layered over breathing (once C/2, now D's first step). Sprint letters follow the order of the roadmap in
 ARCHITECTURE.md: A (v1), B (senses), C (interruptible body), D (reflexes),
 E (deliberation), F (arbitration).
 
