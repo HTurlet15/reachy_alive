@@ -2,12 +2,12 @@
 
 import logging
 import time
-from pathlib import Path
 
 from reachy_mini import ReachyMini
 
 from reachy_alive.control.action_selector import ActionSelector
 from reachy_alive.control.commands import RobotCommand
+from reachy_alive.control.sound_player import SoundPlayer
 from reachy_alive.shared_state import CommandedPose, SharedState
 
 logger = logging.getLogger(__name__)
@@ -19,8 +19,9 @@ class RobotController:
     It makes no decisions of its own: each tick, it asks the ActionSelector
     for a command and carries it out. It records in SharedState each pose it
     sends (its efference copy), and when a move plays and ends, whoever asked
-    for it, waking up and going to sleep included. It also starts the sounds
-    each command names: it is the only part that talks to the robot.
+    for it, waking up and going to sleep included. It also hands each command's
+    sounds to its SoundPlayer, which starts them without making the loop
+    wait: with it, it is the only part that talks to the robot.
 
     Each tick is due at a fixed time, every TICK_S. A tick that runs late is
     followed at once by the next one, never by a burst catching up: the
@@ -30,16 +31,16 @@ class RobotController:
     TICK_HZ = 50.0
     TICK_S = 1.0 / TICK_HZ
 
-    def __init__(self, action_selector: ActionSelector, robot_sounds: dict[Path, str]) -> None:
-        """Keep the selector, and where the robot finds each sound.
+    def __init__(self, action_selector: ActionSelector, sound_player: SoundPlayer) -> None:
+        """Keep the selector, and what starts the sounds.
 
         Args:
             action_selector: Chooses the command for each tick.
-            robot_sounds: What the robot's play_sound() takes for each sound,
-                as upload_sounds() made it.
+            sound_player: Starts each command's sounds in its own thread;
+                started and stopped with the control loop.
         """
         self.action_selector = action_selector
-        self.robot_sounds = robot_sounds
+        self.sound_player = sound_player
 
     def run(self, reachy_mini: ReachyMini, shared_state: SharedState, stop_event) -> None:
         """Run the control loop until stop_event is set.
@@ -57,6 +58,7 @@ class RobotController:
         finally:
             shared_state.set_move_playing(False)
 
+        self.sound_player.start()
         try:
             t0 = time.monotonic()
             tick_due_at = t0
@@ -66,6 +68,8 @@ class RobotController:
                 self._execute(command, reachy_mini, shared_state)
                 tick_due_at = self._wait_for_next_tick(tick_due_at + self.TICK_S)
         finally:
+            # Before going to sleep, which plays its own sound.
+            self.sound_player.stop()
             shared_state.set_move_playing(True)
             reachy_mini.goto_sleep()
             reachy_mini.disable_motors()
@@ -76,7 +80,7 @@ class RobotController:
         """Start the command's sounds, send its pose, and record both what it sent and why."""
         # Each sound is due now: it is only in the command on its tick.
         for sound in command.sounds:
-            reachy_mini.media.play_sound(self.robot_sounds[sound])
+            self.sound_player.play(sound)
         reachy_mini.set_target(
             head=command.head, antennas=command.antennas, body_yaw=command.body_yaw
         )

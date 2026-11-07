@@ -22,6 +22,7 @@ from reachy_mini.motion.recorded_move import RecordedMoves
 from reachy_alive.control.action_selector import ActionSelector
 from reachy_alive.control.commands import RobotCommand
 from reachy_alive.control.robot_controller import RobotController
+from reachy_alive.control.sound_player import SoundPlayer
 from reachy_alive.moves.base import LibraryMove
 from reachy_alive.moves.robot_sounds import upload_sounds
 from reachy_alive.moves.sneezing import Sneezing
@@ -103,7 +104,8 @@ def main() -> None:
         stop_event = threading.Event()
         selector = ActionSelector(_NoIdleMoves(), requests, shared_state)
         controller = RobotController(
-            _StopAfterTheMove(selector, stop_event), upload_sounds([move], mini)
+            _StopAfterTheMove(selector, stop_event),
+            SoundPlayer(mini, upload_sounds([move], mini)),
         )
         controller.run(mini, shared_state, stop_event)
 

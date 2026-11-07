@@ -63,6 +63,27 @@ def fake_library(fake_recording):
     return library
 
 
+class SoundsAtOnce:
+    """A SoundPlayer that starts each sound at once, in the caller's thread.
+
+    Tests can then check play_sound() right after the tick, with no thread
+    to wait for. The real SoundPlayer's thread has tests of its own.
+    """
+
+    def __init__(self, reachy_mini, robot_sounds) -> None:
+        self._reachy_mini = reachy_mini
+        self._robot_sounds = robot_sounds
+
+    def start(self) -> None:
+        pass
+
+    def play(self, sound) -> None:
+        self._reachy_mini.media.play_sound(self._robot_sounds[sound])
+
+    def stop(self) -> None:
+        pass
+
+
 class NoIdleMoves:
     """Stands in for IdleManager: proposes nothing."""
 
@@ -84,7 +105,8 @@ def play(fake_reachy_mini):
         requests = queue.Queue()
         requests.put(move)
         selector = ActionSelector(NoIdleMoves(), requests, state)
-        controller = RobotController(selector, upload_sounds([move], fake_reachy_mini))
+        sounds = SoundsAtOnce(fake_reachy_mini, upload_sounds([move], fake_reachy_mini))
+        controller = RobotController(selector, sounds)
         commands = []
         t = 0.0
         while (command := selector.decide(t)).from_move:  # until breathing again

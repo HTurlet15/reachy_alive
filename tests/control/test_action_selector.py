@@ -11,7 +11,7 @@ from reachy_alive.control.action_selector import ActionSelector
 from reachy_alive.control.robot_controller import RobotController
 from reachy_alive.moves.base import NEUTRAL_ANTENNAS_RAD, SoundCue
 from reachy_alive.shared_state import SharedState
-from tests.conftest import StillMove
+from tests.conftest import SoundsAtOnce, StillMove
 
 SNEEZE = Path("/local/sneeze.wav")
 
@@ -30,7 +30,8 @@ class Loop:
         self.state = state or SharedState()
         self.requests = requests or queue.Queue()
         self.selector = ActionSelector(idle_manager, self.requests, self.state)
-        self.controller = RobotController(self.selector, robot_sounds={SNEEZE: "/robot/sneeze.wav"})
+        sounds = SoundsAtOnce(fake_reachy_mini, {SNEEZE: "/robot/sneeze.wav"})
+        self.controller = RobotController(self.selector, sounds)
         self.fake_reachy_mini = fake_reachy_mini
 
     def tick(self, t):

@@ -93,9 +93,11 @@ breathing's clock, starts it again from neutral after every move, and tells
 
 The **`RobotController`** runs the control loop, 50 times a second, in its
 own thread. Each pass is a **tick**. It is the only part that drives the
-robot: each tick, it sends the pose it was handed and starts the sounds
-due, then records the pose (its efference copy). It never waits on a move:
-every tick, the selector is asked again. It also records in `SharedState`
+robot: each tick, it sends the pose it was handed, hands the sounds due to
+its `SoundPlayer`, then records the pose (its efference copy). Starting a
+sound takes the robot 20 to 85 ms, so the `SoundPlayer` does it from its own
+thread, one sound after the other. The loop never waits, on a move or a
+sound: every tick, the selector is asked again. It also records in `SharedState`
 that a move is playing, then that it ended: the senses read it.
 
 ## 4 · Perceive
@@ -199,7 +201,7 @@ reachy_alive/
 ├── main.py               Builds every part and wires them together; lists the idle moves.
 ├── shared_state.py       Facts shared across threads: whether a move is playing, the senses' facts, the settings.
 ├── routes.py             HTTP routes behind the app's page: moves, settings, and what the senses perceive.
-├── control/              From a proposal to the robot: commands, the ActionSelector, the RobotController.
+├── control/              From a proposal to the robot: commands, the ActionSelector, the RobotController and its SoundPlayer.
 ├── brain/                The brain regions, sorted by speed (see rule 8).
 │   ├── brainstem/        Automatic behavior: breathing, and IdleManager.
 │   └── sensory_cortex/   The senses and their detectors: sensor readings into facts. Its README: how to add a detector.
@@ -215,11 +217,12 @@ Each package's `__init__.py` says, in a few lines, what the package is for.
 ## Rules
 
 **1. The control loop never blocks.** Anything slow runs outside it: the web
-server has its own thread, and deliberation will be asynchronous. The loop
+server has its own thread, sounds start from the `SoundPlayer`'s, and
+deliberation will be asynchronous. The loop
 keeps moving the robot while the rest thinks.
 
 **2. One component executes.** Only the `RobotController` drives the robot,
-from the loop's thread. Moves only describe themselves. Reading a sensor isn't driving: the senses
+from the loop's thread; its `SoundPlayer` only starts the sounds it is handed. Moves only describe themselves. Reading a sensor isn't driving: the senses
 read the robot from their own threads.
 
 **3. One component chooses.** Decision-makers only propose; the
