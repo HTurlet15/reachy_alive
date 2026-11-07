@@ -22,7 +22,7 @@ def get_breathing_pose(t: float) -> tuple[np.ndarray, np.ndarray]:
         t: Seconds since breathing started.
 
     Returns:
-        (head pose, antennas in ANTENNA_SIDES order (right, left), in
+        (head pose, antennas in the SDK's order (right, left), in
         radians).
     """
     z = HEAD_AMPLITUDE_MM * np.sin(2 * np.pi * HEAD_FREQUENCY_HZ * t)

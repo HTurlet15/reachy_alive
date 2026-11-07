@@ -135,7 +135,7 @@ class Move(ABC):
             t: Seconds since the move started, 0 to ``duration``.
 
         Returns:
-            (head pose, antennas in ANTENNA_SIDES order (right, left), body
+            (head pose, antennas in the SDK's order (right, left), body
             yaw), angles in radians.
         """
 
@@ -222,7 +222,7 @@ class PhasedMove(Move):
                 that alternates, through ``alternating_sign``.
 
         Returns:
-            (head pose, antennas in ANTENNA_SIDES order (right, left), body
+            (head pose, antennas in the SDK's order (right, left), body
             yaw), angles in radians. Return NEUTRAL_BODY_YAW_RAD if the move
             doesn't turn the body.
         """

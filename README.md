@@ -107,7 +107,8 @@ Mini Control):
 uv run python reachy_alive/main.py
 ```
 
-While the app runs, its page is at `http://localhost:8042`.
+While the app runs, its page is at `http://localhost:8042`. When it runs on
+the robot, open `http://reachy-mini.local:8042` from your computer.
 
 ## License
 
