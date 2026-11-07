@@ -176,8 +176,10 @@ class SharedState:
     other module only reads. The facts of a sense live in their own object,
     such as `vision`.
 
+    Every read and write of its own facts holds one private lock, so a
+    reader never sees half an update.
+
     Attributes:
-        lock: Guards all reads/writes to prevent race conditions.
         vision: What the robot sees.
         inertial: What the robot feels through its inertial unit.
         touch: What the robot feels through its antennas.
@@ -186,7 +188,7 @@ class SharedState:
 
     def __init__(self) -> None:
         """Start with nothing known yet: no move, no pose sent, default settings."""
-        self.lock = threading.Lock()
+        self._lock = threading.Lock()
         self.vision = VisionFacts()
         self.inertial = InertialFacts()
         self.touch = TouchFacts()
@@ -208,36 +210,36 @@ class SharedState:
         Args:
             playing: True when a move starts, False once it has ended.
         """
-        with self.lock:
+        with self._lock:
             self._move_playing = playing
             if not playing:
                 self._last_move_ended_at = time.monotonic()
 
     def is_move_playing(self) -> bool:
         """Return whether RobotController is playing a move right now."""
-        with self.lock:
+        with self._lock:
             return self._move_playing
 
     def last_move_ended_at(self) -> float | None:
         """Return when the last move ended (time.monotonic()), or None if none did yet."""
-        with self.lock:
+        with self._lock:
             return self._last_move_ended_at
 
     def record_commanded_pose(self, pose: CommandedPose) -> None:
         """Record the pose RobotController just sent to the robot."""
-        with self.lock:
+        with self._lock:
             self._commanded_pose = pose
 
     def last_commanded_pose(self) -> CommandedPose | None:
         """Return the last pose RobotController sent, or None if none yet."""
-        with self.lock:
+        with self._lock:
             return self._commanded_pose
 
     # Settings. Written by the app's page, through its routes.
 
     def idle_move_interval_range_s(self) -> tuple[float, float]:
         """Return the (min, max) seconds to wait between two idle moves."""
-        with self.lock:
+        with self._lock:
             return self._idle_move_interval_range_s
 
     def set_idle_move_interval_range_s(self, min_s: float, max_s: float) -> None:
@@ -252,7 +254,7 @@ class SharedState:
         """
         if not 0.0 <= min_s <= max_s:
             raise ValueError(f"Invalid idle move interval: ({min_s}, {max_s})")
-        with self.lock:
+        with self._lock:
             self._idle_move_interval_range_s = (min_s, max_s)
 
     def is_sense_enabled(self, name: str) -> bool:
@@ -261,7 +263,7 @@ class SharedState:
         Args:
             name: The sense's NAME, such as "touch".
         """
-        with self.lock:
+        with self._lock:
             return name not in self._disabled_senses
 
     def set_sense_enabled(self, name: str, enabled: bool) -> None:
@@ -271,7 +273,7 @@ class SharedState:
             name: The sense's NAME, such as "touch".
             enabled: False to switch it off, True to switch it back on.
         """
-        with self.lock:
+        with self._lock:
             if enabled:
                 self._disabled_senses.discard(name)
             else:
