@@ -106,7 +106,8 @@ E (deliberation), F (arbitration).
   `rm -rf ~/.cache/huggingface/hub/datasets--<user>--<dataset>`.
 - Manual visual check: `try-move yawning`, `try-move stretching`,
   `try-move recorded hiccup-full`, `try-move pollen boredom1`.
-- The app's page: `http://localhost:8042` while the app runs. Routes can be
+- The app's page: `http://localhost:8042` while the app runs, or
+  `http://reachy-mini.local:8042` when it runs on the robot. Routes can be
   tried with `curl`, e.g. `curl -i -X POST http://localhost:8042/moves/<name>/play`.
 - `pytest` passing is not enough. Asset paths, real library loading, sound
   upload and visual correctness only show up when actually running.
