@@ -278,16 +278,18 @@ reaction planned below; raw signal (images, sound) stays inside its sense.
 
 **Done: an interruptible body.** Moves run tick by tick: the
 `ActionSelector` cuts each one into a pose per tick, and could stop it on any
-tick. Nothing new shows: the robot behaves as before.
+tick. Sounds start from their own thread, so the control loop never waits.
+Nothing new shows: the robot behaves as before, with fewer freezes.
 
-**Next: gaze.** A continuous motion layered over breathing, with the
-mechanism to aim the head at a point.
-
-**Then: reflexes.** `amygdala/`: fast, local reactions to the senses' facts,
+**Next: reflexes.** `amygdala/`: fast, local reactions to the senses' facts,
 which interrupt whatever the robot is doing. The `ActionSelector` puts
 reflexes first. Innate triggers only, two of them to start. The milestone
 the project is built for: the robot perceives and reacts, without waiting
 on anything slow.
+
+**Then: gaze.** A continuous motion layered over breathing, with the
+mechanism to aim the head at a point. Reflexes decide when to glance; this
+is how the head gets there smoothly.
 
 **Then: deliberation.** `prefrontal_cortex/`: an asynchronous cloud LLM
 call, with a timeout and a fallback. This is what decides to *look at*
