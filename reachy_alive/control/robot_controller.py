@@ -71,8 +71,21 @@ class RobotController:
             # Before going to sleep, which plays its own sound.
             self.sound_player.stop()
             shared_state.set_move_playing(True)
+            self._put_robot_to_sleep(reachy_mini)
+
+    @staticmethod
+    def _put_robot_to_sleep(reachy_mini: ReachyMini) -> None:
+        """Put the robot to sleep and turn its motors off, if it can still be reached.
+
+        When the connection to the daemon is lost, both calls fail too: that
+        is logged in one line, so the error that stopped the loop stays the
+        last one printed, with its whole traceback.
+        """
+        try:
             reachy_mini.goto_sleep()
             reachy_mini.disable_motors()
+        except ConnectionError:
+            logger.warning("Could not put the robot to sleep: the connection to the daemon is lost")
 
     def _execute(
         self, command: RobotCommand, reachy_mini: ReachyMini, shared_state: SharedState
