@@ -1,5 +1,6 @@
 """Unit tests for RobotController."""
 
+import logging
 import threading
 import time
 from pathlib import Path
@@ -7,6 +8,8 @@ from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
+from websockets.exceptions import ConnectionClosedError
+from websockets.frames import Close
 
 from reachy_alive.control.commands import RobotCommand
 from reachy_alive.control.robot_controller import RobotController
@@ -51,6 +54,53 @@ def test_a_failing_tick_still_puts_the_robot_to_sleep(fake_reachy_mini):
 
     fake_reachy_mini.goto_sleep.assert_called_once()
     fake_reachy_mini.disable_motors.assert_called_once()
+
+
+def test_a_lost_connection_stays_the_error_that_stops_the_app(fake_reachy_mini, caplog):
+    lost = ConnectionError("Lost connection with the server.")
+    fake_reachy_mini.set_target.side_effect = lost
+    fake_reachy_mini.goto_sleep.side_effect = ConnectionError("Lost connection with the server.")
+    action_selector = MagicMock()
+    action_selector.decide.return_value = RobotCommand(head=np.eye(4), antennas=np.zeros(2))
+
+    with caplog.at_level(logging.WARNING, logger="reachy_alive"):
+        with pytest.raises(ConnectionError) as raised:
+            RobotController(action_selector, MagicMock()).run(
+                fake_reachy_mini, SharedState(), threading.Event()
+            )
+
+    assert raised.value is lost  # the tick's error, not the shutdown's
+    assert "Could not put the robot to sleep" in caplog.text
+    fake_reachy_mini.disable_motors.assert_not_called()
+
+
+def test_a_websocket_closed_at_shutdown_is_a_lost_connection_too(fake_reachy_mini, caplog):
+    # In the first second, before the SDK notices, writing to the closed
+    # WebSocket raises from websockets, "from None": that hid the loop's error.
+    restart = Close(1012, "service restart")
+    lost = ConnectionClosedError(restart, restart, True)
+    fake_reachy_mini.set_target.side_effect = lost
+    fake_reachy_mini.goto_sleep.side_effect = ConnectionClosedError(restart, restart, True)
+    action_selector = MagicMock()
+    action_selector.decide.return_value = RobotCommand(head=np.eye(4), antennas=np.zeros(2))
+
+    with caplog.at_level(logging.WARNING, logger="reachy_alive"):
+        with pytest.raises(ConnectionClosedError) as raised:
+            RobotController(action_selector, MagicMock()).run(
+                fake_reachy_mini, SharedState(), threading.Event()
+            )
+
+    assert raised.value is lost
+    assert "Could not put the robot to sleep" in caplog.text
+
+
+def test_any_other_error_at_shutdown_still_shows(fake_reachy_mini):
+    fake_reachy_mini.goto_sleep.side_effect = RuntimeError("a bug in going to sleep")
+    stop_event = threading.Event()
+    stop_event.set()
+
+    with pytest.raises(RuntimeError, match="a bug in going to sleep"):
+        RobotController(MagicMock(), MagicMock()).run(fake_reachy_mini, SharedState(), stop_event)
 
 
 def test_waking_up_counts_as_a_move_playing(fake_reachy_mini):
