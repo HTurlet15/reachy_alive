@@ -4,6 +4,7 @@ import logging
 import time
 
 from reachy_mini import ReachyMini
+from websockets.exceptions import ConnectionClosed
 
 from reachy_alive.control.action_selector import ActionSelector
 from reachy_alive.control.commands import RobotCommand
@@ -73,10 +74,12 @@ class RobotController:
             shared_state.set_move_playing(True)
             # With the connection to the daemon lost, both calls fail too: one
             # log line, so the error that stopped the loop stays the last printed.
+            # The SDK reports a lost connection two ways: ConnectionError once it
+            # has noticed (about 1 s), ConnectionClosed from websockets before.
             try:
                 reachy_mini.goto_sleep()
                 reachy_mini.disable_motors()
-            except ConnectionError:
+            except (ConnectionError, ConnectionClosed):
                 logger.warning(
                     "Could not put the robot to sleep: the connection to the daemon is lost"
                 )

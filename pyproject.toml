@@ -21,6 +21,8 @@ dependencies = [
     # uv.lock pins the exact version used for development.
     "reachy-mini>=1.13.0,<2",
     "soundfile",
+    # Imported for its ConnectionClosed, which the SDK raises at us.
+    "websockets",
 ]
 keywords = ["reachy-mini-app"]
 

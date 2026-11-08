@@ -2084,6 +2084,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "reachy-mini" },
     { name = "soundfile" },
+    { name = "websockets" },
 ]
 
 [package.dev-dependencies]
@@ -2101,6 +2102,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2" },
     { name = "reachy-mini", specifier = ">=1.13.0,<2" },
     { name = "soundfile" },
+    { name = "websockets" },
 ]
 
 [package.metadata.requires-dev]
