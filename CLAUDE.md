@@ -110,6 +110,19 @@ E (deliberation), F (arbitration).
   tried with `curl`, e.g. `curl -i -X POST http://localhost:8042/moves/<name>/play`.
 - `pytest` passing is not enough. Asset paths, real library loading, sound
   upload and visual correctness only show up when actually running.
+- Testing a branch on the robot: copy the package with rsync, from the repo
+  root on the laptop, then stop Reachy Alive in Reachy Mini Control and run
+  it by hand. Logs show in the terminal; Ctrl+C puts the robot to sleep.
+  ```bash
+  rsync -avz --delete --exclude __pycache__ reachy_alive pollen@reachy-mini.local:/home/pollen/reachy_alive_dev/
+  ssh pollen@reachy-mini.local
+  cd /home/pollen/reachy_alive_dev && /venvs/apps_venv/bin/python -m reachy_alive.main
+  ```
+  The laptop only connects out: no SSH server on it, no credentials on the
+  robot, which isn't ours. The store install is untouched, so Reachy Mini
+  Control keeps offering updates; never `pip install git+...@branch` on
+  the robot. A branch that adds a dependency needs it installed in
+  `/venvs/apps_venv` first.
 - Robot logs: `ssh pollen@<ip>` (password `root`), then
   `journalctl -u reachy-mini-daemon -f`. Get the IP with
   `mini.client.get_status().wlan_ip`.
