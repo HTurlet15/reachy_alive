@@ -163,6 +163,18 @@ Key points already learned from them:
   `set_target`.
 - Use `time.monotonic()`, never `time.time()`.
 
+## One clock
+
+Every time that crosses from one part to another is a raw
+`time.monotonic()` reading: the loop's ticks, what a sense perceives
+(`perceived_at`), the facts in `SharedState`. A fact's time and the loop's
+"now" can then be subtracted directly, which a reflex will do. Names say
+what a number is: `now` is a reading, `..._at` a stored reading, `..._s` a
+duration. Inside a part, a mechanism may follow its own clock and call it
+`t`: a move's `evaluate(t)` (the SDK's name, time since that move started),
+or hearing's detectors, which follow the sound's own clock
+(`time_listened_s`).
+
 ## Conventions
 
 - Docstrings say what the code does; the *why* goes in the commit message.

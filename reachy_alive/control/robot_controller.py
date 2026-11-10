@@ -61,11 +61,9 @@ class RobotController:
 
         self.sound_player.start()
         try:
-            t0 = time.monotonic()
-            tick_due_at = t0
+            tick_due_at = time.monotonic()
             while not stop_event.is_set():
-                t = time.monotonic() - t0
-                command = self.action_selector.decide(t)
+                command = self.action_selector.decide(time.monotonic())
                 self._execute(command, reachy_mini, shared_state)
                 tick_due_at = self._wait_for_next_tick(tick_due_at + self.TICK_S)
         finally:

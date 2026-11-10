@@ -108,11 +108,11 @@ def play(fake_reachy_mini):
         sounds = SoundsAtOnce(fake_reachy_mini, upload_sounds([move], fake_reachy_mini))
         controller = RobotController(selector, sounds)
         commands = []
-        t = 0.0
-        while (command := selector.decide(t)).from_move:  # until breathing again
+        now = 0.0
+        while (command := selector.decide(now)).from_move:  # until breathing again
             controller._execute(command, fake_reachy_mini, state)
             commands.append(command)
-            t += tick_s
+            now += tick_s
         return commands
 
     return play_move

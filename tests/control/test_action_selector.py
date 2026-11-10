@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import numpy as np
+import pytest
 
 from reachy_alive.brain.brainstem.idle_manager import IdleManager
 from reachy_alive.control.action_selector import ActionSelector
@@ -34,14 +35,14 @@ class Loop:
         self.controller = RobotController(self.selector, sounds)
         self.fake_reachy_mini = fake_reachy_mini
 
-    def tick(self, t):
-        command = self.selector.decide(t)
+    def tick(self, now):
+        command = self.selector.decide(now)
         self.controller._execute(command, self.fake_reachy_mini, self.state)
         return command
 
     def ticks(self, start_s, end_s, step_s=0.02):
         """Run every tick from start_s up to end_s, and return their commands."""
-        return [self.tick(t) for t in np.arange(start_s, end_s, step_s)]
+        return [self.tick(now) for now in np.arange(start_s, end_s, step_s)]
 
 
 def test_plays_the_idle_move_idle_proposes(fake_reachy_mini):
@@ -167,19 +168,23 @@ def test_the_end_of_a_move_restarts_the_idle_timer(fake_reachy_mini):
     assert not loop.state.is_move_playing()
 
 
-def test_the_robot_rests_for_the_whole_delay_between_two_idle_moves(fake_reachy_mini):
+# time.monotonic() starts anywhere: the robot's timing must not depend on it.
+@pytest.mark.parametrize("clock_at_start", [0.0, 18342.7])
+def test_the_robot_rests_for_the_whole_delay_between_two_idle_moves(
+    fake_reachy_mini, clock_at_start
+):
     # The real IdleManager: with a mock, the idle moves once ran back to back.
     state = SharedState()
     state.set_idle_move_interval_range_s(5.0, 5.0)
     loop = Loop(IdleManager([StillMove(duration=2.0)], state), fake_reachy_mini, state=state)
 
-    times = np.round(np.arange(0.0, 20.0, 0.02), 2)
-    commands = [loop.tick(t) for t in times]
+    times = np.round(clock_at_start + np.arange(0.0, 20.0, 0.02), 2)
+    commands = [loop.tick(now) for now in times]
     starts = [
-        float(t)
-        for t, before, now in zip(times[1:], commands[:-1], commands[1:], strict=True)
-        if now.from_move and not before.from_move
+        float(now - clock_at_start)
+        for now, before, after in zip(times[1:], commands[:-1], commands[1:], strict=True)
+        if after.from_move and not before.from_move
     ]
 
     # 2 s of move, 0.5 s of way back, then 5 s of rest again.
-    assert starts == [5.0, 12.5]
+    assert starts == pytest.approx([5.0, 12.5])
