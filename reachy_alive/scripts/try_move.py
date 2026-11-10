@@ -63,8 +63,8 @@ class _StopAfterTheMove:
         self._stop_event = stop_event
         self._move_seen = False
 
-    def decide(self, t: float) -> RobotCommand:
-        command = self._selector.decide(t)
+    def decide(self, now: float) -> RobotCommand:
+        command = self._selector.decide(now)
         if command.from_move:
             self._move_seen = True
         elif self._move_seen:
