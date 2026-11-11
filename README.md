@@ -75,7 +75,8 @@ The code is organized like a nervous system. The folders in `brain/` are named a
 that must fire in milliseconds goes to `amygdala/`, a considered response
 that can take seconds goes to `prefrontal_cortex/`. A face appearing can
 trigger both — a startle, then a greeting — and they live in different
-folders. The plumbing they share (`control/`, `shared_state.py`,
+folders. What carries the orders to the robot lives in `spinal_cord/`,
+outside the brain, as in a body. What no organ does (`shared_state.py`,
 `routes.py`) takes plain names: the metaphor is kept for what has a
 biological sense.
 

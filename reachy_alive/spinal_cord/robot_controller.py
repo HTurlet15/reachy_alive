@@ -7,9 +7,9 @@ from reachy_mini import ReachyMini
 from websockets.exceptions import ConnectionClosed
 
 from reachy_alive.brain.basal_ganglia.action_selector import ActionSelector
-from reachy_alive.control.commands import RobotCommand
-from reachy_alive.control.sound_player import SoundPlayer
 from reachy_alive.shared_state import CommandedPose, SharedState
+from reachy_alive.spinal_cord.commands import RobotCommand
+from reachy_alive.spinal_cord.sound_player import SoundPlayer
 
 logger = logging.getLogger(__name__)
 

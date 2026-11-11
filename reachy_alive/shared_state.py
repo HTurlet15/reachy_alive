@@ -170,7 +170,7 @@ class SharedState:
 
     It holds facts any module may read at any time, such as when the last
     move ended. It does not carry orders: a module that wants something done
-    hands over a command instead (see reachy_alive.control.commands).
+    hands over a command instead (see reachy_alive.spinal_cord.commands).
 
     Methods are grouped by fact. Each group names its one writer; every
     other module only reads. The facts of a sense live in their own object,

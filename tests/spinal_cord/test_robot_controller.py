@@ -11,9 +11,9 @@ import pytest
 from websockets.exceptions import ConnectionClosedError
 from websockets.frames import Close
 
-from reachy_alive.control.commands import RobotCommand
-from reachy_alive.control.robot_controller import RobotController
 from reachy_alive.shared_state import SharedState
+from reachy_alive.spinal_cord.commands import RobotCommand
+from reachy_alive.spinal_cord.robot_controller import RobotController
 
 
 def run_one_tick(command, reachy_mini, shared_state=None) -> None:
@@ -165,7 +165,7 @@ class FakeClock:
 def clock(monkeypatch):
     """Freeze RobotController's clock at 0 s."""
     fake = FakeClock(now=0.0)
-    monkeypatch.setattr("reachy_alive.control.robot_controller.time", fake)
+    monkeypatch.setattr("reachy_alive.spinal_cord.robot_controller.time", fake)
     return fake
 
 

@@ -20,15 +20,15 @@ from reachy_mini import ReachyMini
 from reachy_mini.motion.recorded_move import RecordedMoves
 
 from reachy_alive.brain.basal_ganglia.action_selector import ActionSelector
-from reachy_alive.control.commands import RobotCommand
-from reachy_alive.control.robot_controller import RobotController
-from reachy_alive.control.sound_player import SoundPlayer
 from reachy_alive.moves.base import LibraryMove
 from reachy_alive.moves.robot_sounds import upload_sounds
 from reachy_alive.moves.sneezing import Sneezing
 from reachy_alive.moves.stretching import Stretching
 from reachy_alive.moves.yawning import Yawning
 from reachy_alive.shared_state import SharedState
+from reachy_alive.spinal_cord.commands import RobotCommand
+from reachy_alive.spinal_cord.robot_controller import RobotController
+from reachy_alive.spinal_cord.sound_player import SoundPlayer
 
 # Moves written in code. Add yours here.
 _CODED_MOVES = {

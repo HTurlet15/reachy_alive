@@ -10,8 +10,6 @@ from reachy_mini.motion.recorded_move import RecordedMoves
 from reachy_alive.brain.basal_ganglia.action_selector import ActionSelector
 from reachy_alive.brain.brainstem.idle_manager import IdleManager
 from reachy_alive.brain.sensory_cortex.sense_manager import SenseManager
-from reachy_alive.control.robot_controller import RobotController
-from reachy_alive.control.sound_player import SoundPlayer
 from reachy_alive.moves.base import LibraryMove, Move
 from reachy_alive.moves.robot_sounds import upload_sounds
 from reachy_alive.moves.sneezing import Sneezing
@@ -19,6 +17,8 @@ from reachy_alive.moves.stretching import Stretching
 from reachy_alive.moves.yawning import Yawning
 from reachy_alive.routes import create_router
 from reachy_alive.shared_state import SharedState
+from reachy_alive.spinal_cord.robot_controller import RobotController
+from reachy_alive.spinal_cord.sound_player import SoundPlayer
 
 
 class ReachyAlive(ReachyMiniApp):

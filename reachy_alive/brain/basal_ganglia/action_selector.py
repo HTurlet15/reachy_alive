@@ -5,9 +5,9 @@ import queue
 
 from reachy_alive.brain.brainstem.breathing import get_breathing_pose
 from reachy_alive.brain.brainstem.idle_manager import IdleManager
-from reachy_alive.control.commands import RobotCommand
 from reachy_alive.moves.base import Move, ReturningToNeutral, SoundCue
 from reachy_alive.shared_state import SharedState
+from reachy_alive.spinal_cord.commands import RobotCommand
 
 logger = logging.getLogger(__name__)
 

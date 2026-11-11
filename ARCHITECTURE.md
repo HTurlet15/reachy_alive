@@ -201,7 +201,7 @@ reachy_alive/
 ├── main.py               Builds every part and wires them together; lists the idle moves.
 ├── shared_state.py       Facts shared across threads: whether a move is playing, the senses' facts, the settings.
 ├── routes.py             HTTP routes behind the app's page: moves, settings, and what the senses perceive.
-├── control/              From a chosen move to the robot: commands, the RobotController and its SoundPlayer.
+├── spinal_cord/          From a chosen move to the robot: commands, the RobotController and its SoundPlayer.
 ├── brain/                The brain regions, sorted by speed (see rule 8).
 │   ├── basal_ganglia/    Choosing: the ActionSelector picks what the robot does, by priority.
 │   ├── brainstem/        Automatic behavior: breathing, and IdleManager.
@@ -255,9 +255,10 @@ modules, sorted by speed.** Fast, local and synchronous goes to `amygdala/`; slo
 asynchronous goes to `prefrontal_cortex/`. Reacting to a face can mean
 both: a startle belongs in the first, a greeting in the second. Sorting by
 speed rather than by topic keeps anything that can block out of the fast
-path, as the brain does. The plumbing they share (`control/`, `shared_state.py`, `routes.py`) 
-takes plain names and stays at the package root: the metaphor is kept 
-for what has a biological sense.
+path, as the brain does. What carries the orders to the robot lives in
+`spinal_cord/`, at the package root, outside the brain, as in a body. What
+no organ does (`shared_state.py`, `routes.py`) takes plain names: the
+metaphor is kept for what has a biological sense.
 
 ## Where it's going
 

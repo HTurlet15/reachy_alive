@@ -34,7 +34,10 @@ E (deliberation), F (arbitration).
   settings the daemon persists across apps; the app never changes them.
 - **One word: "move".** Code, routes and docs say "move", like the SDK; idle
   code says "idle move".
-- **Brain regions live in `brain/`; plumbing stays at the package root.**
+- **Folders are named after body parts; files say plainly what they do.**
+  Brain regions live in `brain/`; the spinal cord (`spinal_cord/`, what
+  drives the robot) sits at the package root, outside the brain. What no
+  organ does (`shared_state.py`, `routes.py`) keeps a plain name.
   No `MixedMove` base class until a second mixed move.
 - **A new idle move interval applies from the next idle move**, not
   immediately: the delay already drawn still runs.
@@ -57,7 +60,7 @@ E (deliberation), F (arbitration).
   reads files from disk. So the app makes every sound playable once, at
   startup: `upload_sounds()` (`moves/robot_sounds.py`) returns a table from
   each local path to what `play_sound()` takes, and the `SoundPlayer`
-  (`control/sound_player.py`) holds it. `play_sound()` returns only once the
+  (`spinal_cord/sound_player.py`) holds it. `play_sound()` returns only once the
   sound has started (20 to 45 ms on the robot, 55 to 85 ms from a laptop,
   #82): the `SoundPlayer` calls it from its own thread, never the loop. Moves never upload: they only list their `sound_cues`. The daemon
   keeps uploads in `/tmp/reachy_mini_sounds/`, by file name alone, until it
