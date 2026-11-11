@@ -29,7 +29,8 @@ class MovePlayer:
         """
         self._shared_state = shared_state
         # What is playing, and since when: None while the robot breathes.
-        # Written only in _update_current_move.
+        # Written only in _update_current_move. The start time is read only
+        # while a move plays.
         self._current_move: Move | None = None
         self._current_move_started_at = 0.0
         self._cues_left: list[SoundCue] = []
@@ -70,7 +71,7 @@ class MovePlayer:
             return
 
         # 4. The way back is over, or nothing was playing: the robot breathes.
-        self._set_current_move(None, now)
+        self._current_move = None
 
     def _way_back(self) -> ReturningToNeutral:
         """Return the way back to neutral from the last pose sent."""
@@ -79,12 +80,10 @@ class MovePlayer:
             (last_pose_sent.head, last_pose_sent.antennas, last_pose_sent.body_yaw)
         )
 
-    def _set_current_move(self, move: Move | None, now: float) -> None:
-        """Make move the one cut into ticks from now; None: the robot breathes."""
+    def _set_current_move(self, move: Move, now: float) -> None:
+        """Make move the one cut into ticks from now."""
         self._current_move = move
         self._current_move_started_at = now
-        if move is None:
-            return
         move.draw_variations()
         self._cues_left = list(move.sound_cues)
         # Every move ends at neutral, where breathing starts.
