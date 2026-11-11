@@ -1,7 +1,7 @@
 """Unit tests for Stretching.
 
-The play test goes through the ActionSelector and the controller, on a
-simulated clock.
+The play test goes through the ActionSelector, the MovePlayer and the
+controller, on a simulated clock.
 """
 
 from reachy_alive.moves.stretching import Stretching

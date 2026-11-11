@@ -13,11 +13,11 @@ class IdleManager:
     """Proposes, now and then, an idle move.
 
     It never drives the robot: it hands a move to the ActionSelector, which
-    plays it, and proposes nothing the rest of the time. Idle moves come at
+    has the MovePlayer play it, and proposes nothing the rest of the time. Idle moves come at
     random intervals, within the range set in SharedState. Each delay is
     drawn as soon as it starts running: a new range applies from the next
     idle move on. It reads no clock: the ActionSelector tells it how long the
-    robot has been resting.
+    robot has been resting, as the MovePlayer counts it.
     """
 
     def __init__(self, idle_moves: list[Move], shared_state: SharedState) -> None:

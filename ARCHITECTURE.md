@@ -41,11 +41,11 @@ flowchart LR
         cortex["deliberation (prefrontal_cortex):<br/>a decision"]:::later
     end
     subgraph choose["2 · Choose"]
-        selector["ActionSelector<br/>(by priority)"]
+        selector["ActionSelector (basal_ganglia):<br/>by priority"]
     end
     subgraph act["3 · Execute"]
         direction TB
-        controller["RobotController<br/>(control loop, 50 Hz)"] --> robot(["Reachy Mini"])
+        player["MovePlayer (cerebellum):<br/>the move, pose by pose"] --> controller["RobotController (spinal_cord):<br/>control loop, 50 Hz"] --> robot(["Reachy Mini"])
     end
     subgraph perceive["4 · Perceive"]
         senses["the senses<br/>and their detectors"]
@@ -55,7 +55,7 @@ flowchart LR
 
     stateRead -->|facts| decide
     decide -->|proposals| selector
-    selector -->|one command| act
+    selector -->|a move to start| act
     act -->|sensor readings| perceive
     act -->|a move plays, ends| state
     perceive -->|facts| state
@@ -81,23 +81,30 @@ Reflexes and deliberation will propose too, the same way.
 
 ## 2 · Choose
 
-On every tick, the **`ActionSelector`** keeps the move playing, or sets the
-next one, highest priority first: a move that just ended eases back to
-neutral, then a requested move wins over idle; reflexes will come first. It
-cuts the move into one command per tick, its pose and the sounds due. When
-there is no move to play, the robot breathes: the selector keeps the
-breathing's clock, starts it again from neutral after every move, and tells
-`IdleManager` how long the robot has been resting.
+On every tick, the **`ActionSelector`** returns the move to start, if any:
+an order for that tick only. While the `MovePlayer` is busy with a move or
+its way back to neutral, the selector chooses nothing. Once the player is
+free, it picks by priority: a requested move wins over idle; reflexes will
+come first. It never builds a pose: it only asks the player whether it is
+busy, and how long the robot has been resting, which it passes to
+`IdleManager`.
 
 ## 3 · Execute
 
+The **`MovePlayer`** keeps what is playing, and since when. It cuts the move
+it was handed into one command per tick, its pose and the sounds due, then
+eases back to neutral from the last pose sent. When there is no move to
+play, the robot breathes: the player keeps the breathing's clock, and starts
+it again from neutral after every move.
+
 The **`RobotController`** runs the control loop, 50 times a second, in its
 own thread. Each pass is a **tick**. It is the only part that drives the
-robot: each tick, it sends the pose it was handed, hands the sounds due to
+robot: each tick, it asks the selector for a move to start, hands it to
+the player, and sends the pose the player returns, hands the sounds due to
 its `SoundPlayer`, then records the pose (its efference copy). Starting a
 sound takes the robot 20 to 85 ms, so the `SoundPlayer` does it from its own
 thread, one sound after the other. The loop never waits, on a move or a
-sound: every tick, the selector is asked again. It also records in `SharedState`
+sound: every tick, the selector chooses again. It also records in `SharedState`
 that a move is playing, then that it ended: the senses read it.
 
 ## 4 · Perceive
@@ -133,19 +140,20 @@ rule 4).
 
 ### Breathing, then an idle move
 
-On most ticks, nobody proposes a move: the `ActionSelector` hands the
-`RobotController` the next breathing pose, and it sends it to the robot. On
+On most ticks, nobody proposes a move: the `MovePlayer` returns the next
+breathing pose, and the `RobotController` sends it to the robot. On
 the next tick, the next pose.
 
 Meanwhile, `IdleManager` has drawn a delay from the interval kept in
 `SharedState` (20 to 30 s by default, adjustable from the app's page), and
 picks a move when it is due, say a yawn. Its sounds are already on the
 robot: the app uploads every move's sounds once, when it starts. Once the
-robot has been resting for that delay, as the `ActionSelector` tells it, it
+robot has been resting for that delay, as the `MovePlayer` counts it, it
 proposes the yawn.
 
-The `ActionSelector` cuts the yawn into ticks: each one carries its pose and
-the sounds due then, and the `RobotController` sends it. Half a second of
+The `ActionSelector` chooses the yawn, and the `MovePlayer` cuts it into
+ticks: each one carries its pose and the sounds due then, and the
+`RobotController` sends it. Half a second of
 way back to neutral follows, cut the same way. Then breathing resumes from
 neutral, and the robot's rest starts again from zero.
 
@@ -154,8 +162,8 @@ neutral, and the robot's rest starts again from zero.
 - The page sends `POST /moves/sneezing/play`. The web server runs in its own
   thread: the route checks the name, drops the move in a queue, and answers
   at once. It never touches the robot.
-- On the next tick, the `ActionSelector` finds the request, and starts
-  cutting the sneeze into ticks. Breathing will start again from neutral
+- On the next tick, the `ActionSelector` finds the request and chooses the
+  sneeze; the `MovePlayer` cuts it into ticks. Breathing will start again from neutral
   after it.
 - If several clicks arrive during one move, only the latest plays.
 - From there, it goes like an idle move: played, its end recorded, then
@@ -205,6 +213,7 @@ reachy_alive/
 ├── brain/                The brain regions, sorted by speed (see rule 8).
 │   ├── basal_ganglia/    Choosing: the ActionSelector picks what the robot does, by priority.
 │   ├── brainstem/        Automatic behavior: breathing, and IdleManager.
+│   ├── cerebellum/       Playing: the MovePlayer cuts the move chosen into poses, and breathes in between.
 │   └── sensory_cortex/   The senses and their detectors: sensor readings into facts. Its README: how to add a detector.
 ├── moves/                The Move contract (base.py), the coded moves, and the guides to write one.
 ├── static/               The app's page: HTML, JavaScript, CSS.
@@ -279,7 +288,7 @@ what it perceives, with a switch for each sense. Each fact is there for a
 reaction planned below; raw signal (images, sound) stays inside its sense.
 
 **Done: an interruptible body.** Moves run tick by tick: the
-`ActionSelector` cuts each one into a pose per tick, and could stop it on any
+`MovePlayer` cuts each one into a pose per tick, and could stop it on any
 tick. Sounds start from their own thread, so the control loop never waits.
 Nothing new shows: the robot behaves as before, with fewer freezes.
 

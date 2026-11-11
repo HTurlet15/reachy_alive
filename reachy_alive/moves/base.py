@@ -7,8 +7,8 @@ There are two supported ways to write a move:
 
 Every move is a ``Move``: it answers the SDK's move contract, ``duration``
 and ``evaluate(t)``, plus the sounds it starts, ``sound_cues``. A move only
-describes itself: the ActionSelector cuts it into one pose per tick, and
-only the RobotController talks to the robot.
+describes itself: the MovePlayer cuts it into one pose per tick, and only
+the RobotController talks to the robot.
 
 Two helpers shape motion: ``interpolate`` eases a value from one pose to
 another, ``alternating_sign`` times shakes and trembles. Keep alternations

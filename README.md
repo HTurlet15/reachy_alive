@@ -68,7 +68,7 @@ Volume and microphone are set in Reachy Mini Control itself.
 
 Not yet: reactions to what it perceives, deliberation, memory.
 
-## The brain map
+## The body map
 
 The code is organized like a nervous system. The folders in `brain/` are named after brain regions,
  and code goes wherever its speed fits, as in the brain: a reflex
@@ -83,10 +83,13 @@ biological sense.
 | Module | Biological analogy | Role in the code |
 |---|---|---|
 | `brainstem/` | Automatic regulation — breathing, posture | Idle behavior: continuous breathing, occasional idle moves. **Implemented.** |
+| `basal_ganglia/` | Picks one action among those competing | The `ActionSelector`: which move starts next, by priority. **Implemented.** |
+| `cerebellum/` | Turns a chosen action into a smooth, timed movement | The `MovePlayer`: plays the move pose by pose, eases back to neutral, breathes in between. **Implemented.** |
 | `sensory_cortex/` | Turns raw signal into percepts | The senses — inertial unit, touch, hearing, vision — and their detectors, writing facts to `SharedState`. **Implemented.** |
 | `amygdala/` | Reacts before the cortex has understood | Fast, local, synchronous reflexes. *Planned.* |
 | `prefrontal_cortex/` | Deliberation, personality | Async cloud LLM call, with timeout and fallback. *Planned.* |
 | `hippocampus/` | Episodic memory | What happened, how often, how long ago. *Planned.* |
+| `spinal_cord/` (outside `brain/`) | Carries the orders to the muscles | The `RobotController` and its `SoundPlayer`: send each tick's pose and sounds to the robot. **Implemented.** |
 
 How it all fits together, the code map and what comes next:
 [ARCHITECTURE.md](./ARCHITECTURE.md).

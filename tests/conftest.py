@@ -96,9 +96,9 @@ class NoIdleMoves:
 def play(fake_reachy_mini):
     """Play a move on ``fake_reachy_mini`` as the app does, on a simulated clock.
 
-    The ActionSelector cuts it into ticks and the RobotController sends them,
-    every 20 ms, through the move and its way back to neutral, without
-    waiting. Returns the commands sent, in order.
+    The ActionSelector chooses it, the MovePlayer cuts it into ticks and the
+    RobotController sends them, every 20 ms, through the move and its way
+    back to neutral, without waiting. Returns the commands sent, in order.
     """
 
     def play_move(move, tick_s=0.02):
