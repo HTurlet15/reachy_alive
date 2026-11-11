@@ -7,6 +7,7 @@ import time
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from reachy_alive.brain.basal_ganglia.proposal import Proposal
 from reachy_alive.moves.base import Move
 from reachy_alive.shared_state import SharedState
 
@@ -82,7 +83,7 @@ def create_router(
 
     Args:
         moves_by_name: Every move the page can play, by name.
-        move_requests: Where requested moves wait to be played.
+        move_requests: Where the page's proposals wait to be chosen.
         shared_state: Where the settings and the senses' facts live.
         available_sense_names: What the page can switch off: each available sense, or its parts.
 
@@ -99,7 +100,7 @@ def create_router(
     def request_move(name: str) -> dict[str, str]:
         if name not in moves_by_name:
             raise HTTPException(status_code=404, detail=f"Unknown move: {name}")
-        move_requests.put(moves_by_name[name])
+        move_requests.put(Proposal(source="page", move_to_start=moves_by_name[name]))
         return {"requested": name}
 
     @router.get("/settings/idle-move-interval")

@@ -20,8 +20,9 @@ from reachy_mini import ReachyMini
 from reachy_mini.motion.recorded_move import RecordedMoves
 
 from reachy_alive.brain.basal_ganglia.action_selector import ActionSelector
+from reachy_alive.brain.basal_ganglia.proposal import Proposal
 from reachy_alive.brain.cerebellum.move_player import MovePlayer
-from reachy_alive.moves.base import LibraryMove, Move
+from reachy_alive.moves.base import LibraryMove
 from reachy_alive.moves.robot_sounds import upload_sounds
 from reachy_alive.moves.sneezing import Sneezing
 from reachy_alive.moves.stretching import Stretching
@@ -64,8 +65,8 @@ class _StopAfterTheMove(MovePlayer):
         self._stop_event = stop_event
         self._move_seen = False
 
-    def tick(self, now: float, move_to_start: Move | None) -> RobotCommand:
-        command = super().tick(now, move_to_start)
+    def tick(self, now: float, proposal: Proposal | None) -> RobotCommand:
+        command = super().tick(now, proposal)
         if command.from_move:
             self._move_seen = True
         elif self._move_seen:
@@ -101,7 +102,7 @@ def main() -> None:
     with ReachyMini() as mini:
         shared_state = SharedState()
         requests: queue.Queue = queue.Queue()
-        requests.put(move)
+        requests.put(Proposal(source="try-move", move_to_start=move))
         stop_event = threading.Event()
         move_player = _StopAfterTheMove(shared_state, stop_event)
         selector = ActionSelector(_NoIdleMoves(), requests, move_player)

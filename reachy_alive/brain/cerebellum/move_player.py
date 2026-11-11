@@ -1,5 +1,6 @@
 """Plays the move it is given, one pose per tick, and breathes in between."""
 
+from reachy_alive.brain.basal_ganglia.proposal import Proposal
 from reachy_alive.brain.brainstem.breathing import get_breathing_pose
 from reachy_alive.moves.base import Move, ReturningToNeutral, SoundCue
 from reachy_alive.shared_state import SharedState
@@ -9,10 +10,11 @@ from reachy_alive.spinal_cord.commands import RobotCommand
 class MovePlayer:
     """Cuts the move it is given into one command per tick.
 
-    It never chooses. The ActionSelector hands it a move to start on one
-    tick only, like pressing play on a remote; the player then keeps what is
-    playing, and since when, until it ends. It is the only one to write what
-    is playing; the ActionSelector only asks whether it is busy.
+    It never chooses. It is handed the proposal the ActionSelector chose,
+    with a move to start, on one tick only, like pressing play on a remote;
+    the player then keeps what is playing, and since when, until it ends. It
+    is the only one to write what is playing; the ActionSelector only asks
+    whether it is busy.
 
     A move plays to its end, then eases back to neutral from the last pose
     sent; until both are over, it is busy. In between, the robot breathes,
@@ -37,16 +39,17 @@ class MovePlayer:
         # When the current stretch of breathing began; None until the next tick.
         self._breathing_started_at: float | None = None
 
-    def tick(self, now: float, move_to_start: Move | None) -> RobotCommand:
+    def tick(self, now: float, proposal: Proposal | None) -> RobotCommand:
         """Return this tick's command: the tick of the current move, or of breathing.
 
         Args:
             now: This tick's time.monotonic() reading.
-            move_to_start: An order for this tick only: the move the
-                ActionSelector picked to start now (a requested or an idle
-                move). None on most ticks: a move is still playing, or
-                nothing was proposed.
+            proposal: An order for this tick only: the proposal the
+                ActionSelector chose (a move from the page, or an idle move).
+                None on most ticks: a move is still playing, or nothing was
+                proposed.
         """
+        move_to_start = proposal.move_to_start if proposal is not None else None
         self._update_current_move(now, move_to_start)
         if self._current_move is None:
             return self._breathing_tick(now)

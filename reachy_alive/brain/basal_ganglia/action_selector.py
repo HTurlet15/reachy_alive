@@ -3,9 +3,9 @@
 import logging
 import queue
 
+from reachy_alive.brain.basal_ganglia.proposal import Proposal
 from reachy_alive.brain.brainstem.idle_manager import IdleManager
 from reachy_alive.brain.cerebellum.move_player import MovePlayer
-from reachy_alive.moves.base import Move
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ class ActionSelector:
 
         Args:
             idle_manager: Proposes an idle move now and then.
-            move_requests: Moves requested from the app's page.
+            move_requests: The app's page's proposals, in the order clicked.
             move_player: Asked whether it is busy, and how long the robot has
                 been resting. The selector never plays a move itself.
         """
@@ -35,8 +35,8 @@ class ActionSelector:
         self._move_requests = move_requests
         self._move_player = move_player
 
-    def choose(self, now: float) -> Move | None:
-        """Return the move to start now, highest priority first; None if there is none.
+    def choose(self, now: float) -> Proposal | None:
+        """Return the proposal chosen this tick, highest priority first; None if there is none.
 
         An order for this tick only: the control loop hands it to the
         MovePlayer, which keeps what is playing. So the selector asks it
@@ -49,17 +49,17 @@ class ActionSelector:
         if self._move_player.is_busy(now):
             return None
 
-        # 2. A move was requested from the app's page: play the latest one.
-        requested = self._latest_requested_move()
-        if requested is not None:
-            logger.info("Playing %s (requested)", requested.name)
-            return requested
+        # 2. The app's page proposed a move: the latest one.
+        proposal = self._latest_page_proposal()
+        if proposal is not None:
+            logger.info("Playing %s (requested)", proposal.move_to_start.name)
+            return proposal
 
         # 3. The robot has rested long enough: an idle move, otherwise None to breathe.
         return self._idle_manager.propose(self._move_player.resting_for_s(now))
 
-    def _latest_requested_move(self) -> Move | None:
-        """Empty the request queue and return its latest move, if any."""
+    def _latest_page_proposal(self) -> Proposal | None:
+        """Empty the page's queue and return its latest proposal, if any."""
         latest = None
         while True:
             try:

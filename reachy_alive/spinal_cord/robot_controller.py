@@ -71,8 +71,8 @@ class RobotController:
             tick_due_at = time.monotonic()
             while not stop_event.is_set():
                 now = time.monotonic()
-                move_to_start = self.action_selector.choose(now)
-                command = self.move_player.tick(now, move_to_start)
+                proposal = self.action_selector.choose(now)
+                command = self.move_player.tick(now, proposal)
                 self._execute(command, reachy_mini, shared_state)
                 tick_due_at = self._wait_for_next_tick(tick_due_at + self.TICK_S)
         finally:

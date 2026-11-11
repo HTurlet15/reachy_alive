@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 
 from reachy_alive.brain.basal_ganglia.action_selector import ActionSelector
+from reachy_alive.brain.basal_ganglia.proposal import Proposal
 from reachy_alive.brain.cerebellum.move_player import MovePlayer
 from reachy_alive.moves.base import Move
 from reachy_alive.moves.robot_sounds import upload_sounds
@@ -104,7 +105,7 @@ def play(fake_reachy_mini):
     def play_move(move, tick_s=0.02):
         state = SharedState()
         requests = queue.Queue()
-        requests.put(move)
+        requests.put(Proposal(source="page", move_to_start=move))
         player = MovePlayer(state)
         selector = ActionSelector(NoIdleMoves(), requests, player)
         sounds = SoundsAtOnce(fake_reachy_mini, upload_sounds([move], fake_reachy_mini))
