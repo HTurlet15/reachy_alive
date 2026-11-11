@@ -27,9 +27,12 @@ E (deliberation), F (arbitration).
 - **The robot does not follow faces around.** Tracking a face is a mechanism,
   not a behavior. It runs when a decision-maker asks for it. A robot that
   tracks everyone by default reads as a security camera, not a creature.
-- **Gaze is continuous, not a move.** When it lands, it should layer over
-  breathing rather than replace it — the primary/secondary split in Pollen's
-  motion docs. Not decided yet; revisit when a decision-maker wants it.
+- **The robot faces a direction; everything plays toward it.** A
+  decision-maker proposes a `Direction` in its `Proposal`, once, like a
+  move to start; the `MovePlayer` keeps where the body faces and turns every
+  pose by it, breathing, moves and the way back alike. The head will get
+  there first and the body after, slower (sprint D). A direction is not a
+  move: an annoyed reflex must not end up complaining at the wall.
 - **Volume and microphone stay in Reachy Mini Control.** They are robot-wide
   settings the daemon persists across apps; the app never changes them.
 - **One word: "move".** Code, routes and docs say "move", like the SDK; idle

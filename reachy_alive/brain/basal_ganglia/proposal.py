@@ -6,6 +6,20 @@ from reachy_alive.moves.base import Move
 
 
 @dataclass(frozen=True)
+class Direction:
+    """Where to face, and how long to take getting there.
+
+    Attributes:
+        yaw_rad: The direction, left of the robot's front, in radians.
+        duration_s: How long the turn should take. Not used yet: the body
+            turns at once.
+    """
+
+    yaw_rad: float
+    duration_s: float
+
+
+@dataclass(frozen=True)
 class Proposal:
     """What a decision-maker wants the robot to do: orders for one tick.
 
@@ -17,7 +31,10 @@ class Proposal:
     Attributes:
         source: Who proposes it: "page", "idle", or "try-move" today.
         move_to_start: The move to start now, or None.
+        direction: The direction to face from now on, or None to keep
+            facing where the robot faces.
     """
 
     source: str
     move_to_start: Move | None = None
+    direction: Direction | None = None
