@@ -9,6 +9,7 @@ from reachy_mini.motion.recorded_move import RecordedMoves
 
 from reachy_alive.brain.basal_ganglia.action_selector import ActionSelector
 from reachy_alive.brain.brainstem.idle_manager import IdleManager
+from reachy_alive.brain.cerebellum.move_player import MovePlayer
 from reachy_alive.brain.sensory_cortex.sense_manager import SenseManager
 from reachy_alive.moves.base import LibraryMove, Move
 from reachy_alive.moves.robot_sounds import upload_sounds
@@ -72,12 +73,14 @@ class ReachyAlive(ReachyMiniApp):
 
         sense_manager.start(stop_event)
 
-        # Decide, choose, execute: IdleManager proposes, ActionSelector picks
-        # a requested move over idle, RobotController drives the robot.
+        # Propose, choose, play, send: IdleManager proposes, ActionSelector
+        # picks a requested move over idle, MovePlayer plays it,
+        # RobotController drives the robot.
         idle_manager = IdleManager(idle_moves, shared_state)
-        action_selector = ActionSelector(idle_manager, move_requests, shared_state)
+        move_player = MovePlayer(shared_state)
+        action_selector = ActionSelector(idle_manager, move_requests, move_player)
         robot_controller = RobotController(
-            action_selector, SoundPlayer(reachy_mini, robot_sounds)
+            action_selector, move_player, SoundPlayer(reachy_mini, robot_sounds)
         )
 
         # The control loop, in this thread, until the app stops. The senses
