@@ -201,8 +201,9 @@ reachy_alive/
 ├── main.py               Builds every part and wires them together; lists the idle moves.
 ├── shared_state.py       Facts shared across threads: whether a move is playing, the senses' facts, the settings.
 ├── routes.py             HTTP routes behind the app's page: moves, settings, and what the senses perceive.
-├── control/              From a proposal to the robot: commands, the ActionSelector, the RobotController and its SoundPlayer.
+├── control/              From a chosen move to the robot: commands, the RobotController and its SoundPlayer.
 ├── brain/                The brain regions, sorted by speed (see rule 8).
+│   ├── basal_ganglia/    Choosing: the ActionSelector picks what the robot does, by priority.
 │   ├── brainstem/        Automatic behavior: breathing, and IdleManager.
 │   └── sensory_cortex/   The senses and their detectors: sensor readings into facts. Its README: how to add a detector.
 ├── moves/                The Move contract (base.py), the coded moves, and the guides to write one.

@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 import numpy as np
 import pytest
 
-from reachy_alive.control.action_selector import ActionSelector
+from reachy_alive.brain.basal_ganglia.action_selector import ActionSelector
 from reachy_alive.control.robot_controller import RobotController
 from reachy_alive.moves.base import Move
 from reachy_alive.moves.robot_sounds import upload_sounds

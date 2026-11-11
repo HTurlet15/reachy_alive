@@ -7,9 +7,9 @@ import threading
 from reachy_mini import ReachyMini, ReachyMiniApp
 from reachy_mini.motion.recorded_move import RecordedMoves
 
+from reachy_alive.brain.basal_ganglia.action_selector import ActionSelector
 from reachy_alive.brain.brainstem.idle_manager import IdleManager
 from reachy_alive.brain.sensory_cortex.sense_manager import SenseManager
-from reachy_alive.control.action_selector import ActionSelector
 from reachy_alive.control.robot_controller import RobotController
 from reachy_alive.control.sound_player import SoundPlayer
 from reachy_alive.moves.base import LibraryMove, Move

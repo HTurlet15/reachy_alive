@@ -19,7 +19,7 @@ import threading
 from reachy_mini import ReachyMini
 from reachy_mini.motion.recorded_move import RecordedMoves
 
-from reachy_alive.control.action_selector import ActionSelector
+from reachy_alive.brain.basal_ganglia.action_selector import ActionSelector
 from reachy_alive.control.commands import RobotCommand
 from reachy_alive.control.robot_controller import RobotController
 from reachy_alive.control.sound_player import SoundPlayer
