@@ -1,7 +1,7 @@
 """Unit tests for Yawning.
 
-The play test goes through the ActionSelector and the controller, on a
-simulated clock.
+The play test goes through the ActionSelector, the MovePlayer and the
+controller, on a simulated clock.
 """
 
 from reachy_alive.moves.yawning import Yawning

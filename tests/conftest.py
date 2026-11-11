@@ -6,11 +6,12 @@ from unittest.mock import MagicMock
 import numpy as np
 import pytest
 
-from reachy_alive.control.action_selector import ActionSelector
-from reachy_alive.control.robot_controller import RobotController
+from reachy_alive.brain.basal_ganglia.action_selector import ActionSelector
+from reachy_alive.brain.cerebellum.move_player import MovePlayer
 from reachy_alive.moves.base import Move
 from reachy_alive.moves.robot_sounds import upload_sounds
 from reachy_alive.shared_state import SharedState
+from reachy_alive.spinal_cord.robot_controller import RobotController
 
 
 @pytest.fixture
@@ -95,21 +96,22 @@ class NoIdleMoves:
 def play(fake_reachy_mini):
     """Play a move on ``fake_reachy_mini`` as the app does, on a simulated clock.
 
-    The ActionSelector cuts it into ticks and the RobotController sends them,
-    every 20 ms, through the move and its way back to neutral, without
-    waiting. Returns the commands sent, in order.
+    The ActionSelector chooses it, the MovePlayer cuts it into ticks and the
+    RobotController sends them, every 20 ms, through the move and its way
+    back to neutral, without waiting. Returns the commands sent, in order.
     """
 
     def play_move(move, tick_s=0.02):
         state = SharedState()
         requests = queue.Queue()
         requests.put(move)
-        selector = ActionSelector(NoIdleMoves(), requests, state)
+        player = MovePlayer(state)
+        selector = ActionSelector(NoIdleMoves(), requests, player)
         sounds = SoundsAtOnce(fake_reachy_mini, upload_sounds([move], fake_reachy_mini))
-        controller = RobotController(selector, sounds)
+        controller = RobotController(selector, player, sounds)
         commands = []
         now = 0.0
-        while (command := selector.decide(now)).from_move:  # until breathing again
+        while (command := player.tick(now, selector.choose(now))).from_move:  # until breathing
             controller._execute(command, fake_reachy_mini, state)
             commands.append(command)
             now += tick_s

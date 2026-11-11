@@ -1,8 +1,8 @@
-"""Commands the ActionSelector hands to RobotController, one per tick.
+"""Commands the MovePlayer hands to RobotController, one per tick.
 
-Decision-makers propose; the ActionSelector turns the chosen proposal into
-a command; RobotController executes it, and is the only one to drive the
-robot.
+Decision-makers propose; the ActionSelector chooses; the MovePlayer turns
+the chosen move into a command each tick; RobotController executes it, and
+is the only one to drive the robot.
 """
 
 from dataclasses import dataclass
@@ -15,7 +15,7 @@ import numpy as np
 class RobotCommand:
     """What the robot does on one tick: a pose, and the sounds to start.
 
-    An order: the ActionSelector builds one per tick, and the RobotController
+    An order: the MovePlayer builds one per tick, and the RobotController
     carries it out once, right away, then drops it. A sound is put in the
     command only on the tick it is due, so the controller starts every sound
     it receives at once. What was sent is kept as a CommandedPose.

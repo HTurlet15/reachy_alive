@@ -11,23 +11,23 @@ import pytest
 from websockets.exceptions import ConnectionClosedError
 from websockets.frames import Close
 
-from reachy_alive.control.commands import RobotCommand
-from reachy_alive.control.robot_controller import RobotController
 from reachy_alive.shared_state import SharedState
+from reachy_alive.spinal_cord.commands import RobotCommand
+from reachy_alive.spinal_cord.robot_controller import RobotController
 
 
 def run_one_tick(command, reachy_mini, shared_state=None) -> None:
     """Run RobotController's loop for exactly one tick, executing ``command``."""
     stop_event = threading.Event()
 
-    def decide(*args, **kwargs):
+    def tick(*args, **kwargs):
         stop_event.set()  # the loop exits after this tick
         return command
 
-    action_selector = MagicMock()
-    action_selector.decide.side_effect = decide
+    move_player = MagicMock()
+    move_player.tick.side_effect = tick
 
-    RobotController(action_selector, MagicMock()).run(
+    RobotController(MagicMock(), move_player, MagicMock()).run(
         reachy_mini, shared_state or SharedState(), stop_event
     )
 
@@ -44,11 +44,11 @@ def test_robot_command_sends_the_pose_to_the_robot(fake_reachy_mini):
 
 
 def test_a_failing_tick_still_puts_the_robot_to_sleep(fake_reachy_mini):
-    action_selector = MagicMock()
-    action_selector.decide.side_effect = RuntimeError("a move failed")
+    move_player = MagicMock()
+    move_player.tick.side_effect = RuntimeError("a move failed")
 
     with pytest.raises(RuntimeError):
-        RobotController(action_selector, MagicMock()).run(
+        RobotController(MagicMock(), move_player, MagicMock()).run(
             fake_reachy_mini, SharedState(), threading.Event()
         )
 
@@ -60,12 +60,12 @@ def test_a_lost_connection_stays_the_error_that_stops_the_app(fake_reachy_mini, 
     lost = ConnectionError("Lost connection with the server.")
     fake_reachy_mini.set_target.side_effect = lost
     fake_reachy_mini.goto_sleep.side_effect = ConnectionError("Lost connection with the server.")
-    action_selector = MagicMock()
-    action_selector.decide.return_value = RobotCommand(head=np.eye(4), antennas=np.zeros(2))
+    move_player = MagicMock()
+    move_player.tick.return_value = RobotCommand(head=np.eye(4), antennas=np.zeros(2))
 
     with caplog.at_level(logging.WARNING, logger="reachy_alive"):
         with pytest.raises(ConnectionError) as raised:
-            RobotController(action_selector, MagicMock()).run(
+            RobotController(MagicMock(), move_player, MagicMock()).run(
                 fake_reachy_mini, SharedState(), threading.Event()
             )
 
@@ -81,12 +81,12 @@ def test_a_websocket_closed_at_shutdown_is_a_lost_connection_too(fake_reachy_min
     lost = ConnectionClosedError(restart, restart, True)
     fake_reachy_mini.set_target.side_effect = lost
     fake_reachy_mini.goto_sleep.side_effect = ConnectionClosedError(restart, restart, True)
-    action_selector = MagicMock()
-    action_selector.decide.return_value = RobotCommand(head=np.eye(4), antennas=np.zeros(2))
+    move_player = MagicMock()
+    move_player.tick.return_value = RobotCommand(head=np.eye(4), antennas=np.zeros(2))
 
     with caplog.at_level(logging.WARNING, logger="reachy_alive"):
         with pytest.raises(ConnectionClosedError) as raised:
-            RobotController(action_selector, MagicMock()).run(
+            RobotController(MagicMock(), move_player, MagicMock()).run(
                 fake_reachy_mini, SharedState(), threading.Event()
             )
 
@@ -100,7 +100,8 @@ def test_any_other_error_at_shutdown_still_shows(fake_reachy_mini):
     stop_event.set()
 
     with pytest.raises(RuntimeError, match="a bug in going to sleep"):
-        RobotController(MagicMock(), MagicMock()).run(fake_reachy_mini, SharedState(), stop_event)
+        controller = RobotController(MagicMock(), MagicMock(), MagicMock())
+        controller.run(fake_reachy_mini, SharedState(), stop_event)
 
 
 def test_waking_up_counts_as_a_move_playing(fake_reachy_mini):
@@ -165,14 +166,14 @@ class FakeClock:
 def clock(monkeypatch):
     """Freeze RobotController's clock at 0 s."""
     fake = FakeClock(now=0.0)
-    monkeypatch.setattr("reachy_alive.control.robot_controller.time", fake)
+    monkeypatch.setattr("reachy_alive.spinal_cord.robot_controller.time", fake)
     return fake
 
 
 def test_an_early_tick_sleeps_until_the_next_one_is_due(clock):
     clock.now = 0.015
 
-    due_at = RobotController(MagicMock(), MagicMock())._wait_for_next_tick(0.020)
+    due_at = RobotController(MagicMock(), MagicMock(), MagicMock())._wait_for_next_tick(0.020)
 
     assert clock.slept_s == [pytest.approx(0.005)]
     assert due_at == 0.020
@@ -181,7 +182,7 @@ def test_an_early_tick_sleeps_until_the_next_one_is_due(clock):
 def test_a_tick_late_by_less_than_one_slot_is_followed_at_once(clock, caplog):
     clock.now = 0.030
 
-    due_at = RobotController(MagicMock(), MagicMock())._wait_for_next_tick(0.020)
+    due_at = RobotController(MagicMock(), MagicMock(), MagicMock())._wait_for_next_tick(0.020)
 
     assert clock.slept_s == []
     assert due_at == 0.020  # the next one is due at 40 ms
@@ -191,7 +192,7 @@ def test_a_tick_late_by_less_than_one_slot_is_followed_at_once(clock, caplog):
 def test_a_tick_late_by_a_whole_slot_skips_it_and_says_so(clock, caplog):
     clock.now = 0.045
 
-    due_at = RobotController(MagicMock(), MagicMock())._wait_for_next_tick(0.020)
+    due_at = RobotController(MagicMock(), MagicMock(), MagicMock())._wait_for_next_tick(0.020)
 
     assert clock.slept_s == []
     assert due_at == pytest.approx(0.040)  # 20 ms gone, the next one is due at 60 ms
@@ -201,7 +202,7 @@ def test_a_tick_late_by_a_whole_slot_skips_it_and_says_so(clock, caplog):
 def test_a_long_stall_is_followed_by_one_tick_not_a_burst(clock, caplog):
     clock.now = 0.200
 
-    due_at = RobotController(MagicMock(), MagicMock())._wait_for_next_tick(0.020)
+    due_at = RobotController(MagicMock(), MagicMock(), MagicMock())._wait_for_next_tick(0.020)
 
     assert clock.slept_s == []
     assert due_at == pytest.approx(0.200)  # the next one is due at 220 ms
@@ -211,7 +212,7 @@ def test_a_long_stall_is_followed_by_one_tick_not_a_burst(clock, caplog):
 def test_robot_command_hands_its_sounds_to_the_sound_player(fake_reachy_mini):
     sneeze = Path("/local/sneeze.wav")
     sound_player = MagicMock()
-    controller = RobotController(MagicMock(), sound_player)
+    controller = RobotController(MagicMock(), MagicMock(), sound_player)
     command = RobotCommand(head=np.eye(4), antennas=np.zeros(2), sounds=(sneeze,))
 
     controller._execute(command, fake_reachy_mini, SharedState())
@@ -223,11 +224,11 @@ def test_robot_command_hands_its_sounds_to_the_sound_player(fake_reachy_mini):
 def test_the_sound_player_runs_as_long_as_the_loop_and_stops_before_sleep(fake_reachy_mini):
     sound_player = MagicMock()
     fake_reachy_mini.attach_mock(sound_player, "sound_player")
-    action_selector = MagicMock()
-    action_selector.decide.side_effect = RuntimeError("a tick failed")
+    move_player = MagicMock()
+    move_player.tick.side_effect = RuntimeError("a tick failed")
 
     with pytest.raises(RuntimeError):
-        RobotController(action_selector, sound_player).run(
+        RobotController(MagicMock(), move_player, sound_player).run(
             fake_reachy_mini, SharedState(), threading.Event()
         )
 
@@ -254,7 +255,7 @@ def test_robot_command_records_the_body_yaw_it_sends(fake_reachy_mini):
 
 def test_a_pose_from_a_move_counts_as_a_move_playing(fake_reachy_mini):
     state = SharedState()
-    controller = RobotController(MagicMock(), MagicMock())
+    controller = RobotController(MagicMock(), MagicMock(), MagicMock())
 
     controller._execute(
         RobotCommand(head=np.eye(4), antennas=np.zeros(2), from_move=True), fake_reachy_mini, state
@@ -265,7 +266,7 @@ def test_a_pose_from_a_move_counts_as_a_move_playing(fake_reachy_mini):
 
 def test_the_first_pose_after_a_move_ends_it(fake_reachy_mini):
     state = SharedState()
-    controller = RobotController(MagicMock(), MagicMock())
+    controller = RobotController(MagicMock(), MagicMock(), MagicMock())
     from_move = RobotCommand(head=np.eye(4), antennas=np.zeros(2), from_move=True)
     breathing = RobotCommand(head=np.eye(4), antennas=np.zeros(2))
 
@@ -279,7 +280,7 @@ def test_the_first_pose_after_a_move_ends_it(fake_reachy_mini):
 
 def test_breathing_alone_never_ends_a_move(fake_reachy_mini):
     state = SharedState()
-    controller = RobotController(MagicMock(), MagicMock())
+    controller = RobotController(MagicMock(), MagicMock(), MagicMock())
 
     for _ in range(3):
         controller._execute(

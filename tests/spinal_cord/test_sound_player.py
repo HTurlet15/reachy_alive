@@ -5,7 +5,7 @@ import threading
 import time
 from pathlib import Path
 
-from reachy_alive.control.sound_player import SoundPlayer
+from reachy_alive.spinal_cord.sound_player import SoundPlayer
 
 SNEEZE = Path("/local/sneeze.wav")
 RELIEF = Path("/local/relief.wav")

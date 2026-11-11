@@ -1,82 +1,77 @@
-"""Chooses, each tick, which move the robot plays, and cuts it into ticks."""
-
-import logging
-import queue
+"""Plays the move it is given, one pose per tick, and breathes in between."""
 
 from reachy_alive.brain.brainstem.breathing import get_breathing_pose
-from reachy_alive.brain.brainstem.idle_manager import IdleManager
-from reachy_alive.control.commands import RobotCommand
 from reachy_alive.moves.base import Move, ReturningToNeutral, SoundCue
 from reachy_alive.shared_state import SharedState
+from reachy_alive.spinal_cord.commands import RobotCommand
 
-logger = logging.getLogger(__name__)
 
+class MovePlayer:
+    """Cuts the move it is given into one command per tick.
 
-class ActionSelector:
-    """Chooses which move the robot plays, and cuts it into one command per tick.
+    It never chooses. The ActionSelector hands it a move to start on one
+    tick only, like pressing play on a remote; the player then keeps what is
+    playing, and since when, until it ends. It is the only one to write what
+    is playing; the ActionSelector only asks whether it is busy.
 
-    A move plays to its end, then eases back to neutral. Only then is the
-    next move chosen: a move requested from the app's page wins over an idle
-    move, and if several requests arrived meanwhile, only the latest plays.
-    When there is no move to play, the robot breathes; how long it has been
-    breathing is what tells IdleManager whether an idle move is due.
+    A move plays to its end, then eases back to neutral from the last pose
+    sent; until both are over, it is busy. In between, the robot breathes,
+    and the player keeps the breathing's clock: how long the robot has been
+    resting is what tells the IdleManager when an idle move is due.
     """
 
-    def __init__(
-        self, idle_manager: IdleManager, move_requests: queue.Queue, shared_state: SharedState
-    ) -> None:
-        """Keep where proposals come from, and the facts the robot's moves need.
+    def __init__(self, shared_state: SharedState) -> None:
+        """Keep where the way back to neutral starts from.
 
         Args:
-            idle_manager: Proposes an idle move now and then.
-            move_requests: Moves requested from the app's page.
             shared_state: Read the last pose sent, where each way back to
                 neutral starts.
         """
-        self._idle_manager = idle_manager
-        self._move_requests = move_requests
         self._shared_state = shared_state
-        # The move cut into ticks: None while the robot breathes.
+        # What is playing, and since when: None while the robot breathes.
+        # Written only in _update_current_move. The start time is read only
+        # while a move plays.
         self._current_move: Move | None = None
         self._current_move_started_at = 0.0
         self._cues_left: list[SoundCue] = []
         # When the current stretch of breathing began; None until the next tick.
         self._breathing_started_at: float | None = None
 
-    def decide(self, now: float) -> RobotCommand:
+    def tick(self, now: float, move_to_start: Move | None) -> RobotCommand:
         """Return this tick's command: the tick of the current move, or of breathing.
 
         Args:
             now: This tick's time.monotonic() reading.
+            move_to_start: An order for this tick only: the move the
+                ActionSelector picked to start now (a requested or an idle
+                move). None on most ticks: a move is still playing, or
+                nothing was proposed.
         """
-        self._update_current_move(now)
+        self._update_current_move(now, move_to_start)
         if self._current_move is None:
             return self._breathing_tick(now)
         return self._move_tick(now)
 
-    def _update_current_move(self, now: float) -> None:
-        """Keep the move playing, or set the next one, highest priority first."""
+    def _update_current_move(self, now: float, move_to_start: Move | None) -> None:
+        """Start the move handed over, or keep the move playing, or move on from it."""
         current = self._current_move
 
-        # 1. A move is playing: it goes on to its end, until sprint D.
+        # 1. A move to start was handed over: it starts now.
+        if move_to_start is not None:
+            self._set_current_move(move_to_start, now)
+            return
+
+        # 2. A move is playing: it goes on to its end, until sprint D.
         if current is not None and now - self._current_move_started_at < current.duration:
             return
 
-        # 2. A move just ended: ease back to neutral from the last pose sent.
+        # 3. A move just ended: ease back to neutral from the last pose sent.
         if current is not None and not isinstance(current, ReturningToNeutral):
             self._set_current_move(self._way_back(), now)
             return
 
-        # 3. A move was requested from the app's page: play the latest one.
-        requested = self._latest_requested_move()
-        if requested is not None:
-            logger.info("Playing %s (requested)", requested.name)
-            self._set_current_move(requested, now)
-            return
-
-        # 4. The robot has rested long enough: an idle move, otherwise None to breathe.
-        idle_move = self._idle_manager.propose(self._resting_for_s(now))
-        self._set_current_move(idle_move, now)
+        # 4. The way back is over, or nothing was playing: the robot breathes.
+        self._current_move = None
 
     def _way_back(self) -> ReturningToNeutral:
         """Return the way back to neutral from the last pose sent."""
@@ -85,27 +80,24 @@ class ActionSelector:
             (last_pose_sent.head, last_pose_sent.antennas, last_pose_sent.body_yaw)
         )
 
-    def _set_current_move(self, move: Move | None, now: float) -> None:
-        """Make move the one cut into ticks from now; None: the robot breathes."""
+    def _set_current_move(self, move: Move, now: float) -> None:
+        """Make move the one cut into ticks from now."""
         self._current_move = move
         self._current_move_started_at = now
-        if move is None:
-            return
         move.draw_variations()
         self._cues_left = list(move.sound_cues)
         # Every move ends at neutral, where breathing starts.
         self._breathing_started_at = None
 
-    def _latest_requested_move(self) -> Move | None:
-        """Empty the request queue and return its latest move, if any."""
-        latest = None
-        while True:
-            try:
-                latest = self._move_requests.get_nowait()
-            except queue.Empty:
-                return latest
+    def is_busy(self, now: float) -> bool:
+        """Return whether a move, or its way back to neutral, is still to play."""
+        current = self._current_move
+        if current is None:
+            return False
+        still_playing = now - self._current_move_started_at < current.duration
+        return still_playing or not isinstance(current, ReturningToNeutral)
 
-    def _resting_for_s(self, now: float) -> float:
+    def resting_for_s(self, now: float) -> float:
         """Return how long the robot has been breathing: 0 on the tick a move ends."""
         if self._breathing_started_at is None:
             return 0.0
