@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 
 from reachy_alive.brain.basal_ganglia.action_selector import ActionSelector
+from reachy_alive.brain.basal_ganglia.proposal import Proposal
 from reachy_alive.brain.brainstem.idle_manager import IdleManager
 from reachy_alive.brain.cerebellum.move_player import MovePlayer
 from reachy_alive.moves.base import NEUTRAL_ANTENNAS_RAD, SoundCue
@@ -21,7 +22,9 @@ SNEEZE = Path("/local/sneeze.wav")
 def idle_proposing(move):
     """An IdleManager that proposes ``move`` (None: nothing) on every tick."""
     idle_manager = MagicMock()
-    idle_manager.propose.return_value = move
+    idle_manager.propose.return_value = (
+        Proposal(source="idle", move_to_start=move) if move is not None else None
+    )
     return idle_manager
 
 
@@ -38,8 +41,8 @@ class Loop:
         self.fake_reachy_mini = fake_reachy_mini
 
     def tick(self, now):
-        move_to_start = self.selector.choose(now)
-        command = self.player.tick(now, move_to_start)
+        proposal = self.selector.choose(now)
+        command = self.player.tick(now, proposal)
         self.controller._execute(command, self.fake_reachy_mini, self.state)
         return command
 
@@ -68,7 +71,7 @@ def test_a_requested_move_wins_over_idle(fake_reachy_mini):
     requested = StillMove()
     requested.BODY_YAW_RAD = -0.4
     loop = Loop(idle_manager, fake_reachy_mini)
-    loop.requests.put(requested)
+    loop.requests.put(Proposal(source="page", move_to_start=requested))
 
     assert loop.tick(1.0).body_yaw == -0.4
     idle_manager.propose.assert_not_called()
@@ -77,8 +80,8 @@ def test_a_requested_move_wins_over_idle(fake_reachy_mini):
 def test_only_the_latest_request_plays(fake_reachy_mini):
     first, latest = StillMove(), StillMove()
     loop = Loop(idle_proposing(None), fake_reachy_mini)
-    loop.requests.put(first)
-    loop.requests.put(latest)
+    loop.requests.put(Proposal(source="page", move_to_start=first))
+    loop.requests.put(Proposal(source="page", move_to_start=latest))
 
     loop.tick(1.0)
 
@@ -115,7 +118,7 @@ def test_nobody_is_heard_while_a_move_and_its_way_back_play(fake_reachy_mini):
     loop = Loop(idle_manager, fake_reachy_mini)
     loop.tick(1.0)  # the idle move starts
     requested = StillMove()
-    loop.requests.put(requested)
+    loop.requests.put(Proposal(source="page", move_to_start=requested))
 
     commands = loop.ticks(1.02, 1.57)  # the rest of the move, then most of its way back
 
@@ -150,7 +153,7 @@ def test_breathing_restarts_from_neutral_after_a_move(fake_reachy_mini):
     idle_manager = idle_proposing(None)
     loop = Loop(idle_manager, fake_reachy_mini)
     loop.ticks(5.0, 6.0)  # a second of breathing
-    idle_manager.propose.return_value = StillMove(duration=0.1)
+    idle_manager.propose.return_value = Proposal(source="idle", move_to_start=StillMove(0.1))
     loop.tick(6.0)  # an idle move starts
     idle_manager.propose.return_value = None
 

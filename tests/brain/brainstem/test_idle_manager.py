@@ -24,7 +24,9 @@ def test_proposes_one_of_its_idle_moves_once_due():
     idle_move = MagicMock()
     manager = IdleManager([idle_move], state_with_interval(0.0, 0.0))
 
-    assert manager.propose(resting_for_s=0.0) is idle_move
+    proposal = manager.propose(resting_for_s=0.0)
+    assert proposal.move_to_start is idle_move
+    assert proposal.source == "idle"
 
 
 def test_draws_the_delay_from_the_shared_interval():

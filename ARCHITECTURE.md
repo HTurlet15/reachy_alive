@@ -95,7 +95,10 @@ The **`MovePlayer`** keeps what is playing, and since when. It cuts the move
 it was handed into one command per tick, its pose and the sounds due, then
 eases back to neutral from the last pose sent. When there is no move to
 play, the robot breathes: the player keeps the breathing's clock, and starts
-it again from neutral after every move.
+it again from neutral after every move. Everything plays where the body
+faces: a move describes the head relative to the robot's front, and the
+player turns each pose by the body's yaw. A proposal's `Direction` changes
+where the body faces; nothing proposes one yet, so it faces the front.
 
 The **`RobotController`** runs the control loop, 50 times a second, in its
 own thread. Each pass is a **tick**. It is the only part that drives the
@@ -296,9 +299,10 @@ Nothing new shows: the robot behaves as before, with fewer freezes.
 which interrupt whatever the robot is doing. The `ActionSelector` puts
 reflexes first. Innate triggers only, two of them to start. The milestone
 the project is built for: the robot perceives and reacts, without waiting
-on anything slow. It starts with gaze: a continuous motion layered over
-breathing, with the mechanism to aim the head at a point. Reflexes decide
-when to glance; gaze is how the head gets there smoothly.
+on anything slow. It starts with a direction to face: every move, and
+breathing, played toward it; the head gets there first, the body after,
+slower. Reflexes decide where to look; the `MovePlayer` turns the robot
+there smoothly.
 
 **Then: deliberation.** `prefrontal_cortex/`: an asynchronous cloud LLM
 call, with a timeout and a fallback. This is what decides to *look at*

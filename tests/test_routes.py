@@ -56,7 +56,9 @@ def test_a_requested_move_is_queued(client, move_requests, sneezing):
     response = client.post("/moves/sneezing/play")
 
     assert response.status_code == 202
-    assert move_requests.get_nowait() is sneezing
+    proposal = move_requests.get_nowait()
+    assert proposal.move_to_start is sneezing
+    assert proposal.source == "page"
 
 
 def test_an_unknown_move_is_404_and_queues_nothing(client, move_requests):

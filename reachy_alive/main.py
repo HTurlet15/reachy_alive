@@ -8,6 +8,7 @@ from reachy_mini import ReachyMini, ReachyMiniApp
 from reachy_mini.motion.recorded_move import RecordedMoves
 
 from reachy_alive.brain.basal_ganglia.action_selector import ActionSelector
+from reachy_alive.brain.basal_ganglia.proposal import Proposal
 from reachy_alive.brain.brainstem.idle_manager import IdleManager
 from reachy_alive.brain.cerebellum.move_player import MovePlayer
 from reachy_alive.brain.sensory_cortex.sense_manager import SenseManager
@@ -59,9 +60,9 @@ class ReachyAlive(ReachyMiniApp):
         sense_manager = SenseManager(reachy_mini, shared_state)
 
         # The page's routes run in the web server's thread: they only drop
-        # requested moves in this queue and read or change shared_state,
+        # their proposals in this queue and read or change shared_state,
         # never touching the robot.
-        move_requests: queue.Queue[Move] = queue.Queue()
+        move_requests: queue.Queue[Proposal] = queue.Queue()
         self.settings_app.include_router(
             create_router(
                 idle_moves_by_name,
