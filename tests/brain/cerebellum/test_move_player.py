@@ -11,8 +11,10 @@ from reachy_alive.moves.base import ReturningToNeutral
 from reachy_alive.shared_state import CommandedPose, SharedState
 from tests.conftest import StillMove
 
-LEFT = math.radians(45)
+LEFT = math.radians(15)  # inside the dead zone: the body stays
 LOOK_LEFT = Direction(yaw_rad=LEFT, duration_s=0.0)
+FAR_LEFT = math.radians(45)  # beyond it: the body follows
+LOOK_FAR_LEFT = Direction(yaw_rad=FAR_LEFT, duration_s=0.0)
 TICK_S = 0.02
 
 
@@ -131,3 +133,18 @@ def test_the_same_direction_again_does_not_restart_the_turn():
     commands = play(look_left, until_s=1.5, later_proposals=dict.fromkeys(range(1, 75), look_left))
 
     assert yaw_of(commands[50].head) == pytest.approx(LEFT)
+
+
+def test_a_glance_does_not_turn_the_body():
+    commands = play(Proposal(source="test", direction=LOOK_LEFT), until_s=3.0)
+
+    assert all(command.body_yaw == pytest.approx(0.0) for command in commands)
+
+
+def test_the_body_follows_a_lasting_look_after_the_delay_and_the_head_stays():
+    commands = play(Proposal(source="test", direction=LOOK_FAR_LEFT), until_s=3.0)
+
+    still = round(MovePlayer.BODY_FOLLOW_DELAY_S / TICK_S) - 1
+    assert all(command.body_yaw == pytest.approx(0.0) for command in commands[: still + 1])
+    assert commands[-1].body_yaw == pytest.approx(FAR_LEFT)  # the turn takes 1.5 s
+    assert all(yaw_of(command.head) == pytest.approx(FAR_LEFT) for command in commands)

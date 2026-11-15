@@ -29,8 +29,16 @@ class MovePlayer:
     head's direction, and the body by the body's, so a yawn recorded facing
     the front is played toward whoever the robot looks at. A proposal with a
     direction turns the head there, easing in and out, until another one
-    does. The body stays where it faces: it does not follow the head yet.
+    does. The body follows, more slowly, only when the head keeps looking
+    away from it: a glance turns the head alone.
     """
+
+    # The body follows the head once it has looked more than the dead zone
+    # away for the delay, then turns there more slowly than the head.
+    # Provisional: to check on the robot.
+    BODY_FOLLOW_DEAD_ZONE_DEG = 20.0
+    BODY_FOLLOW_DELAY_S = 0.8
+    BODY_TURN_DURATION_S = 1.5
 
     def __init__(self, shared_state: SharedState) -> None:
         """Keep where the way back to neutral starts from.
@@ -49,13 +57,15 @@ class MovePlayer:
         # When the current stretch of breathing began; None until the next tick.
         self._breathing_started_at: float | None = None
         # Where the head points and where the body faces, in radians: 0 is
-        # the robot's front. Only the head turns for now; past about 65°
-        # between them, the daemon turns the base itself, until the body
-        # follows the head (sprint D, brick 3).
+        # the robot's front.
         self._current_head_direction_rad = 0.0
         self._current_body_direction_rad = 0.0
-        # The head's last turn, over or not. Written only in _update_head_direction.
+        # The head's and the body's last turns, over or not. Each is written
+        # only in its own _update_*_direction.
         self._head_turn = Turn(from_rad=0.0, to_rad=0.0, started_at=0.0, duration_s=0.0)
+        self._body_turn = Turn(from_rad=0.0, to_rad=0.0, started_at=0.0, duration_s=0.0)
+        # Since when the head has looked beyond the dead zone; None while within it.
+        self._head_away_since: float | None = None
 
     def tick(self, now: float, proposal: Proposal | None) -> RobotCommand:
         """Return this tick's command: the current move, or breathing, where the head points.
@@ -68,6 +78,7 @@ class MovePlayer:
                 nothing was proposed.
         """
         self._update_head_direction(now, proposal)
+        self._update_body_direction(now)
         self._update_current_move(now, proposal)
         if self._current_move is None:
             return self._breathing_tick(now)
@@ -84,6 +95,27 @@ class MovePlayer:
                 duration_s=direction.duration_s,
             )
         self._current_head_direction_rad = self._head_turn.direction_at(now)
+
+    def _update_body_direction(self, now: float) -> None:
+        """Turn the body toward the head once it has looked away long enough; move it along."""
+        head_from_body_rad = self._current_head_direction_rad - self._current_body_direction_rad
+        if abs(head_from_body_rad) <= np.deg2rad(self.BODY_FOLLOW_DEAD_ZONE_DEG):
+            self._head_away_since = None
+        elif self._head_away_since is None:
+            self._head_away_since = now
+
+        looked_away_long_enough = (
+            self._head_away_since is not None
+            and now - self._head_away_since >= self.BODY_FOLLOW_DELAY_S
+        )
+        if looked_away_long_enough and self._body_turn.to_rad != self._head_turn.to_rad:
+            self._body_turn = Turn(
+                from_rad=self._current_body_direction_rad,
+                to_rad=self._head_turn.to_rad,
+                started_at=now,
+                duration_s=self.BODY_TURN_DURATION_S,
+            )
+        self._current_body_direction_rad = self._body_turn.direction_at(now)
 
     def _update_current_move(self, now: float, proposal: Proposal | None) -> None:
         """Start the move proposed, or keep the move playing, or move on from it."""
