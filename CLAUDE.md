@@ -29,10 +29,11 @@ E (deliberation), F (arbitration).
   tracks everyone by default reads as a security camera, not a creature.
 - **The robot faces a direction; everything plays toward it.** A
   decision-maker proposes a `Direction` in its `Proposal`, once, like a
-  move to start; the `MovePlayer` keeps where the body faces and turns every
-  pose by it, breathing, moves and the way back alike. The head will get
-  there first and the body after, slower (sprint D). A direction is not a
-  move: an annoyed reflex must not end up complaining at the wall.
+  move to start; the `MovePlayer` keeps where the head points and where the
+  body faces, and turns every pose by them, breathing, moves and the way
+  back alike. The head gets there first; the body will follow, slower
+  (sprint D). A direction is not a move: an annoyed reflex must not end up
+  complaining at the wall.
 - **Volume and microphone stay in Reachy Mini Control.** They are robot-wide
   settings the daemon persists across apps; the app never changes them.
 - **One word: "move".** Code, routes and docs say "move", like the SDK; idle

@@ -95,10 +95,12 @@ The **`MovePlayer`** keeps what is playing, and since when. It cuts the move
 it was handed into one command per tick, its pose and the sounds due, then
 eases back to neutral from the last pose sent. When there is no move to
 play, the robot breathes: the player keeps the breathing's clock, and starts
-it again from neutral after every move. Everything plays where the body
-faces: a move describes the head relative to the robot's front, and the
-player turns each pose by the body's yaw. A proposal's `Direction` changes
-where the body faces; nothing proposes one yet, so it faces the front.
+it again from neutral after every move. Everything plays where the head
+points: a move describes the head relative to the robot's front, and the
+player turns each head pose by the head's direction, and the body by the
+body's. A proposal's `Direction` turns the head there, easing in and out
+over its duration; the body does not follow yet. Nothing proposes one yet,
+so the robot faces the front.
 
 The **`RobotController`** runs the control loop, 50 times a second, in its
 own thread. Each pass is a **tick**. It is the only part that drives the
