@@ -11,8 +11,8 @@ class Direction:
 
     Attributes:
         yaw_rad: The direction, left of the robot's front, in radians.
-        duration_s: How long the turn should take. Not used yet: the head
-            turns at once.
+        duration_s: How long the head takes to turn there; 0 turns it at
+            once.
     """
 
     yaw_rad: float
