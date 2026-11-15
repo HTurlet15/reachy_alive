@@ -1,10 +1,10 @@
 """Plays the move it is given, one pose per tick, and breathes in between."""
 
 import numpy as np
-from reachy_mini.utils.interpolation import InterpolationTechnique, time_trajectory
 
-from reachy_alive.brain.basal_ganglia.proposal import Direction, Proposal
+from reachy_alive.brain.basal_ganglia.proposal import Proposal
 from reachy_alive.brain.brainstem.breathing import get_breathing_pose
+from reachy_alive.brain.cerebellum.turn import Turn
 from reachy_alive.moves.base import Move, ReturningToNeutral, SoundCue
 from reachy_alive.shared_state import SharedState
 from reachy_alive.spinal_cord.commands import RobotCommand
@@ -54,12 +54,8 @@ class MovePlayer:
         # follows the head (sprint D, brick 3).
         self._current_head_direction_rad = 0.0
         self._current_body_direction_rad = 0.0
-        # The head's current turn: where it goes, from where, since when, and
-        # for how long. Written only in _start_head_turn.
-        self._target_head_direction_rad = 0.0
-        self._head_turn_from_rad = 0.0
-        self._head_turn_started_at = 0.0
-        self._head_turn_duration_s = 0.0
+        # The head's last turn, over or not. Written only in _update_head_direction.
+        self._head_turn = Turn(from_rad=0.0, to_rad=0.0, started_at=0.0, duration_s=0.0)
 
     def tick(self, now: float, proposal: Proposal | None) -> RobotCommand:
         """Return this tick's command: the current move, or breathing, where the head points.
@@ -80,25 +76,14 @@ class MovePlayer:
     def _update_head_direction(self, now: float, proposal: Proposal | None) -> None:
         """Start the turn proposed, if it is a new one, then move the head along its turn."""
         direction = proposal.direction if proposal is not None else None
-        if direction is not None and direction.yaw_rad != self._target_head_direction_rad:
-            self._start_head_turn(direction, now)
-        self._current_head_direction_rad = self._head_direction_at(now)
-
-    def _start_head_turn(self, direction: Direction, now: float) -> None:
-        """Turn the head toward direction from where it points now."""
-        self._target_head_direction_rad = direction.yaw_rad
-        self._head_turn_from_rad = self._current_head_direction_rad
-        self._head_turn_started_at = now
-        self._head_turn_duration_s = direction.duration_s
-
-    def _head_direction_at(self, now: float) -> float:
-        """Return where the head points at now, along its turn: slow, fast, then slow."""
-        if self._head_turn_duration_s <= 0.0:
-            return self._target_head_direction_rad
-        progress = min((now - self._head_turn_started_at) / self._head_turn_duration_s, 1.0)
-        eased = time_trajectory(progress, InterpolationTechnique.MIN_JERK)
-        turn_rad = self._target_head_direction_rad - self._head_turn_from_rad
-        return self._head_turn_from_rad + eased * turn_rad
+        if direction is not None and direction.yaw_rad != self._head_turn.to_rad:
+            self._head_turn = Turn(
+                from_rad=self._current_head_direction_rad,
+                to_rad=direction.yaw_rad,
+                started_at=now,
+                duration_s=direction.duration_s,
+            )
+        self._current_head_direction_rad = self._head_turn.direction_at(now)
 
     def _update_current_move(self, now: float, proposal: Proposal | None) -> None:
         """Start the move proposed, or keep the move playing, or move on from it."""
