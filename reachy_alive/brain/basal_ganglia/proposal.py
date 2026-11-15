@@ -7,11 +7,11 @@ from reachy_alive.moves.base import Move
 
 @dataclass(frozen=True)
 class Direction:
-    """Where to face, and how long to take getting there.
+    """Where to look, and how long to take getting there.
 
     Attributes:
         yaw_rad: The direction, left of the robot's front, in radians.
-        duration_s: How long the turn should take. Not used yet: the body
+        duration_s: How long the turn should take. Not used yet: the head
             turns at once.
     """
 

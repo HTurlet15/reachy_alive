@@ -23,11 +23,12 @@ class MovePlayer:
     and the player keeps the breathing's clock: how long the robot has been
     resting is what tells the IdleManager when an idle move is due.
 
-    Everything plays where the body faces. A move describes the head
-    relative to the robot's front; the player turns each pose by the body's
-    yaw before returning it, so a yawn recorded facing the front is played
-    toward whoever the robot faces. A proposal with a direction changes
-    where the body faces, until another one does.
+    Everything plays where the head points. A move describes the head
+    relative to the robot's front; the player turns each head pose by the
+    head's direction, and the body by the body's, so a yawn recorded facing
+    the front is played toward whoever the robot looks at. A proposal with a
+    direction changes where the head points, until another one does. The
+    body stays where it faces: it does not follow the head yet.
     """
 
     def __init__(self, shared_state: SharedState) -> None:
@@ -46,11 +47,15 @@ class MovePlayer:
         self._cues_left: list[SoundCue] = []
         # When the current stretch of breathing began; None until the next tick.
         self._breathing_started_at: float | None = None
-        # Where the body faces, in radians: 0 is the robot's front.
+        # Where the head points and where the body faces, in radians: 0 is
+        # the robot's front. Only the head turns for now; past about 65°
+        # between them, the daemon turns the base itself, until the body
+        # follows the head (sprint D, brick 3).
+        self._current_head_direction_rad = 0.0
         self._current_body_direction_rad = 0.0
 
     def tick(self, now: float, proposal: Proposal | None) -> RobotCommand:
-        """Return this tick's command: the current move, or breathing, where the body faces.
+        """Return this tick's command: the current move, or breathing, where the head points.
 
         Args:
             now: This tick's time.monotonic() reading.
@@ -59,17 +64,17 @@ class MovePlayer:
                 or both). None on most ticks: a move is still playing, or
                 nothing was proposed.
         """
-        self._update_body_direction(proposal)
+        self._update_head_direction(proposal)
         self._update_current_move(now, proposal)
         if self._current_move is None:
             return self._breathing_tick(now)
         return self._move_tick(now)
 
-    def _update_body_direction(self, proposal: Proposal | None) -> None:
-        """Face the direction proposed, if any; otherwise keep facing where the body faces."""
+    def _update_head_direction(self, proposal: Proposal | None) -> None:
+        """Point the head in the direction proposed, if any; otherwise keep it where it points."""
         if proposal is None or proposal.direction is None:
             return
-        self._current_body_direction_rad = proposal.direction.yaw_rad
+        self._current_head_direction_rad = proposal.direction.yaw_rad
 
     def _update_current_move(self, now: float, proposal: Proposal | None) -> None:
         """Start the move proposed, or keep the move playing, or move on from it."""
@@ -95,10 +100,11 @@ class MovePlayer:
     def _way_back(self) -> ReturningToNeutral:
         """Return the way back to neutral from the last pose sent.
 
-        The pose sent is in the room: it already includes where the body
-        faces. The way back is a move like the others, relative to the
-        robot's front, so the body's yaw comes off its start first; otherwise
-        it would be added twice, and the head would jump on the first tick.
+        The pose sent is in the room: it already includes where the head
+        points and where the body faces. The way back is a move like the
+        others, relative to the robot's front, so both directions come off
+        its start first; otherwise they would be added twice, and the robot
+        would jump on the first tick.
         """
         last_pose_sent = self._shared_state.last_commanded_pose()
         body_yaw_sent = last_pose_sent.body_yaw
@@ -106,7 +112,7 @@ class MovePlayer:
             body_yaw_sent = self._current_body_direction_rad
         return ReturningToNeutral(
             (
-                self._turned(last_pose_sent.head, -self._current_body_direction_rad),
+                self._turned(last_pose_sent.head, -self._current_head_direction_rad),
                 last_pose_sent.antennas,
                 body_yaw_sent - self._current_body_direction_rad,
             )
@@ -136,18 +142,18 @@ class MovePlayer:
         return now - self._breathing_started_at
 
     def _breathing_tick(self, now: float) -> RobotCommand:
-        """Return this tick of breathing, where the body faces; a new stretch after a move."""
+        """Return this tick of breathing, where the head points; a new stretch after a move."""
         if self._breathing_started_at is None:
             self._breathing_started_at = now
         head, antennas = get_breathing_pose(now - self._breathing_started_at)
         return RobotCommand(
-            head=self._turned(head, self._current_body_direction_rad),
+            head=self._turned(head, self._current_head_direction_rad),
             antennas=antennas,
             body_yaw=self._current_body_direction_rad,
         )
 
     def _move_tick(self, now: float) -> RobotCommand:
-        """Return this tick of the move playing, where the body faces, and the sounds due."""
+        """Return this tick of the move playing, where the head points, and the sounds due."""
         elapsed_s = now - self._current_move_started_at
         sounds = []
         while self._cues_left and self._cues_left[0].at_s <= elapsed_s:
@@ -155,7 +161,7 @@ class MovePlayer:
 
         head, antennas, body_yaw = self._current_move.evaluate(elapsed_s)
         return RobotCommand(
-            head=self._turned(head, self._current_body_direction_rad),
+            head=self._turned(head, self._current_head_direction_rad),
             antennas=antennas,
             body_yaw=self._current_body_direction_rad + body_yaw,
             sounds=tuple(sounds),
