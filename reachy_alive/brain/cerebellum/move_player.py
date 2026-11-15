@@ -47,7 +47,7 @@ class MovePlayer:
         # When the current stretch of breathing began; None until the next tick.
         self._breathing_started_at: float | None = None
         # Where the body faces, in radians: 0 is the robot's front.
-        self._body_yaw_rad = 0.0
+        self._current_body_direction_rad = 0.0
 
     def tick(self, now: float, proposal: Proposal | None) -> RobotCommand:
         """Return this tick's command: the current move, or breathing, where the body faces.
@@ -59,17 +59,17 @@ class MovePlayer:
                 or both). None on most ticks: a move is still playing, or
                 nothing was proposed.
         """
-        self._update_body_yaw(proposal)
+        self._update_body_direction(proposal)
         self._update_current_move(now, proposal)
         if self._current_move is None:
             return self._breathing_tick(now)
         return self._move_tick(now)
 
-    def _update_body_yaw(self, proposal: Proposal | None) -> None:
+    def _update_body_direction(self, proposal: Proposal | None) -> None:
         """Face the direction proposed, if any; otherwise keep facing where the body faces."""
         if proposal is None or proposal.direction is None:
             return
-        self._body_yaw_rad = proposal.direction.yaw_rad
+        self._current_body_direction_rad = proposal.direction.yaw_rad
 
     def _update_current_move(self, now: float, proposal: Proposal | None) -> None:
         """Start the move proposed, or keep the move playing, or move on from it."""
@@ -103,12 +103,12 @@ class MovePlayer:
         last_pose_sent = self._shared_state.last_commanded_pose()
         body_yaw_sent = last_pose_sent.body_yaw
         if body_yaw_sent is None:
-            body_yaw_sent = self._body_yaw_rad
+            body_yaw_sent = self._current_body_direction_rad
         return ReturningToNeutral(
             (
-                self._turned(last_pose_sent.head, -self._body_yaw_rad),
+                self._turned(last_pose_sent.head, -self._current_body_direction_rad),
                 last_pose_sent.antennas,
-                body_yaw_sent - self._body_yaw_rad,
+                body_yaw_sent - self._current_body_direction_rad,
             )
         )
 
@@ -141,9 +141,9 @@ class MovePlayer:
             self._breathing_started_at = now
         head, antennas = get_breathing_pose(now - self._breathing_started_at)
         return RobotCommand(
-            head=self._turned(head, self._body_yaw_rad),
+            head=self._turned(head, self._current_body_direction_rad),
             antennas=antennas,
-            body_yaw=self._body_yaw_rad,
+            body_yaw=self._current_body_direction_rad,
         )
 
     def _move_tick(self, now: float) -> RobotCommand:
@@ -155,9 +155,9 @@ class MovePlayer:
 
         head, antennas, body_yaw = self._current_move.evaluate(elapsed_s)
         return RobotCommand(
-            head=self._turned(head, self._body_yaw_rad),
+            head=self._turned(head, self._current_body_direction_rad),
             antennas=antennas,
-            body_yaw=self._body_yaw_rad + body_yaw,
+            body_yaw=self._current_body_direction_rad + body_yaw,
             sounds=tuple(sounds),
             from_move=True,
         )
