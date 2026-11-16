@@ -10,7 +10,7 @@ import pytest
 from reachy_alive.brain.basal_ganglia.action_selector import ActionSelector
 from reachy_alive.brain.basal_ganglia.proposal import Proposal
 from reachy_alive.brain.brainstem.idle_manager import IdleManager
-from reachy_alive.brain.cerebellum.move_player import MovePlayer
+from reachy_alive.brain.cerebellum.motion_generator import MotionGenerator
 from reachy_alive.moves.base import NEUTRAL_ANTENNAS_RAD, SoundCue
 from reachy_alive.shared_state import SharedState
 from reachy_alive.spinal_cord.robot_controller import RobotController
@@ -34,15 +34,15 @@ class Loop:
     def __init__(self, idle_manager, fake_reachy_mini, requests=None, state=None) -> None:
         self.state = state or SharedState()
         self.requests = requests or queue.Queue()
-        self.player = MovePlayer(self.state)
-        self.selector = ActionSelector(idle_manager, self.requests, self.player)
+        self.generator = MotionGenerator(self.state)
+        self.selector = ActionSelector(idle_manager, self.requests, self.generator)
         sounds = SoundsAtOnce(fake_reachy_mini, {SNEEZE: "/robot/sneeze.wav"})
-        self.controller = RobotController(self.selector, self.player, sounds)
+        self.controller = RobotController(self.selector, self.generator, sounds)
         self.fake_reachy_mini = fake_reachy_mini
 
     def tick(self, now):
         proposal = self.selector.choose(now)
-        command = self.player.tick(now, proposal)
+        command = self.generator.tick(now, proposal)
         self.controller._execute(command, self.fake_reachy_mini, self.state)
         return command
 

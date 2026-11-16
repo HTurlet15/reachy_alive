@@ -25,7 +25,7 @@ class Proposal:
 
     Every decision-maker returns one, in the same shape: the ActionSelector
     compares them by priority, and hands the one it chooses to the
-    MovePlayer, unchanged. An order, not a fact: it is used once, on the
+    MotionGenerator, unchanged. An order, not a fact: it is used once, on the
     tick it is chosen, and never stored in SharedState.
 
     Attributes:

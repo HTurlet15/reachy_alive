@@ -45,7 +45,7 @@ flowchart LR
     end
     subgraph act["3 · Execute"]
         direction TB
-        player["MovePlayer (cerebellum):<br/>the move, pose by pose"] --> controller["RobotController (spinal_cord):<br/>control loop, 50 Hz"] --> robot(["Reachy Mini"])
+        player["MotionGenerator (cerebellum):<br/>the move, pose by pose"] --> controller["RobotController (spinal_cord):<br/>control loop, 50 Hz"] --> robot(["Reachy Mini"])
     end
     subgraph perceive["4 · Perceive"]
         senses["the senses<br/>and their detectors"]
@@ -82,19 +82,19 @@ Reflexes and deliberation will propose too, the same way.
 ## 2 · Choose
 
 On every tick, the **`ActionSelector`** returns the move to start, if any:
-an order for that tick only. While the `MovePlayer` is busy with a move or
-its way back to neutral, the selector chooses nothing. Once the player is
+an order for that tick only. While the `MotionGenerator` is busy with a move or
+its way back to neutral, the selector chooses nothing. Once the generator is
 free, it picks by priority: a requested move wins over idle; reflexes will
-come first. It never builds a pose: it only asks the player whether it is
+come first. It never builds a pose: it only asks the generator whether it is
 busy, and how long the robot has been resting, which it passes to
 `IdleManager`.
 
 ## 3 · Execute
 
-The **`MovePlayer`** keeps what is playing, and since when. It cuts the move
+The **`MotionGenerator`** keeps what is playing, and since when. It cuts the move
 it was handed into one command per tick, its pose and the sounds due, then
 eases back to neutral from the last pose sent. When there is no move to
-play, the robot breathes: the player keeps the breathing's clock, and starts
+play, the robot breathes: the generator keeps the breathing's clock, and starts
 it again from neutral after every move. Everything plays where the head
 points: a move describes the head relative to the robot's front, and the
 player turns each head pose by the head's direction, and the body by the
@@ -107,7 +107,7 @@ the front.
 The **`RobotController`** runs the control loop, 50 times a second, in its
 own thread. Each pass is a **tick**. It is the only part that drives the
 robot: each tick, it asks the selector for a proposal, hands it to
-the player, and sends the pose the player returns, hands the sounds due to
+the generator, and sends the pose the generator returns, hands the sounds due to
 its `SoundPlayer`, then records the pose (its efference copy). Starting a
 sound takes the robot 20 to 85 ms, so the `SoundPlayer` does it from its own
 thread, one sound after the other. The loop never waits, on a move or a
@@ -147,7 +147,7 @@ rule 4).
 
 ### Breathing, then an idle move
 
-On most ticks, nobody proposes a move: the `MovePlayer` returns the next
+On most ticks, nobody proposes a move: the `MotionGenerator` returns the next
 breathing pose, and the `RobotController` sends it to the robot. On
 the next tick, the next pose.
 
@@ -155,10 +155,10 @@ Meanwhile, `IdleManager` has drawn a delay from the interval kept in
 `SharedState` (20 to 30 s by default, adjustable from the app's page), and
 picks a move when it is due, say a yawn. Its sounds are already on the
 robot: the app uploads every move's sounds once, when it starts. Once the
-robot has been resting for that delay, as the `MovePlayer` counts it, it
+robot has been resting for that delay, as the `MotionGenerator` counts it, it
 proposes the yawn.
 
-The `ActionSelector` chooses the yawn, and the `MovePlayer` cuts it into
+The `ActionSelector` chooses the yawn, and the `MotionGenerator` cuts it into
 ticks: each one carries its pose and the sounds due then, and the
 `RobotController` sends it. Half a second of
 way back to neutral follows, cut the same way. Then breathing resumes from
@@ -170,7 +170,7 @@ neutral, and the robot's rest starts again from zero.
   thread: the route checks the name, drops the move in a queue, and answers
   at once. It never touches the robot.
 - On the next tick, the `ActionSelector` finds the request and chooses the
-  sneeze; the `MovePlayer` cuts it into ticks. Breathing will start again from neutral
+  sneeze; the `MotionGenerator` cuts it into ticks. Breathing will start again from neutral
   after it.
 - If several clicks arrive during one move, only the latest plays.
 - From there, it goes like an idle move: played, its end recorded, then
@@ -220,7 +220,7 @@ reachy_alive/
 ├── brain/                The brain regions, sorted by speed (see rule 8).
 │   ├── basal_ganglia/    Choosing: the ActionSelector picks what the robot does, by priority.
 │   ├── brainstem/        Automatic behavior: breathing, and IdleManager.
-│   ├── cerebellum/       Playing: the MovePlayer cuts the move chosen into poses, breathes in between, and turns head and body.
+│   ├── cerebellum/       Playing: the MotionGenerator cuts the move chosen into poses, breathes in between, and turns head and body.
 │   └── sensory_cortex/   The senses and their detectors: sensor readings into facts. Its README: how to add a detector.
 ├── moves/                The Move contract (base.py), the coded moves, and the guides to write one.
 ├── static/               The app's page: HTML, JavaScript, CSS.
@@ -295,7 +295,7 @@ what it perceives, with a switch for each sense. Each fact is there for a
 reaction planned below; raw signal (images, sound) stays inside its sense.
 
 **Done: an interruptible body.** Moves run tick by tick: the
-`MovePlayer` cuts each one into a pose per tick, and could stop it on any
+`MotionGenerator` cuts each one into a pose per tick, and could stop it on any
 tick. Sounds start from their own thread, so the control loop never waits.
 Nothing new shows: the robot behaves as before, with fewer freezes.
 
@@ -305,7 +305,7 @@ reflexes first. Innate triggers only, two of them to start. The milestone
 the project is built for: the robot perceives and reacts, without waiting
 on anything slow. It starts with a direction to face: every move, and
 breathing, played toward it; the head gets there first, the body after,
-slower. Reflexes decide where to look; the `MovePlayer` turns the robot
+slower. Reflexes decide where to look; the `MotionGenerator` turns the robot
 there smoothly.
 
 **Then: deliberation.** `prefrontal_cortex/`: an asynchronous cloud LLM

@@ -84,7 +84,7 @@ biological sense.
 |---|---|---|
 | `brainstem/` | Automatic regulation — breathing, posture | Idle behavior: continuous breathing, occasional idle moves. **Implemented.** |
 | `basal_ganglia/` | Picks one action among those competing | The `ActionSelector`: which move starts next, by priority. **Implemented.** |
-| `cerebellum/` | Turns a chosen action into a smooth, timed movement | The `MovePlayer`: plays the move pose by pose, eases back to neutral, breathes in between. **Implemented.** |
+| `cerebellum/` | Turns a chosen action into a smooth, timed movement | The `MotionGenerator`: plays the move pose by pose, eases back to neutral, breathes in between. **Implemented.** |
 | `sensory_cortex/` | Turns raw signal into percepts | The senses — inertial unit, touch, hearing, vision — and their detectors, writing facts to `SharedState`. **Implemented.** |
 | `amygdala/` | Reacts before the cortex has understood | Fast, local, synchronous reflexes. *Planned.* |
 | `prefrontal_cortex/` | Deliberation, personality | Async cloud LLM call, with timeout and fallback. *Planned.* |

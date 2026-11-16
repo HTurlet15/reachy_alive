@@ -1,6 +1,6 @@
 """Unit tests for Yawning.
 
-The play test goes through the ActionSelector, the MovePlayer and the
+The play test goes through the ActionSelector, the MotionGenerator and the
 controller, on a simulated clock.
 """
 

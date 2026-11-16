@@ -1,7 +1,7 @@
 """Unit tests for Sneezing.
 
 The head comes from a fake recording (see conftest.py). The play test goes
-through the ActionSelector, the MovePlayer and the controller, on a
+through the ActionSelector, the MotionGenerator and the controller, on a
 simulated clock.
 """
 
