@@ -25,109 +25,141 @@ robot.
 
 ## The map
 
-Read it from left to right, like one tick: the proposers read the facts,
-something proposes, one part chooses, one part executes, and the senses
-perceive what happened. `SharedState` is drawn twice, but it is one: read on
-the left, written on the right, and read again on the next tick. The dashed
-boxes come later (see [Where it's going](#where-its-going)).
+The robot runs in a loop, 50 times a second. Each pass is a **tick**. What
+the robot knows, about itself and the world, is kept as **facts** in
+`SharedState`: a face in view, when the last move ended.
+
+Read the map from left to right, like one tick:
+
+1. the decision-makers read the facts and **propose** what to do;
+2. the selector **chooses** one proposal;
+3. the generator **generates** this tick's command from it;
+4. the controller **sends** the command to the robot;
+5. the senses **perceive** what happened, and write new facts.
+
+`SharedState` is drawn twice, but it is one: read on the left, written on
+the right, read again on the next tick. The dashed boxes come later (see
+[Where it's going](#where-its-going)).
 
 ```mermaid
 flowchart LR
+    stateRead[("SharedState<br/>facts")]
     subgraph decide["1 · Propose"]
-        direction TB
-        page["the app's page:<br/>a requested move"]
-        idle["IdleManager (brainstem):<br/>an idle move"]
-        reflexes["reflexes (amygdala):<br/>a reflex"]:::later
-        cortex["deliberation (prefrontal_cortex):<br/>a decision"]:::later
+        direction LR
+        page["the app's page"]
+        idle["IdleManager<br/>brainstem"]
+        reflexes["reflexes<br/>amygdala"]:::later
+        cortex["deliberation<br/>prefrontal_cortex"]:::later
     end
     subgraph choose["2 · Choose"]
-        selector["ActionSelector (basal_ganglia):<br/>by priority"]
+        selector["ActionSelector<br/>basal_ganglia"]
     end
-    subgraph act["3 · Execute"]
+    subgraph generate["3 · Generate"]
+        generator["MotionGenerator<br/>cerebellum"]
+    end
+    subgraph send["4 · Send"]
         direction TB
-        player["MotionGenerator (cerebellum):<br/>the move, pose by pose"] --> controller["RobotController (spinal_cord):<br/>control loop, 50 Hz"] --> robot(["Reachy Mini"])
+        controller["RobotController<br/>spinal_cord"] --> robot(["Reachy Mini"])
     end
-    subgraph perceive["4 · Perceive"]
-        senses["the senses<br/>and their detectors"]
+    subgraph perceive["5 · Perceive"]
+        senses["the senses"]
     end
-    state[("SharedState<br/>(facts written)")]
-    stateRead[("SharedState<br/>(facts read)")]
+    state[("SharedState<br/>facts")]
 
     stateRead -->|facts| decide
     decide -->|proposals| selector
-    selector -->|a move to start| act
-    act -->|sensor readings| perceive
-    act -->|a move plays, ends| state
-    perceive -->|facts| state
+    selector -->|a proposal| generator
+    generator -->|a command| controller
+    robot -->|readings| senses
+    senses -->|facts| state
+    controller -->|pose sent| state
 
     classDef later stroke-dasharray: 5 5,color:#888
 ```
 
 ## 1 · Propose
 
-A **decision-maker** says what the robot should do, and nothing more: it
-never drives the robot. There are two today.
+A **decision-maker** says what the robot should do. It never drives the
+robot.
 
-- **`IdleManager`** (`brain/brainstem/`) proposes, now and then, an idle
-  move: a yawn, a sneeze, once the robot has rested for a delay drawn from
-  the interval kept in `SharedState`. The rest of the time, it proposes
-  nothing.
-- **The app's page** proposes the move someone clicked. Its routes
-  (`routes.py`) run in the web server's own thread: they drop the move in a
-  queue and answer at once. They also change the settings in `SharedState`,
-  such as the idle move interval or a sense switched off.
+Each one builds a **`Proposal`**: a move to start, a direction to look at,
+or both. A proposal is an order for one tick: it is passed on, never stored.
 
-Reflexes and deliberation will propose too, the same way.
+There are two today:
+
+- **`IdleManager`** (`brain/brainstem/`): once the robot has rested for a
+  while, it proposes an idle move, such as a yawn. The delay is drawn from
+  the interval kept in `SharedState`.
+- **The app's page**: it proposes the move someone clicked. Its routes
+  (`routes.py`) run in the web server's own thread: they put the proposal in
+  a queue and answer at once. They also change the settings in
+  `SharedState`, such as the idle move interval or a sense switched off.
+
+Reflexes and deliberation will propose the same way.
 
 ## 2 · Choose
 
-On every tick, the **`ActionSelector`** returns the move to start, if any:
-an order for that tick only. While the `MotionGenerator` is busy with a move or
-its way back to neutral, the selector chooses nothing. Once the generator is
-free, it picks by priority: a requested move wins over idle; reflexes will
-come first. It never builds a pose: it only asks the generator whether it is
-busy, and how long the robot has been resting, which it passes to
-`IdleManager`.
+The **`ActionSelector`** (`brain/basal_ganglia/`) picks one proposal per
+tick, or none:
 
-## 3 · Execute
+- while the `MotionGenerator` is busy, with a move or its way back to
+  neutral, it picks nothing;
+- otherwise, it picks by priority: the page first, then `IdleManager`.
+  Reflexes will come first.
 
-The **`MotionGenerator`** keeps what is playing, and since when. It cuts the move
-it was handed into one command per tick, its pose and the sounds due, then
-eases back to neutral from the last pose sent. When there is no move to
-play, the robot breathes: the generator keeps the breathing's clock, and starts
-it again from neutral after every move. Everything plays where the head
-points: a move describes the head relative to the robot's front, and the
-player turns each head pose by the head's direction, and the body by the
-body's. A proposal's `Direction` turns the head there, easing in and out
-over its duration (a `Turn`). A glance turns the head alone; a direction
-beyond a dead zone from the body brings the body along at once, more
-slowly, so the head leads. Nothing proposes one yet, so the robot faces
+It only chooses: it never builds a pose. To choose, it asks the generator
+two questions: is it busy, and how long has the robot been resting, which
+`IdleManager` needs.
+
+## 3 · Generate
+
+The **`MotionGenerator`** (`brain/cerebellum/`) turns the proposal chosen
+into one command per tick: a pose, and the sounds due. It never sends
+anything to the robot.
+
+- **A move:** it cuts it into poses, one per tick, then eases back to
+  neutral from the last pose sent.
+- **Nothing to play:** the robot breathes.
+- **A direction:** the head turns there, easing in and out. A small turn
+  moves the head alone; a large one brings the body along, more slowly, so
+  the head leads.
+
+It keeps what plays and since when, and where the head and the body point.
+A move is written facing the front; the generator turns every pose toward
+where the robot looks. Nothing proposes a direction yet, so the robot faces
 the front.
 
-The **`RobotController`** runs the control loop, 50 times a second, in its
-own thread. Each pass is a **tick**. It is the only part that drives the
-robot: each tick, it asks the selector for a proposal, hands it to
-the generator, and sends the pose the generator returns, hands the sounds due to
-its `SoundPlayer`, then records the pose (its efference copy). Starting a
-sound takes the robot 20 to 85 ms, so the `SoundPlayer` does it from its own
-thread, one sound after the other. The loop never waits, on a move or a
-sound: every tick, the selector chooses again. It also records in `SharedState`
-that a move is playing, then that it ended: the senses read it.
+## 4 · Send
 
-## 4 · Perceive
+The **`RobotController`** (`spinal_cord/`) runs the loop, in its own
+thread. On every tick, it:
 
-Four senses run beside the loop, each in its own thread, started by
+1. asks the `ActionSelector` for a proposal;
+2. hands it to the `MotionGenerator`, which returns this tick's command;
+3. sends the pose to the robot, and the sounds to the `SoundPlayer`;
+4. records the pose sent in `SharedState`: the **efference copy**.
+
+It is the only part that drives the robot, and it never waits. Starting a
+sound takes the robot 20 to 85 ms, so the `SoundPlayer` does it in its own
+thread. The controller also records in `SharedState` when a move plays and
+when it ends: the senses read it.
+
+## 5 · Perceive
+
+Four senses run next to the loop, each in its own thread, started by
 `SenseManager`: the inertial unit, touch (the antennas), hearing and vision.
-Each reading of a sensor is described by its features, which the sense's
-detectors turn into facts in `SharedState`: a bump, an antenna pushed, a
-sudden noise, a face in view.
 
-While a move plays, and just after, the robot perceives itself: its motors
+- A **sense** reads its sensor, and describes each reading by its
+  **features**.
+- Its **detectors** turn those features into **facts** in `SharedState`: a
+  bump, an antenna pushed, a sudden noise, a face in view.
+
+While a move plays, and just after, the robot feels itself: its motors
 shake the head and make noise. The detectors know it from the efference
-copy, and record nothing then. The app's page shows the facts, and can
-switch a sense off. Nothing reacts to them yet.
+copy, and record nothing then.
 
-How a sense, its features and its detectors fit together is drawn in
+The app's page shows the facts, and can switch a sense off. Nothing reacts
+to them yet. How a sense, its features and its detectors fit together:
 [sensory_cortex/README.md](./reachy_alive/brain/sensory_cortex/README.md).
 
 ## SharedState
@@ -140,8 +172,7 @@ The facts any module may read at any time, each written by one module only:
 - the settings, such as the idle move interval and the senses switched
   off: the app's routes.
 
-Orders never go there: a proposal travels as a command, executed once (see
-rule 4).
+Orders never go there: a proposal is passed on and used once (see rule 4).
 
 ## Two ticks through the loop
 
@@ -167,7 +198,7 @@ neutral, and the robot's rest starts again from zero.
 ### Someone clicks "Sneezing"
 
 - The page sends `POST /moves/sneezing/play`. The web server runs in its own
-  thread: the route checks the name, drops the move in a queue, and answers
+  thread: the route checks the name, puts a proposal in a queue, and answers
   at once. It never touches the robot.
 - On the next tick, the `ActionSelector` finds the request and chooses the
   sneeze; the `MotionGenerator` cuts it into ticks. Breathing will start again from neutral
@@ -194,13 +225,17 @@ what lets reflexes and deliberation join later without touching the rest.
 - **Decision-maker**: a module that proposes what the robot should do.
   Today, `IdleManager`; later, reflexes and deliberation. The app's page
   proposes too, through its routes.
-- **Command**: an order for one tick, handed to the `RobotController` and
-  executed once: hold this pose, or play this move.
+- **Proposal**: what a decision-maker wants the robot to do, for one tick:
+  a move to start, a direction to look at, or both. Never stored.
+- **Direction**: where to look, and how long to take getting there. The
+  head turns there; the body follows if the turn is large.
+- **Command**: what the `MotionGenerator` returns for one tick, and the
+  `RobotController` sends: a pose, and the sounds due.
 - **`SharedState`**: the facts any module may read at any time, such as
   when the last move ended. Orders never go there.
 - **Efference copy**: what the robot is doing itself, kept as a fact so the
-  senses can tell its own motion and sounds from the world's. Today: whether
-  a move is playing, waking up included.
+  senses can tell its own motion and sounds from the world's: the pose
+  sent, and whether a move is playing, waking up included.
 - **Sense**: reads one of the robot's sensors in its own thread, and
   describes each reading by its **features**, such as how loud a frame of
   sound is. It never says what they mean, and never drives the robot.
