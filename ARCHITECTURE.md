@@ -99,12 +99,14 @@ it again from neutral after every move. Everything plays where the head
 points: a move describes the head relative to the robot's front, and the
 player turns each head pose by the head's direction, and the body by the
 body's. A proposal's `Direction` turns the head there, easing in and out
-over its duration; the body does not follow yet. Nothing proposes one yet,
-so the robot faces the front.
+over its duration (a `Turn`). A glance turns the head alone; a direction
+beyond a dead zone from the body brings the body along at once, more
+slowly, so the head leads. Nothing proposes one yet, so the robot faces
+the front.
 
 The **`RobotController`** runs the control loop, 50 times a second, in its
 own thread. Each pass is a **tick**. It is the only part that drives the
-robot: each tick, it asks the selector for a move to start, hands it to
+robot: each tick, it asks the selector for a proposal, hands it to
 the player, and sends the pose the player returns, hands the sounds due to
 its `SoundPlayer`, then records the pose (its efference copy). Starting a
 sound takes the robot 20 to 85 ms, so the `SoundPlayer` does it from its own
@@ -218,7 +220,7 @@ reachy_alive/
 ├── brain/                The brain regions, sorted by speed (see rule 8).
 │   ├── basal_ganglia/    Choosing: the ActionSelector picks what the robot does, by priority.
 │   ├── brainstem/        Automatic behavior: breathing, and IdleManager.
-│   ├── cerebellum/       Playing: the MovePlayer cuts the move chosen into poses, and breathes in between.
+│   ├── cerebellum/       Playing: the MovePlayer cuts the move chosen into poses, breathes in between, and turns head and body.
 │   └── sensory_cortex/   The senses and their detectors: sensor readings into facts. Its README: how to add a detector.
 ├── moves/                The Move contract (base.py), the coded moves, and the guides to write one.
 ├── static/               The app's page: HTML, JavaScript, CSS.
