@@ -29,16 +29,14 @@ class MovePlayer:
     head's direction, and the body by the body's, so a yawn recorded facing
     the front is played toward whoever the robot looks at. A proposal with a
     direction turns the head there, easing in and out, until another one
-    does. The body follows, more slowly, only when the head keeps looking
-    away from it: a glance turns the head alone.
+    does. When the head goes beyond the dead zone from the body, the body
+    starts turning there with it, more slowly: a glance turns the head alone.
     """
 
-    # The body follows the head once it has looked more than the dead zone
-    # away for the delay, then turns there more slowly than the head.
-    # Provisional: to check on the robot.
+    # A head turn beyond the dead zone brings the body along, this many times
+    # slower than the head. Provisional: to check on the robot.
     BODY_FOLLOW_DEAD_ZONE_DEG = 20.0
-    BODY_FOLLOW_DELAY_S = 0.8
-    BODY_TURN_DURATION_S = 1.5
+    BODY_SLOWER_THAN_HEAD = 1.5
 
     def __init__(self, shared_state: SharedState) -> None:
         """Keep where the way back to neutral starts from.
@@ -64,8 +62,6 @@ class MovePlayer:
         # only in its own _update_*_direction.
         self._head_turn = Turn(from_rad=0.0, to_rad=0.0, started_at=0.0, duration_s=0.0)
         self._body_turn = Turn(from_rad=0.0, to_rad=0.0, started_at=0.0, duration_s=0.0)
-        # Since when the head has looked beyond the dead zone; None while within it.
-        self._head_away_since: float | None = None
 
     def tick(self, now: float, proposal: Proposal | None) -> RobotCommand:
         """Return this tick's command: the current move, or breathing, where the head points.
@@ -97,23 +93,17 @@ class MovePlayer:
         self._current_head_direction_rad = self._head_turn.direction_at(now)
 
     def _update_body_direction(self, now: float) -> None:
-        """Turn the body toward the head once it has looked away long enough; move it along."""
-        head_from_body_rad = self._current_head_direction_rad - self._current_body_direction_rad
-        if abs(head_from_body_rad) <= np.deg2rad(self.BODY_FOLLOW_DEAD_ZONE_DEG):
-            self._head_away_since = None
-        elif self._head_away_since is None:
-            self._head_away_since = now
-
-        looked_away_long_enough = (
-            self._head_away_since is not None
-            and now - self._head_away_since >= self.BODY_FOLLOW_DELAY_S
+        """Turn the body where the head goes, if beyond the dead zone; move it along its turn."""
+        head_target_from_body_rad = self._head_turn.to_rad - self._current_body_direction_rad
+        head_target_beyond_dead_zone = abs(head_target_from_body_rad) > np.deg2rad(
+            self.BODY_FOLLOW_DEAD_ZONE_DEG
         )
-        if looked_away_long_enough and self._body_turn.to_rad != self._head_turn.to_rad:
+        if head_target_beyond_dead_zone and self._body_turn.to_rad != self._head_turn.to_rad:
             self._body_turn = Turn(
                 from_rad=self._current_body_direction_rad,
                 to_rad=self._head_turn.to_rad,
                 started_at=now,
-                duration_s=self.BODY_TURN_DURATION_S,
+                duration_s=self._head_turn.duration_s * self.BODY_SLOWER_THAN_HEAD,
             )
         self._current_body_direction_rad = self._body_turn.direction_at(now)
 
