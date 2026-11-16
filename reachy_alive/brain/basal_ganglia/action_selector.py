@@ -5,7 +5,7 @@ import queue
 
 from reachy_alive.brain.basal_ganglia.proposal import Proposal
 from reachy_alive.brain.brainstem.idle_manager import IdleManager
-from reachy_alive.brain.cerebellum.move_player import MovePlayer
+from reachy_alive.brain.cerebellum.motion_generator import MovePlayer
 
 logger = logging.getLogger(__name__)
 

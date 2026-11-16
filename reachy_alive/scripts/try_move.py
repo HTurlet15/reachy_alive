@@ -21,7 +21,7 @@ from reachy_mini.motion.recorded_move import RecordedMoves
 
 from reachy_alive.brain.basal_ganglia.action_selector import ActionSelector
 from reachy_alive.brain.basal_ganglia.proposal import Proposal
-from reachy_alive.brain.cerebellum.move_player import MovePlayer
+from reachy_alive.brain.cerebellum.motion_generator import MovePlayer
 from reachy_alive.moves.base import LibraryMove
 from reachy_alive.moves.robot_sounds import upload_sounds
 from reachy_alive.moves.sneezing import Sneezing

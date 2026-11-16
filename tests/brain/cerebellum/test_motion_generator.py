@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from reachy_alive.brain.basal_ganglia.proposal import Direction, Proposal
-from reachy_alive.brain.cerebellum.move_player import MovePlayer
+from reachy_alive.brain.cerebellum.motion_generator import MovePlayer
 from reachy_alive.moves.base import ReturningToNeutral
 from reachy_alive.shared_state import CommandedPose, SharedState
 from tests.conftest import StillMove
