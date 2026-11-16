@@ -10,22 +10,22 @@ from reachy_alive.shared_state import SharedState
 from reachy_alive.spinal_cord.commands import RobotCommand
 
 
-class MovePlayer:
+class MotionGenerator:
     """Cuts the move it is given into one command per tick.
 
     It never chooses. It is handed the proposal the ActionSelector chose,
     with a move to start, on one tick only, like pressing play on a remote;
-    the player then keeps what is playing, and since when, until it ends. It
+    the generator then keeps what is playing, and since when, until it ends. It
     is the only one to write what is playing; the ActionSelector only asks
     whether it is busy.
 
     A move plays to its end, then eases back to neutral from the last pose
     sent; until both are over, it is busy. In between, the robot breathes,
-    and the player keeps the breathing's clock: how long the robot has been
+    and the generator keeps the breathing's clock: how long the robot has been
     resting is what tells the IdleManager when an idle move is due.
 
     Everything plays where the head points. A move describes the head
-    relative to the robot's front; the player turns each head pose by the
+    relative to the robot's front; the generator turns each head pose by the
     head's direction, and the body by the body's, so a yawn recorded facing
     the front is played toward whoever the robot looks at. A proposal with a
     direction turns the head there, easing in and out, until another one

@@ -24,10 +24,10 @@ def run_one_tick(command, reachy_mini, shared_state=None) -> None:
         stop_event.set()  # the loop exits after this tick
         return command
 
-    move_player = MagicMock()
-    move_player.tick.side_effect = tick
+    motion_generator = MagicMock()
+    motion_generator.tick.side_effect = tick
 
-    RobotController(MagicMock(), move_player, MagicMock()).run(
+    RobotController(MagicMock(), motion_generator, MagicMock()).run(
         reachy_mini, shared_state or SharedState(), stop_event
     )
 
@@ -44,11 +44,11 @@ def test_robot_command_sends_the_pose_to_the_robot(fake_reachy_mini):
 
 
 def test_a_failing_tick_still_puts_the_robot_to_sleep(fake_reachy_mini):
-    move_player = MagicMock()
-    move_player.tick.side_effect = RuntimeError("a move failed")
+    motion_generator = MagicMock()
+    motion_generator.tick.side_effect = RuntimeError("a move failed")
 
     with pytest.raises(RuntimeError):
-        RobotController(MagicMock(), move_player, MagicMock()).run(
+        RobotController(MagicMock(), motion_generator, MagicMock()).run(
             fake_reachy_mini, SharedState(), threading.Event()
         )
 
@@ -60,12 +60,12 @@ def test_a_lost_connection_stays_the_error_that_stops_the_app(fake_reachy_mini, 
     lost = ConnectionError("Lost connection with the server.")
     fake_reachy_mini.set_target.side_effect = lost
     fake_reachy_mini.goto_sleep.side_effect = ConnectionError("Lost connection with the server.")
-    move_player = MagicMock()
-    move_player.tick.return_value = RobotCommand(head=np.eye(4), antennas=np.zeros(2))
+    motion_generator = MagicMock()
+    motion_generator.tick.return_value = RobotCommand(head=np.eye(4), antennas=np.zeros(2))
 
     with caplog.at_level(logging.WARNING, logger="reachy_alive"):
         with pytest.raises(ConnectionError) as raised:
-            RobotController(MagicMock(), move_player, MagicMock()).run(
+            RobotController(MagicMock(), motion_generator, MagicMock()).run(
                 fake_reachy_mini, SharedState(), threading.Event()
             )
 
@@ -81,12 +81,12 @@ def test_a_websocket_closed_at_shutdown_is_a_lost_connection_too(fake_reachy_min
     lost = ConnectionClosedError(restart, restart, True)
     fake_reachy_mini.set_target.side_effect = lost
     fake_reachy_mini.goto_sleep.side_effect = ConnectionClosedError(restart, restart, True)
-    move_player = MagicMock()
-    move_player.tick.return_value = RobotCommand(head=np.eye(4), antennas=np.zeros(2))
+    motion_generator = MagicMock()
+    motion_generator.tick.return_value = RobotCommand(head=np.eye(4), antennas=np.zeros(2))
 
     with caplog.at_level(logging.WARNING, logger="reachy_alive"):
         with pytest.raises(ConnectionClosedError) as raised:
-            RobotController(MagicMock(), move_player, MagicMock()).run(
+            RobotController(MagicMock(), motion_generator, MagicMock()).run(
                 fake_reachy_mini, SharedState(), threading.Event()
             )
 
@@ -224,11 +224,11 @@ def test_robot_command_hands_its_sounds_to_the_sound_player(fake_reachy_mini):
 def test_the_sound_player_runs_as_long_as_the_loop_and_stops_before_sleep(fake_reachy_mini):
     sound_player = MagicMock()
     fake_reachy_mini.attach_mock(sound_player, "sound_player")
-    move_player = MagicMock()
-    move_player.tick.side_effect = RuntimeError("a tick failed")
+    motion_generator = MagicMock()
+    motion_generator.tick.side_effect = RuntimeError("a tick failed")
 
     with pytest.raises(RuntimeError):
-        RobotController(MagicMock(), move_player, sound_player).run(
+        RobotController(MagicMock(), motion_generator, sound_player).run(
             fake_reachy_mini, SharedState(), threading.Event()
         )
 

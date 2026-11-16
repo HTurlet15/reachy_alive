@@ -7,7 +7,7 @@ from reachy_mini import ReachyMini
 from websockets.exceptions import ConnectionClosed
 
 from reachy_alive.brain.basal_ganglia.action_selector import ActionSelector
-from reachy_alive.brain.cerebellum.motion_generator import MovePlayer
+from reachy_alive.brain.cerebellum.motion_generator import MotionGenerator
 from reachy_alive.shared_state import CommandedPose, SharedState
 from reachy_alive.spinal_cord.commands import RobotCommand
 from reachy_alive.spinal_cord.sound_player import SoundPlayer
@@ -19,8 +19,8 @@ class RobotController:
     """Runs the control loop and executes the commands it receives.
 
     It makes no decisions of its own: each tick, it asks the ActionSelector
-    which move to start, if any, hands that to the MovePlayer, and carries
-    out the command the MovePlayer returns. It records in SharedState each
+    which move to start, if any, hands that to the MotionGenerator, and carries
+    out the command the MotionGenerator returns. It records in SharedState each
     pose it sends (its efference copy), and when a move plays and ends,
     whoever asked for it, waking up and going to sleep included. It also
     hands each command's sounds to its SoundPlayer, which starts them
@@ -36,18 +36,21 @@ class RobotController:
     TICK_S = 1.0 / TICK_HZ
 
     def __init__(
-        self, action_selector: ActionSelector, move_player: MovePlayer, sound_player: SoundPlayer
+        self,
+        action_selector: ActionSelector,
+        motion_generator: MotionGenerator,
+        sound_player: SoundPlayer,
     ) -> None:
         """Keep who chooses, who plays, and what starts the sounds.
 
         Args:
             action_selector: Chooses the move to start, each tick.
-            move_player: Plays it, and returns each tick's command.
+            motion_generator: Plays it, and returns each tick's command.
             sound_player: Starts each command's sounds in its own thread;
                 started and stopped with the control loop.
         """
         self.action_selector = action_selector
-        self.move_player = move_player
+        self.motion_generator = motion_generator
         self.sound_player = sound_player
 
     def run(self, reachy_mini: ReachyMini, shared_state: SharedState, stop_event) -> None:
@@ -72,7 +75,7 @@ class RobotController:
             while not stop_event.is_set():
                 now = time.monotonic()
                 proposal = self.action_selector.choose(now)
-                command = self.move_player.tick(now, proposal)
+                command = self.motion_generator.tick(now, proposal)
                 self._execute(command, reachy_mini, shared_state)
                 tick_due_at = self._wait_for_next_tick(tick_due_at + self.TICK_S)
         finally:

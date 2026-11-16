@@ -1,4 +1,4 @@
-"""Tests for MovePlayer: every pose played where the head points."""
+"""Tests for MotionGenerator: every pose played where the head points."""
 
 import math
 
@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from reachy_alive.brain.basal_ganglia.proposal import Direction, Proposal
-from reachy_alive.brain.cerebellum.motion_generator import MovePlayer
+from reachy_alive.brain.cerebellum.motion_generator import MotionGenerator
 from reachy_alive.moves.base import ReturningToNeutral
 from reachy_alive.shared_state import CommandedPose, SharedState
 from tests.conftest import StillMove
@@ -29,18 +29,18 @@ def yaw_of(head):
 
 
 def play(first_proposal, until_s=3.0, later_proposals=None):
-    """Tick a MovePlayer on a simulated clock, recording each pose as the controller does.
+    """Tick a MotionGenerator on a simulated clock, recording each pose as the controller does.
 
     first_proposal is handed over on the first tick only, like any order;
     later_proposals maps a tick's index to the proposal handed over on it.
     """
     proposals = {0: first_proposal, **(later_proposals or {})}
     state = SharedState()
-    player = MovePlayer(state)
+    generator = MotionGenerator(state)
     commands = []
     for i in range(round(until_s / TICK_S)):
         now = i * TICK_S
-        command = player.tick(now, proposals.get(i))
+        command = generator.tick(now, proposals.get(i))
         state.record_commanded_pose(
             CommandedPose(
                 at=now, head=command.head, antennas=command.antennas, body_yaw=command.body_yaw
@@ -51,7 +51,7 @@ def play(first_proposal, until_s=3.0, later_proposals=None):
 
 
 def test_looking_at_the_front_changes_nothing():
-    command = MovePlayer(SharedState()).tick(
+    command = MotionGenerator(SharedState()).tick(
         0.0, Proposal(source="test", move_to_start=StillMove(duration=1.0))
     )
 

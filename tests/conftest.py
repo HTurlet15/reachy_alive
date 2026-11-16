@@ -8,7 +8,7 @@ import pytest
 
 from reachy_alive.brain.basal_ganglia.action_selector import ActionSelector
 from reachy_alive.brain.basal_ganglia.proposal import Proposal
-from reachy_alive.brain.cerebellum.motion_generator import MovePlayer
+from reachy_alive.brain.cerebellum.motion_generator import MotionGenerator
 from reachy_alive.moves.base import Move
 from reachy_alive.moves.robot_sounds import upload_sounds
 from reachy_alive.shared_state import SharedState
@@ -97,7 +97,7 @@ class NoIdleMoves:
 def play(fake_reachy_mini):
     """Play a move on ``fake_reachy_mini`` as the app does, on a simulated clock.
 
-    The ActionSelector chooses it, the MovePlayer cuts it into ticks and the
+    The ActionSelector chooses it, the MotionGenerator cuts it into ticks and the
     RobotController sends them, every 20 ms, through the move and its way
     back to neutral, without waiting. Returns the commands sent, in order.
     """
@@ -106,13 +106,13 @@ def play(fake_reachy_mini):
         state = SharedState()
         requests = queue.Queue()
         requests.put(Proposal(source="page", move_to_start=move))
-        player = MovePlayer(state)
-        selector = ActionSelector(NoIdleMoves(), requests, player)
+        generator = MotionGenerator(state)
+        selector = ActionSelector(NoIdleMoves(), requests, generator)
         sounds = SoundsAtOnce(fake_reachy_mini, upload_sounds([move], fake_reachy_mini))
-        controller = RobotController(selector, player, sounds)
+        controller = RobotController(selector, generator, sounds)
         commands = []
         now = 0.0
-        while (command := player.tick(now, selector.choose(now))).from_move:  # until breathing
+        while (command := generator.tick(now, selector.choose(now))).from_move:  # until breathing
             controller._execute(command, fake_reachy_mini, state)
             commands.append(command)
             now += tick_s

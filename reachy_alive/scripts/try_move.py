@@ -21,7 +21,7 @@ from reachy_mini.motion.recorded_move import RecordedMoves
 
 from reachy_alive.brain.basal_ganglia.action_selector import ActionSelector
 from reachy_alive.brain.basal_ganglia.proposal import Proposal
-from reachy_alive.brain.cerebellum.motion_generator import MovePlayer
+from reachy_alive.brain.cerebellum.motion_generator import MotionGenerator
 from reachy_alive.moves.base import LibraryMove
 from reachy_alive.moves.robot_sounds import upload_sounds
 from reachy_alive.moves.sneezing import Sneezing
@@ -57,8 +57,8 @@ class _NoIdleMoves:
         return None
 
 
-class _StopAfterTheMove(MovePlayer):
-    """A MovePlayer that stops the loop once the move and its way back are over."""
+class _StopAfterTheMove(MotionGenerator):
+    """A MotionGenerator that stops the loop once the move and its way back are over."""
 
     def __init__(self, shared_state: SharedState, stop_event: threading.Event) -> None:
         super().__init__(shared_state)
@@ -104,10 +104,10 @@ def main() -> None:
         requests: queue.Queue = queue.Queue()
         requests.put(Proposal(source="try-move", move_to_start=move))
         stop_event = threading.Event()
-        move_player = _StopAfterTheMove(shared_state, stop_event)
-        selector = ActionSelector(_NoIdleMoves(), requests, move_player)
+        motion_generator = _StopAfterTheMove(shared_state, stop_event)
+        selector = ActionSelector(_NoIdleMoves(), requests, motion_generator)
         controller = RobotController(
-            selector, move_player, SoundPlayer(mini, upload_sounds([move], mini))
+            selector, motion_generator, SoundPlayer(mini, upload_sounds([move], mini))
         )
         controller.run(mini, shared_state, stop_event)
 

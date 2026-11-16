@@ -5,13 +5,13 @@ import queue
 
 from reachy_alive.brain.basal_ganglia.proposal import Proposal
 from reachy_alive.brain.brainstem.idle_manager import IdleManager
-from reachy_alive.brain.cerebellum.motion_generator import MovePlayer
+from reachy_alive.brain.cerebellum.motion_generator import MotionGenerator
 
 logger = logging.getLogger(__name__)
 
 
 class ActionSelector:
-    """Chooses which move the robot starts next; the MovePlayer plays it.
+    """Chooses which move the robot starts next; the MotionGenerator plays it.
 
     A move plays to its end, then eases back to neutral. Only then is the
     next move chosen: a move requested from the app's page wins over an idle
@@ -21,32 +21,35 @@ class ActionSelector:
     """
 
     def __init__(
-        self, idle_manager: IdleManager, move_requests: queue.Queue, move_player: MovePlayer
+        self,
+        idle_manager: IdleManager,
+        move_requests: queue.Queue,
+        motion_generator: MotionGenerator,
     ) -> None:
-        """Keep where proposals come from, and the MovePlayer it asks.
+        """Keep where proposals come from, and the MotionGenerator it asks.
 
         Args:
             idle_manager: Proposes an idle move now and then.
             move_requests: The app's page's proposals, in the order clicked.
-            move_player: Asked whether it is busy, and how long the robot has
+            motion_generator: Asked whether it is busy, and how long the robot has
                 been resting. The selector never plays a move itself.
         """
         self._idle_manager = idle_manager
         self._move_requests = move_requests
-        self._move_player = move_player
+        self._motion_generator = motion_generator
 
     def choose(self, now: float) -> Proposal | None:
         """Return the proposal chosen this tick, highest priority first; None if there is none.
 
         An order for this tick only: the control loop hands it to the
-        MovePlayer, which keeps what is playing. So the selector asks it
+        MotionGenerator, which keeps what is playing. So the selector asks it
         whether it is busy, and chooses again only once it is free.
 
         Args:
             now: This tick's time.monotonic() reading.
         """
         # 1. A move, or its way back to neutral, is playing: it goes on to its end.
-        if self._move_player.is_busy(now):
+        if self._motion_generator.is_busy(now):
             return None
 
         # 2. The app's page proposed a move: the latest one.
@@ -56,7 +59,7 @@ class ActionSelector:
             return proposal
 
         # 3. The robot has rested long enough: an idle move, otherwise None to breathe.
-        return self._idle_manager.propose(self._move_player.resting_for_s(now))
+        return self._idle_manager.propose(self._motion_generator.resting_for_s(now))
 
     def _latest_page_proposal(self) -> Proposal | None:
         """Empty the page's queue and return its latest proposal, if any."""

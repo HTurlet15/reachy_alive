@@ -15,7 +15,7 @@ what not to touch, the internals, the environment, and how to work with me.
 ## Current sprint
 
 **C — interruptible body, released in v1.2.0.** Moves run tick by tick:
-the `MovePlayer` cuts each one into a pose per tick, the
+the `MotionGenerator` cuts each one into a pose per tick, the
 `RobotController` sends every pose, and its `SoundPlayer` starts the sounds;
 nothing new shows on the robot. Next: D, reflexes, starting with gaze
 layered over breathing (once C/2, now D's first step). Sprint letters follow the order of the roadmap in
@@ -29,7 +29,7 @@ E (deliberation), F (arbitration).
   tracks everyone by default reads as a security camera, not a creature.
 - **The robot faces a direction; everything plays toward it.** A
   decision-maker proposes a `Direction` in its `Proposal`, once, like a
-  move to start; the `MovePlayer` keeps where the head points and where the
+  move to start; the `MotionGenerator` keeps where the head points and where the
   body faces, and turns every pose by them, breathing, moves and the way
   back alike. A glance turns the head alone; a large turn brings the body
   along at once, slower, so the head leads. A direction is not a move: an
