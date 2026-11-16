@@ -31,9 +31,9 @@ E (deliberation), F (arbitration).
   decision-maker proposes a `Direction` in its `Proposal`, once, like a
   move to start; the `MovePlayer` keeps where the head points and where the
   body faces, and turns every pose by them, breathing, moves and the way
-  back alike. The head gets there first; the body will follow, slower
-  (sprint D). A direction is not a move: an annoyed reflex must not end up
-  complaining at the wall.
+  back alike. A glance turns the head alone; a large turn brings the body
+  along at once, slower, so the head leads. A direction is not a move: an
+  annoyed reflex must not end up complaining at the wall.
 - **Volume and microphone stay in Reachy Mini Control.** They are robot-wide
   settings the daemon persists across apps; the app never changes them.
 - **One word: "move".** Code, routes and docs say "move", like the SDK; idle

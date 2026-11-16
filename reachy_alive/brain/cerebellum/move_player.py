@@ -1,10 +1,10 @@
 """Plays the move it is given, one pose per tick, and breathes in between."""
 
 import numpy as np
-from reachy_mini.utils.interpolation import InterpolationTechnique, time_trajectory
 
-from reachy_alive.brain.basal_ganglia.proposal import Direction, Proposal
+from reachy_alive.brain.basal_ganglia.proposal import Proposal
 from reachy_alive.brain.brainstem.breathing import get_breathing_pose
+from reachy_alive.brain.cerebellum.turn import Turn
 from reachy_alive.moves.base import Move, ReturningToNeutral, SoundCue
 from reachy_alive.shared_state import SharedState
 from reachy_alive.spinal_cord.commands import RobotCommand
@@ -29,8 +29,14 @@ class MovePlayer:
     head's direction, and the body by the body's, so a yawn recorded facing
     the front is played toward whoever the robot looks at. A proposal with a
     direction turns the head there, easing in and out, until another one
-    does. The body stays where it faces: it does not follow the head yet.
+    does. When the head goes beyond the dead zone from the body, the body
+    starts turning there with it, more slowly: a glance turns the head alone.
     """
+
+    # A head turn beyond the dead zone brings the body along, this many times
+    # slower than the head. Provisional: to check on the robot.
+    BODY_FOLLOW_DEAD_ZONE_DEG = 20.0
+    BODY_SLOWER_THAN_HEAD = 1.5
 
     def __init__(self, shared_state: SharedState) -> None:
         """Keep where the way back to neutral starts from.
@@ -49,17 +55,13 @@ class MovePlayer:
         # When the current stretch of breathing began; None until the next tick.
         self._breathing_started_at: float | None = None
         # Where the head points and where the body faces, in radians: 0 is
-        # the robot's front. Only the head turns for now; past about 65°
-        # between them, the daemon turns the base itself, until the body
-        # follows the head (sprint D, brick 3).
+        # the robot's front.
         self._current_head_direction_rad = 0.0
         self._current_body_direction_rad = 0.0
-        # The head's current turn: where it goes, from where, since when, and
-        # for how long. Written only in _start_head_turn.
-        self._target_head_direction_rad = 0.0
-        self._head_turn_from_rad = 0.0
-        self._head_turn_started_at = 0.0
-        self._head_turn_duration_s = 0.0
+        # The head's and the body's last turns, over or not. Each is written
+        # only in its own _update_*_direction.
+        self._head_turn = Turn(from_rad=0.0, to_rad=0.0, started_at=0.0, duration_s=0.0)
+        self._body_turn = Turn(from_rad=0.0, to_rad=0.0, started_at=0.0, duration_s=0.0)
 
     def tick(self, now: float, proposal: Proposal | None) -> RobotCommand:
         """Return this tick's command: the current move, or breathing, where the head points.
@@ -72,6 +74,7 @@ class MovePlayer:
                 nothing was proposed.
         """
         self._update_head_direction(now, proposal)
+        self._update_body_direction(now)
         self._update_current_move(now, proposal)
         if self._current_move is None:
             return self._breathing_tick(now)
@@ -80,25 +83,29 @@ class MovePlayer:
     def _update_head_direction(self, now: float, proposal: Proposal | None) -> None:
         """Start the turn proposed, if it is a new one, then move the head along its turn."""
         direction = proposal.direction if proposal is not None else None
-        if direction is not None and direction.yaw_rad != self._target_head_direction_rad:
-            self._start_head_turn(direction, now)
-        self._current_head_direction_rad = self._head_direction_at(now)
+        if direction is not None and direction.yaw_rad != self._head_turn.to_rad:
+            self._head_turn = Turn(
+                from_rad=self._current_head_direction_rad,
+                to_rad=direction.yaw_rad,
+                started_at=now,
+                duration_s=direction.duration_s,
+            )
+        self._current_head_direction_rad = self._head_turn.direction_at(now)
 
-    def _start_head_turn(self, direction: Direction, now: float) -> None:
-        """Turn the head toward direction from where it points now."""
-        self._target_head_direction_rad = direction.yaw_rad
-        self._head_turn_from_rad = self._current_head_direction_rad
-        self._head_turn_started_at = now
-        self._head_turn_duration_s = direction.duration_s
-
-    def _head_direction_at(self, now: float) -> float:
-        """Return where the head points at now, along its turn: slow, fast, then slow."""
-        if self._head_turn_duration_s <= 0.0:
-            return self._target_head_direction_rad
-        progress = min((now - self._head_turn_started_at) / self._head_turn_duration_s, 1.0)
-        eased = time_trajectory(progress, InterpolationTechnique.MIN_JERK)
-        turn_rad = self._target_head_direction_rad - self._head_turn_from_rad
-        return self._head_turn_from_rad + eased * turn_rad
+    def _update_body_direction(self, now: float) -> None:
+        """Turn the body where the head goes, if beyond the dead zone; move it along its turn."""
+        head_target_from_body_rad = self._head_turn.to_rad - self._current_body_direction_rad
+        head_target_beyond_dead_zone = abs(head_target_from_body_rad) > np.deg2rad(
+            self.BODY_FOLLOW_DEAD_ZONE_DEG
+        )
+        if head_target_beyond_dead_zone and self._body_turn.to_rad != self._head_turn.to_rad:
+            self._body_turn = Turn(
+                from_rad=self._current_body_direction_rad,
+                to_rad=self._head_turn.to_rad,
+                started_at=now,
+                duration_s=self._head_turn.duration_s * self.BODY_SLOWER_THAN_HEAD,
+            )
+        self._current_body_direction_rad = self._body_turn.direction_at(now)
 
     def _update_current_move(self, now: float, proposal: Proposal | None) -> None:
         """Start the move proposed, or keep the move playing, or move on from it."""
