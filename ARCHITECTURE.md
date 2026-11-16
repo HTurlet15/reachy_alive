@@ -29,7 +29,7 @@ The robot runs in a loop, 50 times a second. Each pass is a **tick**. What
 the robot knows, about itself and the world, is kept as **facts** in
 `SharedState`: a face in view, when the last move ended.
 
-Read the map from top to bottom, like one tick:
+Read the map from left to right, like one tick:
 
 1. the decision-makers read the facts and **propose** what to do;
 2. the selector **chooses** one proposal;
@@ -37,41 +37,42 @@ Read the map from top to bottom, like one tick:
 4. the controller **sends** the command to the robot;
 5. the senses **perceive** what happened, and write new facts.
 
-`SharedState` is drawn twice, but it is one: read at the top, written at
-the bottom, read again on the next tick. The dashed boxes come later (see
+`SharedState` is drawn twice, but it is one: read on the left, written on
+the right, read again on the next tick. The dashed boxes come later (see
 [Where it's going](#where-its-going)).
 
 ```mermaid
-flowchart TB
-    stateRead[("SharedState<br/>(facts read)")]
+flowchart LR
+    stateRead[("SharedState<br/>facts")]
     subgraph decide["1 · Propose"]
-        page["the app's page:<br/>a requested move"]
-        idle["IdleManager (brainstem):<br/>an idle move"]
-        reflexes["reflexes (amygdala):<br/>a reflex"]:::later
-        cortex["deliberation (prefrontal_cortex):<br/>a decision"]:::later
+        direction LR
+        page["the app's page"]
+        idle["IdleManager<br/>brainstem"]
+        reflexes["reflexes<br/>amygdala"]:::later
+        cortex["deliberation<br/>prefrontal_cortex"]:::later
     end
     subgraph choose["2 · Choose"]
-        selector["ActionSelector (basal_ganglia):<br/>by priority"]
+        selector["ActionSelector<br/>basal_ganglia"]
     end
     subgraph generate["3 · Generate"]
-        generator["MotionGenerator (cerebellum):<br/>one command per tick"]
+        generator["MotionGenerator<br/>cerebellum"]
     end
     subgraph send["4 · Send"]
-        direction LR
-        controller["RobotController (spinal_cord):<br/>control loop, 50 Hz"] --> robot(["Reachy Mini"])
+        direction TB
+        controller["RobotController<br/>spinal_cord"] --> robot(["Reachy Mini"])
     end
     subgraph perceive["5 · Perceive"]
-        senses["the senses<br/>and their detectors"]
+        senses["the senses"]
     end
-    state[("SharedState<br/>(facts written)")]
+    state[("SharedState<br/>facts")]
 
     stateRead -->|facts| decide
-    page & idle & reflexes & cortex --> selector
-    selector -->|the proposal chosen| generator
+    decide -->|proposals| selector
+    selector -->|a proposal| generator
     generator -->|a command| controller
-    robot -->|sensor readings| senses
-    controller -->|the pose sent, a move plays, ends| state
+    robot -->|readings| senses
     senses -->|facts| state
+    controller -->|pose sent| state
 
     classDef later stroke-dasharray: 5 5,color:#888
 ```
