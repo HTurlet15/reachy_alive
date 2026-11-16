@@ -111,30 +111,38 @@ It only chooses: it never builds a pose. To choose, it asks the generator
 two questions: is it busy, and how long has the robot been resting, which
 `IdleManager` needs.
 
-## 3 · Execute
+## 3 · Generate
 
-The **`MotionGenerator`** keeps what is playing, and since when. It cuts the move
-it was handed into one command per tick, its pose and the sounds due, then
-eases back to neutral from the last pose sent. When there is no move to
-play, the robot breathes: the generator keeps the breathing's clock, and starts
-it again from neutral after every move. Everything plays where the head
-points: a move describes the head relative to the robot's front, and the
-player turns each head pose by the head's direction, and the body by the
-body's. A proposal's `Direction` turns the head there, easing in and out
-over its duration (a `Turn`). A glance turns the head alone; a direction
-beyond a dead zone from the body brings the body along at once, more
-slowly, so the head leads. Nothing proposes one yet, so the robot faces
+The **`MotionGenerator`** (`brain/cerebellum/`) turns the proposal chosen
+into one command per tick: a pose, and the sounds due. It never sends
+anything to the robot.
+
+- **A move:** it cuts it into poses, one per tick, then eases back to
+  neutral from the last pose sent.
+- **Nothing to play:** the robot breathes.
+- **A direction:** the head turns there, easing in and out. A small turn
+  moves the head alone; a large one brings the body along, more slowly, so
+  the head leads.
+
+It keeps what plays and since when, and where the head and the body point.
+A move is written facing the front; the generator turns every pose toward
+where the robot looks. Nothing proposes a direction yet, so the robot faces
 the front.
 
-The **`RobotController`** runs the control loop, 50 times a second, in its
-own thread. Each pass is a **tick**. It is the only part that drives the
-robot: each tick, it asks the selector for a proposal, hands it to
-the generator, and sends the pose the generator returns, hands the sounds due to
-its `SoundPlayer`, then records the pose (its efference copy). Starting a
-sound takes the robot 20 to 85 ms, so the `SoundPlayer` does it from its own
-thread, one sound after the other. The loop never waits, on a move or a
-sound: every tick, the selector chooses again. It also records in `SharedState`
-that a move is playing, then that it ended: the senses read it.
+## 4 · Send
+
+The **`RobotController`** (`spinal_cord/`) runs the loop, in its own
+thread. On every tick, it:
+
+1. asks the `ActionSelector` for a proposal;
+2. hands it to the `MotionGenerator`, which returns this tick's command;
+3. sends the pose to the robot, and the sounds to the `SoundPlayer`;
+4. records the pose sent in `SharedState`: the **efference copy**.
+
+It is the only part that drives the robot, and it never waits. Starting a
+sound takes the robot 20 to 85 ms, so the `SoundPlayer` does it in its own
+thread. The controller also records in `SharedState` when a move plays and
+when it ends: the senses read it.
 
 ## 4 · Perceive
 
