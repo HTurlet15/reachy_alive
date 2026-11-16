@@ -144,20 +144,22 @@ sound takes the robot 20 to 85 ms, so the `SoundPlayer` does it in its own
 thread. The controller also records in `SharedState` when a move plays and
 when it ends: the senses read it.
 
-## 4 · Perceive
+## 5 · Perceive
 
-Four senses run beside the loop, each in its own thread, started by
+Four senses run next to the loop, each in its own thread, started by
 `SenseManager`: the inertial unit, touch (the antennas), hearing and vision.
-Each reading of a sensor is described by its features, which the sense's
-detectors turn into facts in `SharedState`: a bump, an antenna pushed, a
-sudden noise, a face in view.
 
-While a move plays, and just after, the robot perceives itself: its motors
+- A **sense** reads its sensor, and describes each reading by its
+  **features**.
+- Its **detectors** turn those features into **facts** in `SharedState`: a
+  bump, an antenna pushed, a sudden noise, a face in view.
+
+While a move plays, and just after, the robot feels itself: its motors
 shake the head and make noise. The detectors know it from the efference
-copy, and record nothing then. The app's page shows the facts, and can
-switch a sense off. Nothing reacts to them yet.
+copy, and record nothing then.
 
-How a sense, its features and its detectors fit together is drawn in
+The app's page shows the facts, and can switch a sense off. Nothing reacts
+to them yet. How a sense, its features and its detectors fit together:
 [sensory_cortex/README.md](./reachy_alive/brain/sensory_cortex/README.md).
 
 ## SharedState
@@ -170,8 +172,7 @@ The facts any module may read at any time, each written by one module only:
 - the settings, such as the idle move interval and the senses switched
   off: the app's routes.
 
-Orders never go there: a proposal travels as a command, executed once (see
-rule 4).
+Orders never go there: a proposal is passed on and used once (see rule 4).
 
 ## Two ticks through the loop
 
@@ -197,7 +198,7 @@ neutral, and the robot's rest starts again from zero.
 ### Someone clicks "Sneezing"
 
 - The page sends `POST /moves/sneezing/play`. The web server runs in its own
-  thread: the route checks the name, drops the move in a queue, and answers
+  thread: the route checks the name, puts a proposal in a queue, and answers
   at once. It never touches the robot.
 - On the next tick, the `ActionSelector` finds the request and chooses the
   sneeze; the `MotionGenerator` cuts it into ticks. Breathing will start again from neutral
@@ -224,13 +225,17 @@ what lets reflexes and deliberation join later without touching the rest.
 - **Decision-maker**: a module that proposes what the robot should do.
   Today, `IdleManager`; later, reflexes and deliberation. The app's page
   proposes too, through its routes.
-- **Command**: an order for one tick, handed to the `RobotController` and
-  executed once: hold this pose, or play this move.
+- **Proposal**: what a decision-maker wants the robot to do, for one tick:
+  a move to start, a direction to look at, or both. Never stored.
+- **Direction**: where to look, and how long to take getting there. The
+  head turns there; the body follows if the turn is large.
+- **Command**: what the `MotionGenerator` returns for one tick, and the
+  `RobotController` sends: a pose, and the sounds due.
 - **`SharedState`**: the facts any module may read at any time, such as
   when the last move ended. Orders never go there.
 - **Efference copy**: what the robot is doing itself, kept as a fact so the
-  senses can tell its own motion and sounds from the world's. Today: whether
-  a move is playing, waking up included.
+  senses can tell its own motion and sounds from the world's: the pose
+  sent, and whether a move is playing, waking up included.
 - **Sense**: reads one of the robot's sensors in its own thread, and
   describes each reading by its **features**, such as how loud a frame of
   sound is. It never says what they mean, and never drives the robot.
