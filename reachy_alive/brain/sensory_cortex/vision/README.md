@@ -11,7 +11,9 @@ One `VisionFeatures` 5 times a second:
   - `x`: from -1 at the left edge of the view to 1 at the right, as the
     robot sees it;
   - `y`: from -1 at the top edge to 1 at the bottom;
-  - `distance_m`: how far it is from the camera, estimated from its size.
+  - `distance_m`: how far it is from the camera, estimated from its size;
+  - `yaw_rad`: its angle from where the camera points, positive to the
+    robot's left, computed with the camera's focal length.
 - Like every sense: `perceived_at` and `robot_moving_itself`.
 
 No image: the sense finds the faces, detectors read them. Details in

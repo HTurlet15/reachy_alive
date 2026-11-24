@@ -1,5 +1,7 @@
 """The vision sense: the faces the camera sees, a few times a second."""
 
+import math
+
 import numpy as np
 from reachy_mini import ReachyMini
 from reachy_mini.vision.face_detector import Face, FaceDetector
@@ -77,7 +79,7 @@ class VisionSense(Sense):
     def seen_face(
         face: Face, image_width_px: int, image_height_px: int, focal_px: float
     ) -> SeenFace:
-        """Describe a face found by the face finder: where it is, and how far.
+        """Describe a face found by the face finder: where it is, how far, and at what angle.
 
         Args:
             face: A face found by the face finder, in pixels.
@@ -94,4 +96,6 @@ class VisionSense(Sense):
             y=2 * center_y_px / image_height_px - 1,
             # A pinhole camera: an object's size in the image shrinks with its distance.
             distance_m=focal_px * VisionSense.AVERAGE_FACE_WIDTH_M / width_px,
+            # The same pinhole camera: an offset of focal_px from the center is 45°.
+            yaw_rad=math.atan2(image_width_px / 2 - center_x_px, focal_px),
         )

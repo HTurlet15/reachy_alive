@@ -176,7 +176,9 @@ def test_senses_are_sent_as_seconds_before_the_request(client, shared_state):
     shared_state.inertial.record_bump(three_s_ago)
     shared_state.touch.record_antenna_pushed_since("left", three_s_ago)
     shared_state.hearing.record_sudden_noise(three_s_ago)
-    shared_state.vision.record_face_appeared(three_s_ago, SeenFace(x=0.0, y=0.0, distance_m=1.2))
+    shared_state.vision.record_face_appeared(
+        three_s_ago, SeenFace(x=0.0, y=0.0, distance_m=1.2, yaw_rad=0.0)
+    )
 
     senses = client.get("/senses").json()
 
@@ -189,7 +191,7 @@ def test_senses_are_sent_as_seconds_before_the_request(client, shared_state):
 
 
 def test_a_lost_face_has_no_distance_and_a_time_since_it_left(client, shared_state):
-    shared_state.vision.record_face_appeared(time.monotonic() - 5.0, SeenFace(0.0, 0.0, 1.2))
+    shared_state.vision.record_face_appeared(time.monotonic() - 5.0, SeenFace(0.0, 0.0, 1.2, 0.0))
     shared_state.vision.record_face_lost(time.monotonic() - 2.0)
 
     vision = client.get("/senses").json()["vision"]

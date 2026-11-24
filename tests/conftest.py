@@ -8,6 +8,7 @@ import pytest
 
 from reachy_alive.brain.basal_ganglia.action_selector import ActionSelector
 from reachy_alive.brain.basal_ganglia.proposal import Proposal
+from reachy_alive.brain.brainstem.reflexes.reflex_manager import ReflexManager
 from reachy_alive.brain.cerebellum.motion_generator import MotionGenerator
 from reachy_alive.moves.base import Move
 from reachy_alive.moves.robot_sounds import upload_sounds
@@ -107,7 +108,7 @@ def play(fake_reachy_mini):
         requests = queue.Queue()
         requests.put(Proposal(source="page", move_to_start=move))
         generator = MotionGenerator(state)
-        selector = ActionSelector(NoIdleMoves(), requests, generator)
+        selector = ActionSelector(ReflexManager([]), NoIdleMoves(), requests, generator)
         sounds = SoundsAtOnce(fake_reachy_mini, upload_sounds([move], fake_reachy_mini))
         controller = RobotController(selector, generator, sounds)
         commands = []

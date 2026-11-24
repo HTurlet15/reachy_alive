@@ -80,6 +80,24 @@ def test_a_face_on_the_bottom_edge_is_at_one():
     assert face.y == 1.0
 
 
+def test_a_face_at_the_center_of_the_image_is_straight_ahead():
+    face = describe(face_centered_at(x_px=CENTER_X_PX, y_px=CENTER_Y_PX))
+
+    assert face.yaw_rad == 0.0
+
+
+def test_a_face_one_focal_length_left_of_the_center_is_45_degrees_to_the_left():
+    face = describe(face_centered_at(x_px=CENTER_X_PX - FOCAL_PX, y_px=CENTER_Y_PX))
+
+    assert math.isclose(face.yaw_rad, math.radians(45))
+
+
+def test_a_face_right_of_the_center_is_at_a_negative_angle():
+    face = describe(face_centered_at(x_px=CENTER_X_PX + 20, y_px=CENTER_Y_PX))
+
+    assert face.yaw_rad < 0.0
+
+
 def test_a_face_box_focal_times_face_width_wide_is_one_meter_away():
     face = describe(
         face_centered_at(CENTER_X_PX, CENTER_Y_PX, width_px=FACE_AT_ONE_METER_PX)

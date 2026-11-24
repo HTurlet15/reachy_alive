@@ -8,8 +8,9 @@ import numpy as np
 import pytest
 
 from reachy_alive.brain.basal_ganglia.action_selector import ActionSelector
-from reachy_alive.brain.basal_ganglia.proposal import Proposal
+from reachy_alive.brain.basal_ganglia.proposal import Direction, Proposal
 from reachy_alive.brain.brainstem.idle_manager import IdleManager
+from reachy_alive.brain.brainstem.reflexes.reflex_manager import ReflexManager
 from reachy_alive.brain.cerebellum.motion_generator import MotionGenerator
 from reachy_alive.moves.base import NEUTRAL_ANTENNAS_RAD, SoundCue
 from reachy_alive.shared_state import SharedState
@@ -31,11 +32,15 @@ def idle_proposing(move):
 class Loop:
     """Runs a selector tick by tick, sending each command to a fake robot."""
 
-    def __init__(self, idle_manager, fake_reachy_mini, requests=None, state=None) -> None:
+    def __init__(
+        self, idle_manager, fake_reachy_mini, requests=None, state=None, reflexes=None
+    ) -> None:
         self.state = state or SharedState()
         self.requests = requests or queue.Queue()
         self.generator = MotionGenerator(self.state)
-        self.selector = ActionSelector(idle_manager, self.requests, self.generator)
+        self.selector = ActionSelector(
+            ReflexManager(reflexes or []), idle_manager, self.requests, self.generator
+        )
         sounds = SoundsAtOnce(fake_reachy_mini, {SNEEZE: "/robot/sneeze.wav"})
         self.controller = RobotController(self.selector, self.generator, sounds)
         self.fake_reachy_mini = fake_reachy_mini
@@ -194,3 +199,19 @@ def test_the_robot_rests_for_the_whole_delay_between_two_idle_moves(
 
     # 2 s of move, 0.5 s of way back, then 5 s of rest again.
     assert starts == pytest.approx([5.0, 12.5])
+
+
+class AlwaysLooking:
+    """A reflex that proposes looking left on every tick."""
+
+    PROPOSAL = Proposal(source="reflex", direction=Direction(yaw_rad=0.5, duration_s=1.0))
+
+    def propose(self, now):
+        return self.PROPOSAL
+
+
+def test_a_reflex_wins_over_a_move_requested_from_the_page(fake_reachy_mini):
+    loop = Loop(idle_proposing(None), fake_reachy_mini, reflexes=[AlwaysLooking()])
+    loop.requests.put(Proposal(source="page", move_to_start=StillMove()))
+
+    assert loop.selector.choose(now=1.0) is AlwaysLooking.PROPOSAL
