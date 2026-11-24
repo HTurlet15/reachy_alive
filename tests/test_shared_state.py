@@ -12,8 +12,8 @@ from reachy_alive.shared_state import (
     SharedState,
 )
 
-FACE = SeenFace(x=0.1, y=-0.2, distance_m=1.0)
-FACE_MOVED = SeenFace(x=0.5, y=-0.2, distance_m=1.2)
+FACE = SeenFace(x=0.1, y=-0.2, distance_m=1.0, yaw_rad=0.0)
+FACE_MOVED = SeenFace(x=0.5, y=-0.2, distance_m=1.2, yaw_rad=0.0)
 
 
 def test_idle_move_interval_starts_at_the_default():

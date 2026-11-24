@@ -5,10 +5,12 @@ from reachy_alive.brain.sensory_cortex.vision.vision_features import SeenFace, V
 from reachy_alive.shared_state import VisionFacts
 
 FRAME_PERIOD_S = 0.2
-NEAR = SeenFace(x=0.0, y=0.0, distance_m=1.0)
-NEAR_MOVED = SeenFace(x=0.4, y=0.0, distance_m=1.0)
-NEARER = SeenFace(x=-0.5, y=0.0, distance_m=0.6)
-TOO_FAR = SeenFace(x=0.0, y=0.0, distance_m=FacePresenceDetector.MAX_FACE_DISTANCE_M + 0.5)
+NEAR = SeenFace(x=0.0, y=0.0, distance_m=1.0, yaw_rad=0.0)
+NEAR_MOVED = SeenFace(x=0.4, y=0.0, distance_m=1.0, yaw_rad=0.0)
+NEARER = SeenFace(x=-0.5, y=0.0, distance_m=0.6, yaw_rad=0.0)
+TOO_FAR = SeenFace(
+    x=0.0, y=0.0, distance_m=FacePresenceDetector.MAX_FACE_DISTANCE_M + 0.5, yaw_rad=0.0
+)
 
 
 def make_detector() -> tuple[FacePresenceDetector, VisionFacts]:

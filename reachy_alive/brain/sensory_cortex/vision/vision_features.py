@@ -15,11 +15,14 @@ class SeenFace:
             the right edge, as the robot sees it.
         y: Vertical position, from -1 at the top edge to 1 at the bottom edge.
         distance_m: Estimated distance from the camera, in meters.
+        yaw_rad: Its angle from where the camera points, in radians:
+            positive to the robot's left, like a Direction.
     """
 
     x: float
     y: float
     distance_m: float
+    yaw_rad: float
 
 
 @dataclass(frozen=True)
