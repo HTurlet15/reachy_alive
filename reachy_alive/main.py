@@ -10,6 +10,7 @@ from reachy_mini.motion.recorded_move import RecordedMoves
 from reachy_alive.brain.basal_ganglia.action_selector import ActionSelector
 from reachy_alive.brain.basal_ganglia.proposal import Proposal
 from reachy_alive.brain.brainstem.idle_manager import IdleManager
+from reachy_alive.brain.brainstem.reflexes.face_glance_reflex import FaceGlanceReflex
 from reachy_alive.brain.brainstem.reflexes.reflex_manager import ReflexManager
 from reachy_alive.brain.cerebellum.motion_generator import MotionGenerator
 from reachy_alive.brain.sensory_cortex.sense_manager import SenseManager
@@ -79,7 +80,7 @@ class ReachyAlive(ReachyMiniApp):
         # propose, ActionSelector picks a reflex over a requested move over
         # idle, MotionGenerator generates each tick, RobotController drives
         # the robot. The reflexes are listed most urgent first.
-        reflex_manager = ReflexManager([])
+        reflex_manager = ReflexManager([FaceGlanceReflex(shared_state)])
         idle_manager = IdleManager(idle_moves, shared_state)
         motion_generator = MotionGenerator(shared_state)
         action_selector = ActionSelector(
