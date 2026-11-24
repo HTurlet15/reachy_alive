@@ -48,7 +48,7 @@ flowchart LR
         direction LR
         page["the app's page"]
         idle["IdleManager<br/>brainstem"]
-        reflexes["reflexes<br/>amygdala"]:::later
+        reflexes["reflexes<br/>brainstem"]
         cortex["deliberation<br/>prefrontal_cortex"]:::later
     end
     subgraph choose["2 · Choose"]
@@ -85,8 +85,11 @@ robot.
 Each one builds a **`Proposal`**: a move to start, a direction to look at,
 or both. A proposal is an order for one tick: it is passed on, never stored.
 
-There are two today:
+There are three today:
 
+- **The reflexes** (`brain/brainstem/reflexes/`): the `ReflexManager` asks
+  each reflex, most urgent first, whether it reacts to a fact. One so far:
+  the `FaceGlanceReflex` looks at a face that appears, then lets go.
 - **`IdleManager`** (`brain/brainstem/`): once the robot has rested for a
   while, it proposes an idle move, such as a yawn. The delay is drawn from
   the interval kept in `SharedState`.
@@ -95,7 +98,7 @@ There are two today:
   a queue and answer at once. They also change the settings in
   `SharedState`, such as the idle move interval or a sense switched off.
 
-Reflexes and deliberation will propose the same way.
+Deliberation will propose the same way.
 
 ## 2 · Choose
 
@@ -104,8 +107,8 @@ tick, or none:
 
 - while the `MotionGenerator` is busy, with a move or its way back to
   neutral, it picks nothing;
-- otherwise, it picks by priority: the page first, then `IdleManager`.
-  Reflexes will come first.
+- otherwise, it picks by priority: a reflex first, then the page, then
+  `IdleManager`.
 
 It only chooses: it never builds a pose. To choose, it asks the generator
 two questions: is it busy, and how long has the robot been resting, which
@@ -254,7 +257,7 @@ reachy_alive/
 ├── spinal_cord/          From a chosen move to the robot: commands, the RobotController and its SoundPlayer.
 ├── brain/                The brain regions, sorted by speed (see rule 8).
 │   ├── basal_ganglia/    Choosing: the ActionSelector picks what the robot does, by priority.
-│   ├── brainstem/        Automatic behavior: breathing, and IdleManager.
+│   ├── brainstem/        Automatic behavior: breathing, IdleManager, and the reflexes (reflexes/).
 │   ├── cerebellum/       Playing: the MotionGenerator cuts the move chosen into poses, breathes in between, and turns head and body.
 │   └── sensory_cortex/   The senses and their detectors: sensor readings into facts. Its README: how to add a detector.
 ├── moves/                The Move contract (base.py), the coded moves, and the guides to write one.
@@ -302,7 +305,7 @@ when built, such as downloading a move library, is built in `main.py` and
 passed down. A plain import never downloads anything, not even during tests.
 
 **8. Folders named after brain regions, under `brain/`, hold the cognitive
-modules, sorted by speed.** Fast, local and synchronous goes to `amygdala/`; slow, remote and
+modules, sorted by speed.** Fast, local and synchronous goes to `brainstem/`; slow, remote and
 asynchronous goes to `prefrontal_cortex/`. Reacting to a face can mean
 both: a startle belongs in the first, a greeting in the second. Sorting by
 speed rather than by topic keeps anything that can block out of the fast
@@ -334,7 +337,7 @@ reaction planned below; raw signal (images, sound) stays inside its sense.
 tick. Sounds start from their own thread, so the control loop never waits.
 Nothing new shows: the robot behaves as before, with fewer freezes.
 
-**Next: reflexes.** `amygdala/`: fast, local reactions to the senses' facts,
+**Next: reflexes.** `brainstem/reflexes/`: fast, local reactions to the senses' facts,
 which interrupt whatever the robot is doing. The `ActionSelector` puts
 reflexes first. Innate triggers only, two of them to start. The milestone
 the project is built for: the robot perceives and reacts, without waiting
@@ -351,5 +354,5 @@ someone, rather than reflexively glance.
 `ActionSelector` becomes a behavior tree.
 
 **Later: memory.** `hippocampus/`: the cortex writes what it judged, the
-amygdala reads it back in milliseconds. The robot's fast reaction becomes
+reflexes read it back in milliseconds. The robot's fast reaction becomes
 right because it was slow once.
