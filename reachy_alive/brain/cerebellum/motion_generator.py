@@ -35,7 +35,7 @@ class MotionGenerator:
 
     # A head turn beyond the dead zone brings the body along, this many times
     # slower than the head. Provisional: to check on the robot.
-    BODY_FOLLOW_DEAD_ZONE_DEG = 20.0
+    BODY_FOLLOW_DEAD_ZONE_DEG = 30.0
     BODY_SLOWER_THAN_HEAD = 1.5
 
     def __init__(self, shared_state: SharedState) -> None:
