@@ -116,3 +116,30 @@ def test_after_letting_go_it_does_not_look_again_at_the_same_face(state):
     reflex.propose(now=1.0 + FaceGlanceReflex.HOLD_S)  # lets go; the face stays
 
     assert reflex.propose(now=1.0 + FaceGlanceReflex.HOLD_S + 0.1) is None
+
+
+# Speech keeps the interest
+
+
+def test_it_keeps_looking_while_someone_speaks(state):
+    reflex = looking_at_a_face(state)
+    state.hearing.record_speaking_since(2.0)
+
+    assert reflex.propose(now=1.0 + FaceGlanceReflex.HOLD_S + 5.0) is None
+
+
+def test_it_lets_go_hold_s_after_the_speech_ends(state):
+    reflex = looking_at_a_face(state)
+    state.hearing.record_speaking_since(2.0)
+    state.hearing.record_speech_ended(3.0)
+
+    assert reflex.propose(now=3.0 + FaceGlanceReflex.HOLD_S - 0.1) is None
+    assert reflex.propose(now=3.0 + FaceGlanceReflex.HOLD_S) is not None
+
+
+def test_speech_that_ended_before_the_face_appeared_does_not_count(state):
+    state.hearing.record_speech_ended(0.5)
+    reflex = looking_at_a_face(state)
+
+    assert reflex.propose(now=0.5 + FaceGlanceReflex.HOLD_S + 0.1) is None  # counts from 1.0
+    assert reflex.propose(now=1.0 + FaceGlanceReflex.HOLD_S) is not None

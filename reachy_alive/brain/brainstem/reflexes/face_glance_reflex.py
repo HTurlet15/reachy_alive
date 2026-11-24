@@ -14,22 +14,23 @@ class FaceGlanceReflex:
     """Looks at a face when it appears, and lets go once it leaves or interest fades.
 
     It reacts to each appearance once: a face that stays in view is not a
-    new one. It only proposes directions: the head turns toward the face, and
+    new one. Someone speaking keeps its interest: it lets go HOLD_S after
+    the speech ends. It only proposes directions: the head turns toward the face, and
     the body follows if the turn is large. Letting go brings the head back
     over the body, which stays where it turned.
     """
 
     # How long the head takes to turn. Provisional: to check on the robot.
     TURN_DURATION_S = 1.0
-    # How long it keeps looking after the last sign of interest. Provisional:
-    # to check on the robot.
+    # How long it keeps looking after the last sign of interest: the face
+    # appearing, or speech. Provisional: to check on the robot.
     HOLD_S = 4.0
 
     def __init__(self, shared_state: SharedState) -> None:
         """Keep where the facts are read.
 
         Args:
-            shared_state: Read the faces in view, and the last pose sent.
+            shared_state: Read the faces in view, speech, and the last pose sent.
         """
         self._shared_state = shared_state
         # When the face it last looked at appeared; None before the first one.
@@ -48,7 +49,7 @@ class FaceGlanceReflex:
         # 1. It is looking at a face: it lets go once the face left, or interest faded.
         if self._looking:
             face_left = appeared_at != self._looked_at_appearance_at
-            interest_faded = now - self._last_sign_of_interest_at() >= self.HOLD_S
+            interest_faded = now - self._last_sign_of_interest_at(now) >= self.HOLD_S
             if face_left or interest_faded:
                 return self._let_go()
             return None
@@ -60,9 +61,19 @@ class FaceGlanceReflex:
         # 3. Nothing new.
         return None
 
-    def _last_sign_of_interest_at(self) -> float:
-        """Return when the face showed interest last: for now, only when it appeared."""
-        return self._looked_at_appearance_at
+    def _last_sign_of_interest_at(self, now: float) -> float:
+        """Return when interest last showed: now while someone speaks, else the latest sign.
+
+        The signs: the face appearing, and the last speech ending. Speech counts
+        whoever speaks: the robot can't tell whether it comes from the face.
+        """
+        hearing = self._shared_state.hearing
+        if hearing.speaking_since() is not None:
+            return now
+        last_speech_ended_at = hearing.last_speech_ended_at()
+        if last_speech_ended_at is None:
+            return self._looked_at_appearance_at
+        return max(self._looked_at_appearance_at, last_speech_ended_at)
 
     def _look_at_face(self, appeared_at: float) -> Proposal | None:
         """Start looking at the face in view, and propose its direction."""
