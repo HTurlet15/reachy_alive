@@ -21,6 +21,7 @@ from reachy_mini.motion.recorded_move import RecordedMoves
 
 from reachy_alive.brain.basal_ganglia.action_selector import ActionSelector
 from reachy_alive.brain.basal_ganglia.proposal import Proposal
+from reachy_alive.brain.brainstem.reflexes.reflex_manager import ReflexManager
 from reachy_alive.brain.cerebellum.motion_generator import MotionGenerator
 from reachy_alive.moves.base import LibraryMove
 from reachy_alive.moves.robot_sounds import upload_sounds
@@ -105,7 +106,7 @@ def main() -> None:
         requests.put(Proposal(source="try-move", move_to_start=move))
         stop_event = threading.Event()
         motion_generator = _StopAfterTheMove(shared_state, stop_event)
-        selector = ActionSelector(_NoIdleMoves(), requests, motion_generator)
+        selector = ActionSelector(ReflexManager([]), _NoIdleMoves(), requests, motion_generator)
         controller = RobotController(
             selector, motion_generator, SoundPlayer(mini, upload_sounds([move], mini))
         )
