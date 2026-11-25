@@ -38,3 +38,4 @@ Details in [`hearing_features.py`](hearing_features.py).
 | Detector | Records | How |
 |---|---|---|
 | `SuddenNoiseDetector` | a sudden noise | A jump above the background; a loud sound right after another is expected |
+| `SpeechDetector` | someone speaking, since when, and when they stopped | Silero's recipe on `voice_probability`: speech starts at 0.5, and ends after 0.3 s under 0.35 |
