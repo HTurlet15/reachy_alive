@@ -11,6 +11,8 @@ One `HearingFeatures` every 20 ms, a frame of sound:
   microphones report; every -6 dB halves the sound.
 - `time_listened_s`: how long the sense has listened, at the end of the
   frame: the sound's own clock.
+- `voice_probability`: how much the sound sounds like a voice, from 0 to 1,
+  by [Silero VAD](../../../assets/models/README.md), a small neural network.
 - Like every sense: `perceived_at` and `robot_moving_itself`.
 
 Details in [`hearing_features.py`](hearing_features.py).
@@ -24,6 +26,9 @@ Details in [`hearing_features.py`](hearing_features.py).
 - **Follow the sound with `time_listened_s`.** Sound arrives late or
   bunched up: `perceived_at` says when a frame was read, `time_listened_s`
   where it sits in the sound.
+- **`voice_probability` changes every 32 ms, not every frame.** The model
+  judges 32 ms of sound at a time: one or two frames in a row carry the
+  same answer.
 - **A loud sound doesn't say what it was.** A clap, the first word after a
   silence and a TV changing scene all jump 30 dB or more above the
   background.

@@ -29,13 +29,29 @@ def chunks_of(samples: np.ndarray, chunk_size: int) -> list[np.ndarray]:
     return [samples[i : i + chunk_size] for i in range(0, len(samples), chunk_size)]
 
 
-def make_sense(chunks: list, sample_rate_hz: int = SAMPLE_RATE_HZ):
+class FakeVoiceModel:
+    """Records the sound it hears, and answers how many frames it heard, in tenths."""
+
+    def __init__(self):
+        self.heard = []
+        self.forgotten = 0
+
+    def hear(self, samples):
+        self.heard.append(samples)
+        return len(self.heard) / 10
+
+    def forget(self):
+        self.forgotten += 1
+
+
+def make_sense(chunks: list, sample_rate_hz: int = SAMPLE_RATE_HZ, voice_model=None):
     """Build a sense on fake microphones that give `chunks`, then nothing."""
     reachy_mini = MagicMock()
     reachy_mini.media.get_input_audio_samplerate.return_value = sample_rate_hz
     reachy_mini.media.get_audio_sample.side_effect = chunks + [None] * 100
     state = SharedState()
-    return HearingSense(reachy_mini, state), state, reachy_mini
+    sense = HearingSense(reachy_mini, state, voice_model=voice_model or FakeVoiceModel())
+    return sense, state, reachy_mini
 
 
 def features_from(sense: HearingSense, readings: int) -> list:
@@ -128,6 +144,50 @@ def test_the_features_say_when_the_robot_just_moved_itself():
 
     assert sense.perceive(ended_at + 0.3).robot_moving_itself is True  # within SETTLE_AFTER_MOVE_S
     assert sense.perceive(ended_at + 0.6).robot_moving_itself is False
+
+
+# Voice
+
+
+def test_each_frame_goes_to_the_voice_model_in_order():
+    first, second = np.full((320, 2), 0.1), np.full((320, 2), 0.2)
+    voice_model = FakeVoiceModel()
+    sense, _, _ = make_sense([np.concatenate([first, second])], voice_model=voice_model)
+
+    features_from(sense, 2)
+
+    assert len(voice_model.heard) == 2
+    np.testing.assert_array_equal(voice_model.heard[0], np.full(320, 0.1))  # stereo made mono
+    np.testing.assert_array_equal(voice_model.heard[1], np.full(320, 0.2))
+
+
+def test_each_frame_carries_the_voice_model_answer():
+    sense, _, _ = make_sense([sound(LOUD, 0.06)])
+
+    features = features_from(sense, 3)
+
+    assert [frame.voice_probability for frame in features] == [0.1, 0.2, 0.3]
+
+
+def test_switching_hearing_back_on_makes_the_voice_model_forget():
+    voice_model = FakeVoiceModel()
+    sense, _, _ = make_sense([sound(LOUD, 0.04)], voice_model=voice_model)
+    sense.perceive(0.0)
+
+    sense.perceive(60.0)  # after a minute switched off
+
+    assert voice_model.forgotten == 1
+
+
+def test_silero_is_the_voice_model_by_default():
+    reachy_mini = MagicMock()
+    reachy_mini.media.get_input_audio_samplerate.return_value = SAMPLE_RATE_HZ
+    reachy_mini.media.get_audio_sample.side_effect = [sound(QUIET, 0.1)] + [None] * 100
+    sense = HearingSense(reachy_mini, SharedState())
+
+    features = features_from(sense, 5)
+
+    assert all(frame.voice_probability < 0.1 for frame in features)  # silence
 
 
 # Microphones

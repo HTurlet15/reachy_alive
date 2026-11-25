@@ -1,10 +1,11 @@
-"""The hearing sense: how loud the sound is, 20 ms at a time.
+"""The hearing sense: how loud the sound is, and how much it sounds like a voice, 20 ms at a time.
 
 The microphones give 16,000 samples per second, each between -1 and 1. The
 SDK hands them over in chunks of any length, as they arrive, and queues the
 chunks not taken yet. The sense pours the samples of the chunks it takes into
 its buffer, and cuts them into frames of 20 ms, 320 samples: one loudness
-level each.
+level each. Each frame also goes to the voice model, which judges the sound
+32 ms at a time.
 """
 
 import math
@@ -14,6 +15,7 @@ import numpy as np
 from reachy_mini import ReachyMini
 
 from reachy_alive.brain.sensory_cortex.hearing.hearing_features import HearingFeatures
+from reachy_alive.brain.sensory_cortex.hearing.voice_model import VoiceModel
 from reachy_alive.brain.sensory_cortex.sense import Sense
 from reachy_alive.shared_state import SharedState
 
@@ -42,14 +44,22 @@ class HearingSense(Sense):
     # readings means the page had switched hearing off.
     SWITCHED_OFF_GAP_S = 0.5
 
-    def __init__(self, reachy_mini: ReachyMini, shared_state: SharedState) -> None:
-        """Size the frames from the microphones' sample rate.
+    def __init__(
+        self,
+        reachy_mini: ReachyMini,
+        shared_state: SharedState,
+        voice_model: VoiceModel | None = None,
+    ) -> None:
+        """Size the frames from the microphones' sample rate, and load the voice model.
 
         Args:
             reachy_mini: Connected robot instance, only listened to.
             shared_state: Where the sense learns whether the robot is moving itself.
+            voice_model: Says how much the sound sounds like a voice; Silero's,
+                by default. Tests pass a fake one.
         """
         super().__init__(reachy_mini, shared_state)
+        self._voice_model = voice_model or VoiceModel()
         self._sample_rate_hz = reachy_mini.media.get_input_audio_samplerate()
         self._samples_per_frame = round(self._sample_rate_hz * self.FRAME_S)
         self._sample_buffer = np.zeros(0)
@@ -88,6 +98,7 @@ class HearingSense(Sense):
             time_listened_s=self._time_listened_s,
             level_dbfs=self.loudness_dbfs(frame),
             robot_moving_itself=robot_moving_itself,
+            voice_probability=self._voice_model.hear(frame),
         )
 
     def _drop_old_sound(self) -> None:
@@ -95,9 +106,11 @@ class HearingSense(Sense):
 
         Recording never stops: sound keeps queuing in the SDK, up to 500 chunks.
         Queued chunks come back at once; the first one that makes us wait is
-        fresh, and the queue is empty.
+        fresh, and the queue is empty. The voice model forgets what it heard:
+        the sound that comes next doesn't follow it.
         """
         self._sample_buffer = np.zeros(0)  # ours: taken from the SDK, not cut yet
+        self._voice_model.forget()
         give_up_at = time.monotonic() + self.MAX_DROP_S
         while time.monotonic() < give_up_at:
             asked_at = time.monotonic()
