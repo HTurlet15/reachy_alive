@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class HearingFeatures:
-    """How loud one 20 ms frame of sound is: what every hearing detector reads.
+    """How loud one 20 ms frame of sound is, and how much it sounds like a voice.
 
     Attributes:
         perceived_at: When the sense perceived this, in seconds, on
@@ -20,9 +20,14 @@ class HearingFeatures:
             microphones can report.
         robot_moving_itself: Whether a move was playing or had just ended:
             the robot then hears its own motors.
+        voice_probability: How much the sound sounds like a voice, from 0
+            (no voice) to 1, by Silero VAD. It judges 32 ms at a time: this
+            is its latest answer, on sound that ends in this frame or up to
+            32 ms before.
     """
 
     perceived_at: float
     time_listened_s: float
     level_dbfs: float
     robot_moving_itself: bool
+    voice_probability: float

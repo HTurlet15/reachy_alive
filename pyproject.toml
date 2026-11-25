@@ -14,6 +14,9 @@ requires-python = ">=3.11"
 dependencies = [
     "fastapi",
     "numpy",
+    # Runs the voice model, Silero VAD. The SDK already needs it, for its face
+    # detector: listed because hearing uses it directly.
+    "onnxruntime",
     "pydantic>=2",
     # Installed into the robot's shared apps environment, next to the
     # daemon's SDK. 1.13 is the first to download a dataset without a token

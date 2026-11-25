@@ -148,9 +148,11 @@ class HearingFacts:
     """What the robot hears, as facts. Read it as `shared_state.hearing`."""
 
     def __init__(self) -> None:
-        """Start with no sudden noise heard."""
+        """Start with no sudden noise heard, and nobody speaking."""
         self._lock = threading.Lock()
         self._last_sudden_noise_at: float | None = None
+        self._speaking_since: float | None = None
+        self._last_speech_ended_at: float | None = None
 
     # Sudden noises. Written by SuddenNoiseDetector.
 
@@ -163,6 +165,29 @@ class HearingFacts:
         """Return when the last sudden noise started (time.monotonic()), or None if none yet."""
         with self._lock:
             return self._last_sudden_noise_at
+
+    # Speech. Written by SpeechDetector.
+
+    def record_speaking_since(self, since: float | None) -> None:
+        """Record since when someone is speaking (time.monotonic()), or None once nobody is."""
+        with self._lock:
+            self._speaking_since = since
+
+    def record_speech_ended(self, at: float) -> None:
+        """Record that someone stopped speaking at `at` (time.monotonic())."""
+        with self._lock:
+            self._speaking_since = None
+            self._last_speech_ended_at = at
+
+    def speaking_since(self) -> float | None:
+        """Return since when someone is speaking (time.monotonic()), or None if nobody is."""
+        with self._lock:
+            return self._speaking_since
+
+    def last_speech_ended_at(self) -> float | None:
+        """Return when someone last stopped speaking (time.monotonic()), or None if never."""
+        with self._lock:
+            return self._last_speech_ended_at
 
 
 class SharedState:

@@ -45,6 +45,7 @@ def noise_starts(levels_dbfs: list[float], robot_moving_itself: bool = False) ->
                 time_listened_s=i * FRAME_S,
                 level_dbfs=level_dbfs,
                 robot_moving_itself=robot_moving_itself,
+                voice_probability=0.0,
             )
             for i, level_dbfs in enumerate(levels_dbfs)
         ]
@@ -91,12 +92,14 @@ def test_a_sudden_noise_is_dated_when_its_frame_was_perceived():
         time_listened_s=0.02,
         level_dbfs=QUIET_ROOM_DBFS,
         robot_moving_itself=False,
+        voice_probability=0.0,
     )
     clap = HearingFeatures(
         perceived_at=10.02,
         time_listened_s=0.04,
         level_dbfs=CLAP_DBFS,
         robot_moving_itself=False,
+        voice_probability=0.0,
     )
 
     detector.update(quiet)
@@ -137,6 +140,7 @@ def test_a_sound_rising_over_seconds_is_not_sudden_even_in_bunches():
             time_listened_s=i * FRAME_S,
             level_dbfs=level_dbfs,
             robot_moving_itself=False,
+            voice_probability=0.0,
         )
         for i, level_dbfs in enumerate(levels)
     ]
@@ -174,6 +178,7 @@ def test_the_background_keeps_following_the_room_while_the_robot_moves():
             time_listened_s=i * FRAME_S,
             level_dbfs=level_dbfs,
             robot_moving_itself=2.0 <= i * FRAME_S < 12.0,
+            voice_probability=0.0,
         )
         for i, level_dbfs in enumerate(levels)
     ]
@@ -196,6 +201,7 @@ def test_the_robots_own_sound_does_not_make_a_clap_after_the_move_expected():
             time_listened_s=i * FRAME_S,
             level_dbfs=level_dbfs,
             robot_moving_itself=2.0 <= i * FRAME_S < 4.0,
+            voice_probability=0.0,
         )
         for i, level_dbfs in enumerate(levels)
     ]
@@ -266,7 +272,11 @@ def listen(detector: SuddenNoiseDetector, levels_dbfs: list[float], start_s: flo
     for level_dbfs in levels_dbfs:
         detector.update(
             HearingFeatures(
-                perceived_at=t, time_listened_s=t, level_dbfs=level_dbfs, robot_moving_itself=False
+                perceived_at=t,
+                time_listened_s=t,
+                level_dbfs=level_dbfs,
+                robot_moving_itself=False,
+                voice_probability=0.0,
             )
         )
         t = round(t + FRAME_S, 2)
@@ -316,6 +326,7 @@ def recorded_noise_starts(name: str) -> list[float]:
                 time_listened_s=float(row["time_listened_s"]),
                 level_dbfs=float(row["level_dbfs"]),
                 robot_moving_itself=False,
+                voice_probability=0.0,
             )
             for row in csv.DictReader(f)
         ]
