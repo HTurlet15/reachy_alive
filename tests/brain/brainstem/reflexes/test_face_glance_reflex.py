@@ -50,10 +50,10 @@ def test_it_looks_again_at_a_face_that_comes_back(state):
     state.vision.record_face_appeared(1.0, FACE_ON_THE_LEFT)
     reflex.propose(now=1.1)
     state.vision.record_face_lost(2.0)
-    reflex.propose(now=2.1)  # lets go
-    state.vision.record_face_appeared(3.0, FACE_ON_THE_LEFT)
+    reflex.propose(now=1.0 + FaceGlanceReflex.HOLD_S)  # lets go
+    state.vision.record_face_appeared(6.0, FACE_ON_THE_LEFT)
 
-    proposal = reflex.propose(now=3.1)
+    proposal = reflex.propose(now=6.1)
 
     assert proposal.direction.yaw_rad == pytest.approx(math.radians(15))
 
@@ -104,11 +104,51 @@ def test_once_interest_fades_the_head_comes_back_over_the_body(state):
     assert proposal.direction.yaw_rad == pytest.approx(math.radians(10))
 
 
-def test_it_lets_go_as_soon_as_the_face_leaves(state):
+# A lost face
+
+
+def test_a_lost_face_does_not_end_the_glance(state):
     reflex = looking_at_a_face(state)
     state.vision.record_face_lost(1.5)
 
-    assert reflex.propose(now=1.6) is not None
+    assert reflex.propose(now=1.6) is None
+
+
+def test_a_lost_face_with_nobody_speaking_lets_go_once_interest_faded(state):
+    reflex = looking_at_a_face(state)
+    state.vision.record_face_lost(1.5)
+    reflex.propose(now=1.6)
+
+    assert reflex.propose(now=1.0 + FaceGlanceReflex.HOLD_S) is not None
+
+
+def test_it_keeps_looking_where_a_lost_face_was_while_someone_speaks(state):
+    reflex = looking_at_a_face(state)
+    state.hearing.record_speaking_since(1.2)
+    state.vision.record_face_lost(1.5)
+
+    assert reflex.propose(now=1.0 + 2 * FaceGlanceReflex.HOLD_S) is None
+
+
+def test_a_face_that_comes_back_while_it_looks_is_looked_at(state):
+    reflex = looking_at_a_face(state)
+    state.vision.record_face_lost(1.5)
+    reflex.propose(now=1.6)
+    state.vision.record_face_appeared(2.5, FACE_ON_THE_LEFT)
+
+    proposal = reflex.propose(now=2.6)
+
+    assert proposal.direction.yaw_rad == pytest.approx(math.radians(15))
+
+
+def test_a_face_that_comes_back_is_a_new_sign_of_interest(state):
+    reflex = looking_at_a_face(state)
+    state.vision.record_face_lost(1.5)
+    state.vision.record_face_appeared(2.5, FACE_ON_THE_LEFT)
+    reflex.propose(now=2.6)
+
+    assert reflex.propose(now=1.0 + FaceGlanceReflex.HOLD_S) is None  # not since 1.0
+    assert reflex.propose(now=2.5 + FaceGlanceReflex.HOLD_S) is not None
 
 
 def test_after_letting_go_it_does_not_look_again_at_the_same_face(state):
