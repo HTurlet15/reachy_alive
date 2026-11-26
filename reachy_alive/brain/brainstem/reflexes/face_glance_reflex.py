@@ -11,13 +11,15 @@ logger = logging.getLogger(__name__)
 
 
 class FaceGlanceReflex:
-    """Looks at a face when it appears, and lets go once it leaves or interest fades.
+    """Looks at a face when it appears, and lets go once interest fades.
 
     It reacts to each appearance once: a face that stays in view is not a
-    new one. Someone speaking keeps its interest: it lets go HOLD_S after
-    the speech ends. It only proposes directions: the head turns toward the face, and
-    the body follows if the turn is large. Letting go brings the head back
-    over the body, which stays where it turned.
+    new one. Interest lasts HOLD_S after its last sign: a face appearing,
+    or someone speaking. A face lost is not a sign: it keeps looking where
+    the face was, and a face that comes back is looked at again. It only
+    proposes directions: the head turns toward the face, and the body
+    follows if the turn is large. Letting go brings the head back over the
+    body, which stays where it turned.
     """
 
     # How long the head takes to turn. Provisional: to check on the robot.
@@ -46,17 +48,16 @@ class FaceGlanceReflex:
         """
         appeared_at = self._shared_state.vision.face_seen_since()
 
-        # 1. It is looking at a face: it lets go once the face left, or interest faded.
-        if self._looking:
-            face_left = appeared_at != self._looked_at_appearance_at
-            interest_faded = now - self._last_sign_of_interest_at(now) >= self.HOLD_S
-            if face_left or interest_faded:
-                return self._let_go()
-            return None
-
-        # 2. A face it has not looked at yet: it looks.
+        # 1. A face it has not looked at yet: it looks, even if it was looking
+        # where a lost face had been.
         if appeared_at is not None and appeared_at != self._looked_at_appearance_at:
             return self._look_at_face(appeared_at)
+
+        # 2. It is looking: it lets go once interest faded.
+        if self._looking:
+            interest_faded = now - self._last_sign_of_interest_at(now) >= self.HOLD_S
+            if interest_faded:
+                return self._let_go()
 
         # 3. Nothing new.
         return None
